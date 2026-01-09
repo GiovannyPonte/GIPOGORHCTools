@@ -1,0 +1,39 @@
+[versions]
+agp = "8.13.2"
+kotlin = "2.2.21"
+compileSdk = "36"
+minSdk = "24"
+targetSdk = "36"
+datastore = "1.1.1"
+
+
+composeBom = "2025.12.00" # Compose December '25 stable :contentReference[oaicite:7]{index=7}
+coreKtx = "1.17.0"        # Core stable :contentReference[oaicite:8]{index=8}
+activity = "1.12.2"       # Activity stable :contentReference[oaicite:9]{index=9}
+lifecycle = "2.9.4"       # Lifecycle stable :contentReference[oaicite:10]{index=10}
+navigation = "2.9.6"      # Navigation stable :contentReference[oaicite:11]{index=11}
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+
+androidx-lifecycle-runtime-ktx    = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
+
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-foundation = { module = "androidx.compose.foundation:foundation" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android       = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose       = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # :contentReference[oaicite:12]{index=12}
+
