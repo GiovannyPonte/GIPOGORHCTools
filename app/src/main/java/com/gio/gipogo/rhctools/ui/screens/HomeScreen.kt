@@ -19,10 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -38,11 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import com.gipogo.rhctools.R
 import com.gipogo.rhctools.report.PdfReportGenerator
 import com.gipogo.rhctools.report.PdfSession
 import com.gipogo.rhctools.report.ReportStore
@@ -57,9 +57,22 @@ fun HomeScreen(navController: NavController) {
     val hasAny by ReportStore.hasAnyResults.collectAsState(initial = false)
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    val pdfAppName = stringResource(R.string.pdf_app_name)
+
+
     var showPrepDialog by remember { mutableStateOf(false) }
 
-    // Header colors
+    // --- Modal fórmulas ---
+    var showFormulaDialog by remember { mutableStateOf(false) }
+    var formulaTitle by remember { mutableStateOf("") }
+    var formulaBody by remember { mutableStateOf("") }
+
+    // --- Modal fórmulas (ayuda por card) ---
+    var showFormulaDialog2 by remember { mutableStateOf(false) }
+    var formulaTitle2 by remember { mutableStateOf("") }
+    var formulaBody2 by remember { mutableStateOf("") }
+
+    // Colors
     val surface = MaterialTheme.colorScheme.surface
     val containerLow = MaterialTheme.colorScheme.surfaceContainerLow
     val containerHigh = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -72,13 +85,12 @@ fun HomeScreen(navController: NavController) {
                 title = {
                     Column {
                         Text(
-                            "GIPOGO RHC Tools",
+                            stringResource(R.string.home_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold
                         )
-                        // Quitamos el texto largo que no te convence (pedido del usuario)
                         Text(
-                            "Hemodinámica rápida (RHC)",
+                            stringResource(R.string.home_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = onSurfaceVariant
                         )
@@ -97,37 +109,10 @@ fun HomeScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
-            // --- Preparación rápida (compacta + modal) ---
-            item {
-                ElevatedCard(
-                    colors = CardDefaults.elevatedCardColors(containerColor = containerHigh)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "Preparación rápida",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-
-                        Text(
-                            "• Presiones con Swan-Ganz + CO\n• Si harás Fick: arterial + PA (SvO₂) y Hb",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = onSurfaceVariant
-                        )
-
-                        TextButton(onClick = { showPrepDialog = true }) {
-                            Text("Ver más")
-                        }
-                    }
-                }
-            }
-
             // --- Sección: Cálculos ---
             item {
                 Text(
-                    "Cálculos",
+                    stringResource(R.string.home_section_calculations),
                     style = MaterialTheme.typography.titleSmall,
                     color = onSurfaceVariant
                 )
@@ -136,8 +121,14 @@ fun HomeScreen(navController: NavController) {
             item {
                 ToolRow(
                     badge = "CO",
-                    title = "Fick: gasto cardíaco",
-                    subtitle = "CO/CI/SV con peso, talla, SaO₂, SvO₂ (PA), Hb, HR y edad.",
+                    title = stringResource(R.string.home_tool_fick_title),
+                    subtitle = stringResource(R.string.home_tool_fick_subtitle),
+                    helpText = stringResource(R.string.home_help_fick),
+                    onHelpClick = { t, b ->
+                        formulaTitle2 = t
+                        formulaBody2 = b
+                        showFormulaDialog2 = true
+                    },
                     onClick = { navController.navigate(Destinations.Fick.route) }
                 )
             }
@@ -145,8 +136,14 @@ fun HomeScreen(navController: NavController) {
             item {
                 ToolRow(
                     badge = "SVR",
-                    title = "Resistencia vascular sistémica",
-                    subtitle = "MAP + CVP + CO. Salida en Wood Units o dyn·s·cm⁻⁵.",
+                    title = stringResource(R.string.home_tool_svr_title),
+                    subtitle = stringResource(R.string.home_tool_svr_subtitle),
+                    helpText = stringResource(R.string.home_help_svr),
+                    onHelpClick = { t, b ->
+                        formulaTitle2 = t
+                        formulaBody2 = b
+                        showFormulaDialog2 = true
+                    },
                     onClick = { navController.navigate(Destinations.Resistances.route) }
                 )
             }
@@ -154,8 +151,14 @@ fun HomeScreen(navController: NavController) {
             item {
                 ToolRow(
                     badge = "CPO",
-                    title = "Potencia cardíaca",
-                    subtitle = "CPO/CPI con MAP + CO (+ BSA opcional).",
+                    title = stringResource(R.string.home_tool_cpo_title),
+                    subtitle = stringResource(R.string.home_tool_cpo_subtitle),
+                    helpText = stringResource(R.string.home_help_cpo),
+                    onHelpClick = { t, b ->
+                        formulaTitle2 = t
+                        formulaBody2 = b
+                        showFormulaDialog2 = true
+                    },
                     onClick = { navController.navigate(Destinations.Cpo.route) }
                 )
             }
@@ -163,8 +166,14 @@ fun HomeScreen(navController: NavController) {
             item {
                 ToolRow(
                     badge = "PAPi",
-                    title = "Índice de pulsatilidad pulmonar",
-                    subtitle = "(PASP − PADP) / RAP.",
+                    title = stringResource(R.string.home_tool_papi_title),
+                    subtitle = stringResource(R.string.home_tool_papi_subtitle),
+                    helpText = stringResource(R.string.home_help_papi),
+                    onHelpClick = { t, b ->
+                        formulaTitle2 = t
+                        formulaBody2 = b
+                        showFormulaDialog2 = true
+                    },
                     onClick = { navController.navigate(Destinations.Papi.route) }
                 )
             }
@@ -172,7 +181,7 @@ fun HomeScreen(navController: NavController) {
             // --- Sección: Reporte ---
             item {
                 Text(
-                    "Reporte",
+                    stringResource(R.string.home_section_report),
                     style = MaterialTheme.typography.titleSmall,
                     color = onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp)
@@ -182,7 +191,6 @@ fun HomeScreen(navController: NavController) {
             item {
                 ElevatedCard(
                     colors = CardDefaults.elevatedCardColors(
-                        // Que destaque si hay cálculos
                         containerColor = if (hasAny) MaterialTheme.colorScheme.primaryContainer else containerLow
                     )
                 ) {
@@ -191,15 +199,15 @@ fun HomeScreen(navController: NavController) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "Reporte PDF",
+                            stringResource(R.string.home_report_pdf_title),
                             style = MaterialTheme.typography.titleMedium
                         )
 
                         Text(
                             if (hasAny)
-                                "Listo para generar un PDF con fecha/hora y los cálculos realizados."
+                                stringResource(R.string.home_report_ready)
                             else
-                                "Realiza al menos un cálculo para habilitar el reporte.",
+                                stringResource(R.string.home_report_need_calc),
                             style = MaterialTheme.typography.bodySmall,
                             color = onSurfaceVariant
                         )
@@ -208,13 +216,12 @@ fun HomeScreen(navController: NavController) {
                             Button(
                                 enabled = hasAny,
                                 onClick = {
-                                    // Generar PDF en cache
                                     val file = File(context.cacheDir, "GIPOGO_RHC_Report.pdf")
                                     FileOutputStream(file).use { os ->
                                         PdfReportGenerator.writePdf(
                                             context = context,
                                             outputStream = os,
-                                            appName = "GIPOGO Cath Lab Hemodynamics",
+                                            appName = pdfAppName,
                                             entries = ReportStore.snapshot(),
                                             nowMillis = System.currentTimeMillis()
                                         )
@@ -231,7 +238,7 @@ fun HomeScreen(navController: NavController) {
 
                                     navController.navigate(Destinations.PdfPreview.route)
                                 }
-                            ) { Text("Abrir PDF") }
+                            ) { Text(stringResource(R.string.home_btn_open_pdf)) }
 
                             OutlinedButton(
                                 enabled = hasAny,
@@ -239,13 +246,39 @@ fun HomeScreen(navController: NavController) {
                                     ReportStore.clear()
                                     com.gipogo.rhctools.reset.AppResetBus.resetAll()
                                 }
-                            ) { Text("Reset") }
+                            ) { Text(stringResource(R.string.home_btn_reset)) }
                         }
                     }
                 }
             }
 
-            // Espacio final
+            // --- Preparación rápida (al final) ---
+            item {
+                ElevatedCard(
+                    colors = CardDefaults.elevatedCardColors(containerColor = containerHigh)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.home_prep_quick_title),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+
+                        Text(
+                            stringResource(R.string.home_prep_quick_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = onSurfaceVariant
+                        )
+
+                        TextButton(onClick = { showPrepDialog = true }) {
+                            Text(stringResource(R.string.home_btn_see_more))
+                        }
+                    }
+                }
+            }
+
             item { Spacer(modifier = Modifier.height(6.dp)) }
         }
     }
@@ -254,19 +287,25 @@ fun HomeScreen(navController: NavController) {
     if (showPrepDialog) {
         AlertDialog(
             onDismissRequest = { showPrepDialog = false },
-            title = { Text("Preparación completa") },
-            text = {
-                Text(
-                    "• Presiones Swan-Ganz: RAP (AD), PA (PASP/PADP/mPAP) y PCWP (wedge) idealmente al final de la espiración.\n\n" +
-                            "• Si harás Fick: muestra arterial sistémica y venosa mixta de arteria pulmonar (PA). Etiqueta el sitio de toma y envía a co-oximetría/gasometría para SaO₂/SvO₂ y Hb.\n\n" +
-                            "• MAP: preferible línea arterial invasiva; alternativa, TA no invasiva y MAP ≈ (PAS + 2×PAD)/3.\n\n" +
-                            "• CO: usa un método consistente (termodilución o Fick) para resistencias y potencia.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
+            title = { Text(stringResource(R.string.home_dialog_prep_title)) },
+            text = { Text(stringResource(R.string.home_prep_full), style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 TextButton(onClick = { showPrepDialog = false }) {
-                    Text("Cerrar")
+                    Text(stringResource(R.string.home_dialog_close))
+                }
+            }
+        )
+    }
+
+    // --- Modal fórmulas por medición ---
+    if (showFormulaDialog2) {
+        AlertDialog(
+            onDismissRequest = { showFormulaDialog2 = false },
+            title = { Text(formulaTitle2) },
+            text = { Text(formulaBody2, style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                TextButton(onClick = { showFormulaDialog2 = false }) {
+                    Text(stringResource(R.string.home_dialog_close))
                 }
             }
         )
@@ -278,6 +317,8 @@ private fun ToolRow(
     badge: String,
     title: String,
     subtitle: String,
+    helpText: String,
+    onHelpClick: (title: String, body: String) -> Unit,
     onClick: () -> Unit
 ) {
     val containerLow = MaterialTheme.colorScheme.surfaceContainerLow
@@ -294,7 +335,6 @@ private fun ToolRow(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Badge (sigla)
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -328,7 +368,23 @@ private fun ToolRow(
                 )
             }
 
-            // Chevron simple (sin icons para no meter dependencias)
+            Box(
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(28.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(primary.copy(alpha = 0.12f))
+                    .clickable { onHelpClick(title, helpText) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "?",
+                    color = primary,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
             Text(
                 "›",
                 style = MaterialTheme.typography.titleLarge,

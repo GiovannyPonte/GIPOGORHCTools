@@ -10,8 +10,10 @@ class ResistancesViewModel : ViewModel() {
 
     enum class OutputUnits { WOOD_UNITS, DYNES }
 
+    enum class ErrorCode { MISSING_INPUTS, CO_NONPOSITIVE }
+
     data class State(
-        // Inputs (exactly as QxMD)
+        // Inputs
         val map: String = "",        // mmHg
         val cvp: String = "",        // mmHg
         val co: String = "",         // L/min
@@ -21,7 +23,8 @@ class ResistancesViewModel : ViewModel() {
         val svrWu: Double? = null,
         val svrDynes: Double? = null,
 
-        val error: String? = null
+        // Error (code, not text)
+        val error: ErrorCode? = null
     )
 
     private val _state = MutableStateFlow(State())
@@ -41,11 +44,23 @@ class ResistancesViewModel : ViewModel() {
         val co = Parse.toDoubleOrNull(_state.value.co)
 
         if (map == null || cvp == null || co == null) {
-            _state.update { it.copy(error = "MAP, CVP y CO son obligatorios.", svrWu = null, svrDynes = null) }
+            _state.update {
+                it.copy(
+                    error = ErrorCode.MISSING_INPUTS,
+                    svrWu = null,
+                    svrDynes = null
+                )
+            }
             return
         }
         if (co <= 0) {
-            _state.update { it.copy(error = "CO debe ser > 0.", svrWu = null, svrDynes = null) }
+            _state.update {
+                it.copy(
+                    error = ErrorCode.CO_NONPOSITIVE,
+                    svrWu = null,
+                    svrDynes = null
+                )
+            }
             return
         }
 

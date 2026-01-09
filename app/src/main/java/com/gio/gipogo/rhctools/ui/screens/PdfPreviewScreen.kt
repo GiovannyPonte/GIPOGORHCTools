@@ -27,18 +27,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.gipogo.rhctools.R
 import com.gipogo.rhctools.ui.components.ScreenScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-import java.io.InputStream
-
 @Composable
 fun PdfPreviewScreen(
     pdfUri: Uri,
-    pdfFileForShare: File, // el archivo en cache (para compartir rápido)
+    pdfFileForShare: File,
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
@@ -46,7 +46,8 @@ fun PdfPreviewScreen(
     var bitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // Guardar en el teléfono: SAF CreateDocument
+    val defaultName = stringResource(R.string.pdf_default_filename)
+
     val saveLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destUri: Uri? ->
@@ -57,21 +58,19 @@ fun PdfPreviewScreen(
         }
     }
 
-    // Render del PDF a bitmaps para vista previa (NO afecta el PDF original)
     LaunchedEffect(pdfUri) {
         error = null
         bitmaps = emptyList()
 
         try {
-            val rendered = renderPdfToBitmaps(context, pdfUri)
-            bitmaps = rendered
+            bitmaps = renderPdfToBitmaps(context, pdfUri)
         } catch (e: Exception) {
-            error = "No se pudo renderizar el PDF: ${e.message}"
+            error = context.getString(R.string.pdf_error_render, e.message ?: "")
         }
     }
 
     ScreenScaffold(
-        title = "Reporte PDF",
+        title = stringResource(R.string.pdf_preview_title),
         onBackToMenu = onClose
     ) { _ ->
 
@@ -83,7 +82,6 @@ fun PdfPreviewScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
 
-            // Acciones
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -91,17 +89,17 @@ fun PdfPreviewScreen(
                 OutlinedButton(
                     modifier = Modifier.weight(1f),
                     onClick = onClose
-                ) { Text("Cerrar") }
+                ) { Text(stringResource(R.string.pdf_btn_close)) }
 
                 OutlinedButton(
                     modifier = Modifier.weight(1f),
-                    onClick = { saveLauncher.launch("GIPOGO_RHC_Report.pdf") }
-                ) { Text("Guardar") }
+                    onClick = { saveLauncher.launch(defaultName) }
+                ) { Text(stringResource(R.string.pdf_btn_save)) }
 
                 Button(
                     modifier = Modifier.weight(1f),
                     onClick = { sharePdfFile(context, pdfFileForShare) }
-                ) { Text("Compartir") }
+                ) { Text(stringResource(R.string.pdf_btn_share)) }
             }
 
             Row(
@@ -111,10 +109,9 @@ fun PdfPreviewScreen(
                 OutlinedButton(
                     modifier = Modifier.weight(1f),
                     onClick = { openInOtherApp(context, pdfFileForShare) }
-                ) { Text("Abrir en otra app") }
+                ) { Text(stringResource(R.string.pdf_btn_open_other)) }
             }
 
-            // Vista previa
             if (error != null) {
                 ElevatedCard {
                     Text(
@@ -127,23 +124,26 @@ fun PdfPreviewScreen(
             }
 
             if (bitmaps.isEmpty()) {
-                Text("Generando vista previa…", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.pdf_generating_preview), style = MaterialTheme.typography.bodyMedium)
                 return@Column
             }
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                .weight(1f),
+                    .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(bitmaps) { index, bmp ->
                     ElevatedCard {
                         Column(modifier = Modifier.padding(10.dp)) {
-                            Text("Página ${index + 1}", style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                stringResource(R.string.pdf_page, index + 1),
+                                style = MaterialTheme.typography.labelLarge
+                            )
                             Image(
                                 bitmap = bmp.asImageBitmap(),
-                                contentDescription = "PDF Page ${index + 1}",
+                                contentDescription = stringResource(R.string.pdf_page_cd, index + 1),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 8.dp)
@@ -159,21 +159,15 @@ fun PdfPreviewScreen(
 private suspend fun renderPdfToBitmaps(context: Context, uri: Uri): List<Bitmap> = withContext(Dispatchers.IO) {
     val pfd: ParcelFileDescriptor =
         context.contentResolver.openFileDescriptor(uri, "r")
-            ?: throw IllegalStateException("No se pudo abrir el archivo.")
+            ?: throw IllegalStateException(context.getString(R.string.pdf_error_open_file))
 
     pfd.use { parcel ->
         PdfRenderer(parcel).use { renderer ->
             val pages = mutableListOf<Bitmap>()
-            val pageCount = renderer.pageCount
-
-            // Normal: tu reporte será 1–2 páginas. Renderizamos todas.
-            for (i in 0 until pageCount) {
+            for (i in 0 until renderer.pageCount) {
                 renderer.openPage(i).use { page ->
-                    // Escala para buena legibilidad sin matar memoria
                     val scale = 2
-                    val width = page.width * scale
-                    val height = page.height * scale
-                    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    val bmp = Bitmap.createBitmap(page.width * scale, page.height * scale, Bitmap.Config.ARGB_8888)
                     page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     pages.add(bmp)
                 }
@@ -194,7 +188,7 @@ private fun sharePdfFile(context: Context, file: File) {
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Compartir reporte"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.pdf_chooser_share)))
 }
 
 private fun openInOtherApp(context: Context, file: File) {
@@ -207,5 +201,5 @@ private fun openInOtherApp(context: Context, file: File) {
         setDataAndType(uri, "application/pdf")
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Abrir con"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.pdf_chooser_open_with)))
 }

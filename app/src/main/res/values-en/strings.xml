@@ -1,0 +1,321 @@
+<resources>
+
+    <!-- ===================== -->
+    <!-- PDF app name          -->
+    <!-- ===================== -->
+    <string name="pdf_app_name">GIPOGO Cath Lab Hemodynamics</string>
+
+    <!-- App name -->
+    <string name="app_name">GIPOGO RHC Tools</string>
+
+    <!-- Home / Top bar -->
+    <string name="home_title">GIPOGO RHC Tools</string>
+    <string name="home_subtitle">Quick hemodynamics (RHC)</string>
+
+    <!-- Sections -->
+    <string name="home_section_calculations">Calculations</string>
+    <string name="home_section_report">Report</string>
+
+    <!-- Tool rows (titles + subtitles) -->
+    <string name="home_tool_fick_title">Fick: cardiac output</string>
+    <string name="home_tool_fick_subtitle">CO/CI/SV with weight, height, SaO₂, SvO₂ (PA), Hb, HR and age.</string>
+
+    <string name="home_tool_svr_title">Systemic vascular resistance</string>
+    <string name="home_tool_svr_subtitle">MAP + CVP + CO. Output in Wood Units or dyn·s·cm⁻⁵.</string>
+
+    <string name="home_tool_cpo_title">Cardiac power</string>
+    <string name="home_tool_cpo_subtitle">CPO/CPI with MAP + CO (+ BSA optional).</string>
+
+    <string name="home_tool_papi_title">Pulmonary artery pulsatility index</string>
+    <string name="home_tool_papi_subtitle">(PASP − PADP) / RAP.</string>
+
+    <!-- Formula help texts -->
+    <string name="home_help_fick"><![CDATA[FORMULAS
+• CaO₂ = 1.34 × Hb × SaO₂ + 0.0031 × PaO₂
+• CvO₂ = 1.34 × Hb × SvO₂ + 0.0031 × PvO₂
+• ΔC(a−v)O₂ = CaO₂ − CvO₂
+• CO (L/min) = VO₂ / (ΔC(a−v)O₂ × 10)
+• CI (L/min/m²) = CO / BSA
+• SV (mL) = (CO × 1000) / HR
+
+UNITS / NOTES
+• Hb in g/dL. Saturations in % (convert if needed).
+• SvO₂ ideally: mixed venous sample from pulmonary artery.
+• 0.0031×PO₂ is usually small and can be omitted if blood gases are not available.
+• VO₂: ideally measured; if estimated, depends on formula/sex/body size.]]></string>
+
+    <string name="home_help_svr"><![CDATA[FORMULAS
+• SVR (Wood Units) = (MAP − CVP) / CO
+• SVR (dyn·s·cm⁻⁵) = SVR(WU) × 80
+
+UNITS / NOTES
+• MAP and CVP (or RAP) in mmHg; CO in L/min.
+• If non-invasive MAP: MAP ≈ (SBP + 2×DBP)/3.
+• Use a consistent CO method for comparability.]]></string>
+
+    <string name="home_help_cpo"><![CDATA[FORMULAS
+• CPO (W) = (MAP × CO) / 451
+• CPI (W/m²) = CPO / BSA
+
+UNITS / NOTES
+• MAP in mmHg; CO in L/min.
+• 451 is the conversion factor to Watts.
+• Always interpret in clinical context.]]></string>
+
+    <string name="home_help_papi"><![CDATA[FORMULAS
+• PAPi = (PASP − PADP) / RAP
+
+UNITS / NOTES
+• PASP, PADP, RAP in mmHg.
+• RAP = right atrial pressure (RAP/CVP).]]></string>
+
+    <!-- Report card -->
+    <string name="home_report_pdf_title">PDF Report</string>
+    <string name="home_report_ready">Ready to generate a PDF with date/time and completed calculations.</string>
+    <string name="home_report_need_calc">Perform at least one calculation to enable the report.</string>
+    <string name="home_btn_open_pdf">Open PDF</string>
+    <string name="home_btn_reset">Reset</string>
+
+    <!-- Quick prep card -->
+    <string name="home_prep_quick_title">Quick setup</string>
+    <string name="home_prep_quick_body">• Swan-Ganz pressures + CO\n• If using Fick: arterial + pulmonary artery sample (SvO₂) and Hb</string>
+    <string name="home_btn_see_more">See more</string>
+
+    <!-- Dialogs -->
+    <string name="home_dialog_prep_title">Full setup</string>
+    <string name="home_dialog_close">Close</string>
+
+    <string name="home_prep_full"><![CDATA[• Swan-Ganz pressures: RAP (RA), PA (PASP/PADP/mPAP) and PCWP (wedge), ideally at end-expiration.
+
+• If using Fick: systemic arterial sample and mixed venous sample from pulmonary artery (PA). Label sampling site and send for co-oximetry/blood gas for SaO₂/SvO₂ and Hb.
+
+• MAP: preferably invasive arterial line; alternatively non-invasive BP and MAP ≈ (SBP + 2×DBP)/3.
+
+• CO: use a consistent method (thermodilution or Fick) for resistances and power.]]></string>
+
+    <!-- ===================== -->
+    <!-- Fick Screen (EN)      -->
+    <!-- ===================== -->
+    <string name="fick_screen_title">Cardiac output (Fick)</string>
+
+    <string name="fick_intro_title">Cardiac output (Fick method)</string>
+    <string name="fick_intro_body">MDCalc-style interface: weight, height, SaO₂, SvO₂, Hb, HR and age. Estimated VO₂ adjusts automatically by age; advanced option for measured VO₂.</string>
+
+    <string name="fick_card_weight_height">Weight / Height</string>
+    <string name="fick_field_weight">Weight</string>
+    <string name="fick_field_height">Height</string>
+    <string name="fick_bsa_mosteller">BSA (Mosteller): %1$s m²</string>
+
+    <string name="fick_required_vars_title">Required variables</string>
+    <string name="fick_field_sao2">SaO₂ (arterial) – ideally from blood gas/co-oximetry</string>
+    <string name="fick_field_svo2">SvO₂ (mixed) – pulmonary artery sample (PA) via Swan-Ganz</string>
+    <string name="fick_field_hb">Hemoglobin (Hb) – lab</string>
+    <string name="fick_field_hr">Heart rate (HR)</string>
+    <string name="fick_vo2_auto">Auto-estimated VO₂ by age: %1$s mL/min/m²</string>
+
+    <string name="fick_advanced_show">Advanced options</string>
+    <string name="fick_advanced_hide">Hide advanced options</string>
+    <string name="fick_use_measured_vo2">Use measured VO₂ (indirect calorimetry)</string>
+    <string name="fick_measured_vo2">Measured VO₂</string>
+    <string name="fick_include_dissolved">Include dissolved component (PaO₂/PvO₂)</string>
+    <string name="fick_pao2">PaO₂ (arterial)</string>
+    <string name="fick_pvo2">PvO₂ (venous)</string>
+
+    <string name="fick_age_title">Age</string>
+    <string name="fick_age_lt70">&lt; 70 years</string>
+    <string name="fick_age_ge70">≥ 70 years</string>
+
+    <string name="fick_abbrev_title">Abbreviations:</string>
+
+    <string name="fick_report_title">Cardiac output (Fick)</string>
+
+    <!-- ===================== -->
+    <!-- Fick: result lines    -->
+    <!-- ===================== -->
+    <string name="fick_result_co">CO: %1$s L/min</string>
+    <string name="fick_result_ci">CI: %1$s L/min/m²</string>
+    <string name="fick_result_sv">SV: %1$s mL/beat</string>
+    <string name="fick_result_vo2_used">VO₂ used: %1$s mL/min</string>
+    <string name="fick_result_bsa">BSA: %1$s m²</string>
+    <string name="fick_result_cao2">CaO₂: %1$s mL/dL</string>
+    <string name="fick_result_cvo2">CvO₂: %1$s mL/dL</string>
+    <string name="fick_result_avdiff">A–V diff: %1$s mL/dL</string>
+    <string name="fick_result_vo2_factor">VO₂ factor used: %1$s mL/min/m²</string>
+
+    <string name="fick_abbrev_co">• CO: Cardiac Output.</string>
+    <string name="fick_abbrev_ci">• CI: Cardiac Index (CO/BSA).</string>
+    <string name="fick_abbrev_sv">• SV: Stroke Volume (CO/HR).</string>
+    <string name="fick_abbrev_vo2">• VO₂: Oxygen consumption.</string>
+    <string name="fick_abbrev_sc">• BSA: Body Surface Area.</string>
+    <string name="fick_abbrev_cao2">• CaO₂: Arterial O₂ content.</string>
+    <string name="fick_abbrev_cvo2">• CvO₂: Venous O₂ content.</string>
+    <string name="fick_abbrev_avdiff">• A–V diff: Arterio-venous O₂ difference.</string>
+
+    <!-- ===================== -->
+    <!-- CPO Screen (EN)       -->
+    <!-- ===================== -->
+    <string name="cpo_screen_title">Cardiac power</string>
+
+    <string name="cpo_intro_title">Cardiac power (CPO) and index (CPI)</string>
+    <string name="cpo_intro_body">CPO = (MAP × CO) / 451.  CPI = (MAP × CI) / 451 when BSA is available.</string>
+
+    <string name="cpo_section_variables">Variables</string>
+
+    <string name="cpo_field_map_title">Mean arterial pressure (MAP)</string>
+    <string name="cpo_field_map_help">Preferred: invasive arterial line. Alternative: MAP ≈ (SBP + 2×DBP) / 3.</string>
+
+    <string name="cpo_field_co_title">Cardiac output (CO)</string>
+    <string name="cpo_field_co_help">From right-heart cath: thermodilution (average) or Fick.</string>
+
+    <string name="cpo_field_bsa_title">Body surface area (BSA) (optional)</string>
+    <string name="cpo_field_bsa_help">Only needed if you want CPI (CPO indexed to BSA).</string>
+
+    <string name="cpo_metric_cpo">CPO</string>
+    <string name="cpo_metric_cpi">CPI</string>
+
+    <string name="cpo_abbrev_title">Abbreviations:</string>
+    <string name="cpo_abbrev_map">• MAP: Mean arterial pressure.</string>
+    <string name="cpo_abbrev_co">• CO: Cardiac output.</string>
+    <string name="cpo_abbrev_ci">• CI: Cardiac index (CO/BSA).</string>
+    <string name="cpo_abbrev_bsa">• BSA: Body surface area.</string>
+    <string name="cpo_abbrev_cpo">• CPO: Cardiac power output.</string>
+    <string name="cpo_abbrev_cpi">• CPI: Cardiac power index.</string>
+
+    <!-- ============================== -->
+    <!-- Resistances / SVR Screen (EN)  -->
+    <!-- ============================== -->
+    <string name="svr_screen_title">Systemic vascular resistance</string>
+
+    <string name="svr_section_questions">Variables</string>
+
+    <string name="svr_field_map_title">Mean arterial pressure (MAP)</string>
+    <string name="svr_field_cvp_title">Central venous pressure (CVP)</string>
+    <string name="svr_field_co_title">Cardiac output (CO)</string>
+
+    <string name="svr_units_title">Units</string>
+    <string name="svr_units_wood">Wood Units</string>
+    <string name="svr_units_dynes">dyn·s·cm⁻⁵</string>
+
+    <string name="svr_result_title">Systemic vascular resistance</string>
+    <string name="svr_siglas_title">Abbreviations:</string>
+    <string name="svr_sigla_svr">• SVR: Systemic Vascular Resistance.</string>
+    <string name="svr_sigla_map">• MAP: Mean arterial pressure.</string>
+    <string name="svr_sigla_cvp">• CVP: Central venous pressure.</string>
+    <string name="svr_sigla_co">• CO: Cardiac output.</string>
+    <string name="svr_sigla_wood">• Wood Units: resistance units.</string>
+    <string name="svr_sigla_dynes">• dyn·s·cm⁻⁵: CGS units.</string>
+
+    <string name="svr_report_title">Systemic Vascular Resistance (SVR)</string>
+
+    <string name="svr_error_missing">MAP, CVP and CO are required.</string>
+    <string name="svr_error_co_nonpositive">CO must be &gt; 0.</string>
+
+    <!-- ===================== -->
+    <!-- PAPi Screen (EN)      -->
+    <!-- ===================== -->
+    <string name="papi_screen_title">PAPi</string>
+
+    <string name="papi_intro_title">Pulmonary artery pulsatility index (PAPi)</string>
+    <string name="papi_intro_body">Formula: PAPi = (PASP − PADP) / RAP</string>
+
+    <string name="papi_inputs_title">Variables</string>
+
+    <string name="papi_field_pasp_title">Pulmonary artery systolic pressure (PASP)</string>
+    <string name="papi_field_padp_title">Pulmonary artery diastolic pressure (PADP)</string>
+    <string name="papi_field_rap_title">Right atrial pressure / central venous pressure (RAP)</string>
+
+    <string name="papi_help_pasp">Measure on pulmonary artery tracing via Swan-Ganz. Record PASP.</string>
+    <string name="papi_help_padp">Measure on pulmonary artery tracing via Swan-Ganz. Record PADP.</string>
+    <string name="papi_help_rap">Measure in right atrium via Swan-Ganz (or CVP). Ideally end-expiration.</string>
+
+    <string name="papi_result_title">Result</string>
+    <string name="papi_siglas_title">Abbreviations:</string>
+    <string name="papi_sigla_papi">• PAPi: Pulmonary Artery Pulsatility Index.</string>
+    <string name="papi_sigla_pasp">• PASP: Pulmonary Artery Systolic Pressure.</string>
+    <string name="papi_sigla_padp">• PADP: Pulmonary Artery Diastolic Pressure.</string>
+    <string name="papi_sigla_rap">• RAP: Right atrial pressure.</string>
+    <string name="papi_sigla_pvc">• CVP: Central venous pressure.</string>
+    <string name="papi_sigla_pa">• PA: Pulmonary artery.</string>
+
+    <string name="papi_note_label">Note: %1$s</string>
+
+    <string name="papi_error_missing">PASP, PADP and RAP are required.</string>
+    <string name="papi_error_rap_nonpositive">RAP must be &gt; 0.</string>
+    <string name="papi_error_pasp_lt_padp">PASP cannot be lower than PADP. Please verify values.</string>
+
+    <string name="papi_note_high_risk">PAPi &lt; 0.9 suggests higher risk of right ventricular dysfunction (per reference tool threshold).</string>
+    <string name="papi_note_lower_risk">PAPi ≥ 0.9: no high-risk criterion by this threshold (interpret in clinical context).</string>
+
+    <string name="papi_report_title">Pulmonary Artery Pulsatility Index (PAPi)</string>
+
+    <string name="papi_result_line">PAPi: %1$s</string>
+
+    <!-- ===================== -->
+    <!-- Disclaimer (EN)       -->
+    <!-- ===================== -->
+    <string name="disclaimer_title">Legal notice and disclaimer</string>
+
+    <string name="disclaimer_section_edu_title">Educational use only</string>
+    <string name="disclaimer_section_edu_body" formatted="false"><![CDATA[This application is intended exclusively for educational and instructional purposes. The calculations and recommendations are supportive tools and may depend on input quality, clinical conditions and assumptions. They do not replace comprehensive medical evaluation, clinical guidelines, institutional protocols or clinical judgment.]]></string>
+
+    <string name="disclaimer_section_user_title">User responsibility</string>
+    <string name="disclaimer_section_user_body" formatted="false"><![CDATA[The user (healthcare professional) is solely responsible for:
+• Verifying entered data (units, measurement source, timing).
+• Interpreting results in the patient’s clinical context.
+• Making diagnostic and therapeutic decisions based on professional judgment.
+• Complying with local regulations and institutional policies.]]></string>
+
+    <string name="disclaimer_section_limit_title">Limitation of liability</string>
+    <string name="disclaimer_section_limit_body" formatted="false"><![CDATA[The developer assumes no responsibility for direct or indirect damages arising from the use of this application. It is recommended to cross-check results with reliable sources and, when applicable, reference methods.]]></string>
+
+    <string name="disclaimer_section_privacy_title">Privacy</string>
+    <string name="disclaimer_section_privacy_body" formatted="false"><![CDATA[Avoid entering identifiable patient information if not necessary. If you choose to do so, you are responsible for handling it in accordance with applicable law.]]></string>
+
+    <string name="disclaimer_checkbox_text" formatted="false"><![CDATA[I have read and accept the terms. I understand that the use and interpretation of the information is my professional responsibility.]]></string>
+
+    <string name="disclaimer_btn_decline">Decline</string>
+    <string name="disclaimer_btn_accept">Accept</string>
+
+    <!-- ===================== -->
+    <!-- PDF Preview (EN)      -->
+    <!-- ===================== -->
+    <string name="pdf_preview_title">PDF Report</string>
+    <string name="pdf_btn_close">Close</string>
+    <string name="pdf_btn_save">Save</string>
+    <string name="pdf_btn_share">Share</string>
+    <string name="pdf_btn_open_other">Open in another app</string>
+
+    <string name="pdf_error_render" formatted="false">Could not render the PDF: %1$s</string>
+    <string name="pdf_error_open_file">Could not open the file.</string>
+    <string name="pdf_generating_preview">Generating preview…</string>
+
+    <string name="pdf_page">Page %1$d</string>
+    <string name="pdf_page_cd">PDF page %1$d</string>
+
+    <string name="pdf_default_filename">GIPOGO_RHC_Report.pdf</string>
+    <string name="pdf_chooser_share">Share report</string>
+    <string name="pdf_chooser_open_with">Open with</string>
+
+    <!-- ===================== -->
+    <!-- PDF Generator (EN)    -->
+    <!-- ===================== -->
+    <string name="pdf_header_subtitle">Hemodynamics report (right-heart catheterization)</string>
+    <string name="pdf_header_datetime">Date/time: %1$s</string>
+    <string name="pdf_footer_page">Page %1$d</string>
+
+    <string name="pdf_table_inputs">Inputs</string>
+    <string name="pdf_table_outputs">Outputs</string>
+    <string name="pdf_notes_title">Notes</string>
+
+    <string name="pdf_disclaimer">Notice: decision-support tool. Does not replace clinical judgment.</string>
+
+    <!-- Reusables -->
+    <string name="common_btn_calculate">Calculate</string>
+    <string name="common_error">Error</string>
+    <string name="common_result">Result</string>
+    <string name="common_unit_label">Unit: %1$s</string>
+
+    <!-- For PDF report -->
+    <string name="cpo_report_title">Cardiac Power Output (CPO/CPI)</string>
+
+</resources>

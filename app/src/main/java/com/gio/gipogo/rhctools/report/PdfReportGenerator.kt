@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import com.gipogo.rhctools.R
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -14,38 +15,39 @@ import kotlin.math.max
 
 object PdfReportGenerator {
 
-    fun buildPlainTextReport(appName: String, entries: List<CalcEntry>, nowMillis: Long): String {
+    // (Opcional) si en algún momento quieres un reporte de texto plano localizado:
+    fun buildPlainTextReport(context: Context, appName: String, entries: List<CalcEntry>, nowMillis: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         val now = sdf.format(Date(nowMillis))
 
         val sb = StringBuilder()
         sb.appendLine(appName)
-        sb.appendLine("Reporte de hemodinamia (cateterismo derecho)")
-        sb.appendLine("Fecha/hora: $now")
+        sb.appendLine(context.getString(R.string.pdf_header_subtitle))
+        sb.appendLine(context.getString(R.string.pdf_header_datetime, now))
         sb.appendLine()
 
         for (e in entries) {
             sb.appendLine("=== ${e.title} ===")
-            sb.appendLine("Inputs:")
+            sb.appendLine("${context.getString(R.string.pdf_table_inputs)}:")
             e.inputs.forEach { li ->
                 val unit = li.unit?.let { " $it" } ?: ""
                 val detail = li.detail?.let { " (${it})" } ?: ""
                 sb.appendLine("• ${li.label}: ${li.value}$unit$detail")
             }
-            sb.appendLine("Outputs:")
+            sb.appendLine("${context.getString(R.string.pdf_table_outputs)}:")
             e.outputs.forEach { li ->
                 val unit = li.unit?.let { " $it" } ?: ""
                 val detail = li.detail?.let { " (${it})" } ?: ""
                 sb.appendLine("• ${li.label}: ${li.value}$unit$detail")
             }
             if (e.notes.isNotEmpty()) {
-                sb.appendLine("Notas:")
+                sb.appendLine("${context.getString(R.string.pdf_notes_title)}:")
                 e.notes.forEach { sb.appendLine("• $it") }
             }
             sb.appendLine()
         }
 
-        sb.appendLine("Aviso: herramienta de apoyo. No sustituye juicio clínico.")
+        sb.appendLine(context.getString(R.string.pdf_disclaimer))
         return sb.toString()
     }
 
@@ -68,6 +70,15 @@ object PdfReportGenerator {
 
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         val now = sdf.format(Date(nowMillis))
+
+        val headerSubtitle = context.getString(R.string.pdf_header_subtitle)
+        val headerDateTime = context.getString(R.string.pdf_header_datetime, now)
+        val footerPageFmt = context.getString(R.string.pdf_footer_page, 1).replace("1", "%d") // placeholder simple
+
+        val inputsTitle = context.getString(R.string.pdf_table_inputs)
+        val outputsTitle = context.getString(R.string.pdf_table_outputs)
+        val notesTitle = context.getString(R.string.pdf_notes_title)
+        val disclaimer = context.getString(R.string.pdf_disclaimer)
 
         // Colors
         val colorHeaderBg = Color.rgb(20, 70, 120)          // azul sobrio
@@ -128,7 +139,8 @@ object PdfReportGenerator {
         var y = 0f
 
         fun drawFooter() {
-            canvas.drawText("Página $pageNumber", margin, pageHeight - margin + 6f, pSmall)
+            val footerText = context.getString(R.string.pdf_footer_page, pageNumber)
+            canvas.drawText(footerText, margin, pageHeight - margin + 6f, pSmall)
         }
 
         fun drawHeader() {
@@ -136,8 +148,8 @@ object PdfReportGenerator {
             canvas.drawRect(0f, 0f, pageWidth.toFloat(), headerH, pHeaderBg)
 
             canvas.drawText(appName, margin, 28f, pTitleWhite)
-            canvas.drawText("Reporte de hemodinamia (cateterismo derecho)", margin, 48f, pSubWhite)
-            canvas.drawText("Fecha/hora: $now", margin, 66f, pSubWhite)
+            canvas.drawText(headerSubtitle, margin, 48f, pSubWhite)
+            canvas.drawText(headerDateTime, margin, 66f, pSubWhite)
 
             y = headerH + 14f
         }
@@ -197,10 +209,8 @@ object PdfReportGenerator {
             val top = y
             drawRoundedCard(margin, top, cardWidth, tableH)
 
-            // Title
             canvas.drawText(title, margin + pad, top + 18f, pH2)
 
-            // Column divider
             val tableTop = top + titleH
             canvas.drawLine(margin + col1, tableTop, margin + col1, top + tableH - pad, pBorder)
 
@@ -214,7 +224,6 @@ object PdfReportGenerator {
                 val leftLines = wrap(left, pBody, maxLabelW)
                 val rightLines = wrap(right, pBody, maxValueW)
 
-                // Row separator
                 if (i > 0) {
                     canvas.drawLine(margin, yy, margin + cardWidth, yy, pBorder)
                 }
@@ -248,7 +257,7 @@ object PdfReportGenerator {
 
             val top = y
             drawRoundedCard(margin, top, cardWidth, h)
-            canvas.drawText("Notas", margin + pad, top + 18f, pH2)
+            canvas.drawText(notesTitle, margin + pad, top + 18f, pH2)
 
             var yy = top + 22f + pad + 12f
             lines.forEach {
@@ -270,8 +279,8 @@ object PdfReportGenerator {
             }
             y += 6f
 
-            drawTable("Inputs", entry.inputs)
-            drawTable("Outputs", entry.outputs)
+            drawTable(inputsTitle, entry.inputs)
+            drawTable(outputsTitle, entry.outputs)
             drawNotes(entry.notes)
 
             y += 6f
@@ -279,7 +288,6 @@ object PdfReportGenerator {
 
         entries.forEach { drawEntry(it) }
 
-        val disclaimer = "Aviso: herramienta de apoyo. No sustituye juicio clínico."
         val dLines = wrap(disclaimer, pSmall, cardWidth)
         val dH = dLines.size * 12f + 10f
         ensureSpace(dH)

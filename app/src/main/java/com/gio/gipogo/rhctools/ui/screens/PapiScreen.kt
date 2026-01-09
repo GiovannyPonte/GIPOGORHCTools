@@ -25,20 +25,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gipogo.rhctools.R
+import com.gipogo.rhctools.report.CalcEntry
+import com.gipogo.rhctools.report.CalcType
+import com.gipogo.rhctools.report.LineItem
+import com.gipogo.rhctools.report.ReportStore
 import com.gipogo.rhctools.ui.components.ResultCard
 import com.gipogo.rhctools.ui.components.ScreenScaffold
 import com.gipogo.rhctools.ui.components.SectionCard
 import com.gipogo.rhctools.ui.viewmodel.PapiViewModel
 import com.gipogo.rhctools.util.Format
 import kotlinx.coroutines.delay
-import com.gipogo.rhctools.report.CalcEntry
-import com.gipogo.rhctools.report.CalcType
-import com.gipogo.rhctools.report.LineItem
-import com.gipogo.rhctools.report.ReportStore
-
 
 @Composable
 fun PapiScreen(
@@ -49,11 +51,10 @@ fun PapiScreen(
     val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsState()
     LaunchedEffect(resetTick) { vm.clear() }
 
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
-
     var scrollToResultRequested by remember { mutableStateOf(false) }
 
-    // Scroll automático cuando aparezca resultado o error
     LaunchedEffect(state.papi, state.error) {
         if (scrollToResultRequested && (state.papi != null || state.error != null)) {
             delay(120)
@@ -63,7 +64,7 @@ fun PapiScreen(
     }
 
     ScreenScaffold(
-        title = "PAPi",
+        title = stringResource(R.string.papi_screen_title),
         onBackToMenu = onBackToMenu
     ) { _ ->
 
@@ -77,14 +78,8 @@ fun PapiScreen(
         ) {
 
             SectionCard {
-                Text(
-                    "Índice de pulsatilidad de arteria pulmonar (Pulmonary Artery Pulsatility Index, PAPi)",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    "Fórmula: PAPi = (PASP − PADP) / RAP",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(stringResource(R.string.papi_intro_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.papi_intro_body), style = MaterialTheme.typography.bodyMedium)
             }
 
             ElevatedCard {
@@ -92,33 +87,33 @@ fun PapiScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Inputs", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.papi_inputs_title), style = MaterialTheme.typography.titleSmall)
 
                     Field(
-                        title = "Presión sistólica de arteria pulmonar (Pulmonary Artery Systolic Pressure, PASP)",
+                        title = stringResource(R.string.papi_field_pasp_title),
                         shortLabel = "PASP",
                         value = state.pasp,
                         onValueChange = vm::setPASP,
                         unitText = "mmHg",
-                        help = "Medir en trazo de arteria pulmonar con Swan-Ganz. Registrar la PASP."
+                        help = stringResource(R.string.papi_help_pasp)
                     )
 
                     Field(
-                        title = "Presión diastólica de arteria pulmonar (Pulmonary Artery Diastolic Pressure, PADP)",
+                        title = stringResource(R.string.papi_field_padp_title),
                         shortLabel = "PADP",
                         value = state.padp,
                         onValueChange = vm::setPADP,
                         unitText = "mmHg",
-                        help = "Medir en trazo de arteria pulmonar con Swan-Ganz. Registrar la PADP."
+                        help = stringResource(R.string.papi_help_padp)
                     )
 
                     Field(
-                        title = "Presión auricular derecha / presión venosa central (Right Atrial Pressure, RAP)",
+                        title = stringResource(R.string.papi_field_rap_title),
                         shortLabel = "RAP",
                         value = state.rap,
                         onValueChange = vm::setRAP,
                         unitText = "mmHg",
-                        help = "Medir en aurícula derecha con Swan-Ganz (o PVC). Ideal al final de la espiración."
+                        help = stringResource(R.string.papi_help_rap)
                     )
                 }
             }
@@ -128,37 +123,58 @@ fun PapiScreen(
                     scrollToResultRequested = true
                     vm.calculate()
                 }
-            ) { Text("Calcular") }
+            ) { Text(stringResource(R.string.common_btn_calculate)) }
 
-            state.error?.let { ResultCard(title = "Error", body = it) }
+            state.error?.let { err ->
+                val msg = when (err) {
+                    PapiViewModel.ErrorCode.MISSING_INPUTS -> stringResource(R.string.papi_error_missing)
+                    PapiViewModel.ErrorCode.RAP_NONPOSITIVE -> stringResource(R.string.papi_error_rap_nonpositive)
+                    PapiViewModel.ErrorCode.PASP_LT_PADP -> stringResource(R.string.papi_error_pasp_lt_padp)
+                }
+                ResultCard(title = stringResource(R.string.common_error), body = msg)
+            }
 
             state.papi?.let { papi ->
-                val body = buildString {
-                    appendLine("PAPi: ${Format.d(papi, 2)}")
-                    state.note?.let { appendLine("\nNota: $it") }
-
-                    appendLine()
-                    appendLine("Siglas:")
-                    appendLine("• PAPi: Pulmonary Artery Pulsatility Index (índice de pulsatilidad de AP).")
-                    appendLine("• PASP: Pulmonary Artery Systolic Pressure (presión sistólica de AP).")
-                    appendLine("• PADP: Pulmonary Artery Diastolic Pressure (presión diastólica de AP).")
-                    appendLine("• RAP: Right Atrial Pressure (presión auricular derecha).")
-                    appendLine("• PVC: Presión venosa central.")
-                    appendLine("• AP/PA: Arteria pulmonar (Pulmonary Artery).")
+                val noteText = when (state.note) {
+                    PapiViewModel.NoteCode.HIGH_RISK -> stringResource(R.string.papi_note_high_risk)
+                    PapiViewModel.NoteCode.LOWER_RISK -> stringResource(R.string.papi_note_lower_risk)
+                    null -> null
                 }
 
-                ResultCard(title = "Resultado", body = body)
+                val body = buildString {
+                    appendLine(stringResource(R.string.papi_result_line, Format.d(papi, 2)))
+                    noteText?.let { appendLine(); appendLine(stringResource(R.string.papi_note_label, it)) }
+
+                    appendLine()
+                    appendLine(stringResource(R.string.papi_siglas_title))
+                    appendLine(stringResource(R.string.papi_sigla_papi))
+                    appendLine(stringResource(R.string.papi_sigla_pasp))
+                    appendLine(stringResource(R.string.papi_sigla_padp))
+                    appendLine(stringResource(R.string.papi_sigla_rap))
+                    appendLine(stringResource(R.string.papi_sigla_pvc))
+                    appendLine(stringResource(R.string.papi_sigla_pa))
+                }
+
+                ResultCard(title = stringResource(R.string.papi_result_title), body = body)
             }
         }
     }
-    LaunchedEffect(state.papi) {
+
+    // Reporte PDF: en LaunchedEffect NO se usa stringResource; se usa context.getString
+    LaunchedEffect(state.papi, state.note) {
         val papi = state.papi ?: return@LaunchedEffect
+
+        val noteStr = when (state.note) {
+            PapiViewModel.NoteCode.HIGH_RISK -> context.getString(R.string.papi_note_high_risk)
+            PapiViewModel.NoteCode.LOWER_RISK -> context.getString(R.string.papi_note_lower_risk)
+            null -> null
+        }
 
         ReportStore.upsert(
             CalcEntry(
                 type = CalcType.PAPI,
                 timestampMillis = System.currentTimeMillis(),
-                title = "Pulmonary Artery Pulsatility Index (PAPi)",
+                title = context.getString(R.string.papi_report_title),
                 inputs = listOf(
                     LineItem("PASP", state.pasp, "mmHg", "PA systolic pressure"),
                     LineItem("PADP", state.padp, "mmHg", "PA diastolic pressure"),
@@ -167,11 +183,10 @@ fun PapiScreen(
                 outputs = listOf(
                     LineItem("PAPi", Format.d(papi, 2), null, "Pulsatility Index")
                 ),
-                notes = listOfNotNull(state.note)
+                notes = listOfNotNull(noteStr)
             )
         )
     }
-
 }
 
 @Composable
@@ -197,6 +212,6 @@ private fun Field(
         )
 
         Text(help, style = MaterialTheme.typography.bodySmall)
-        Text("Unidad: $unitText", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.common_unit_label, unitText), style = MaterialTheme.typography.bodySmall)
     }
 }

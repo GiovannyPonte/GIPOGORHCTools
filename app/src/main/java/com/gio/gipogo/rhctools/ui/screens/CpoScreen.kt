@@ -26,9 +26,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gipogo.rhctools.R
 import com.gipogo.rhctools.report.CalcEntry
 import com.gipogo.rhctools.report.CalcType
 import com.gipogo.rhctools.report.LineItem
@@ -46,6 +49,7 @@ fun CpoScreen(
     vm: CpoViewModel = viewModel()
 ) {
     val state by vm.state.collectAsState()
+    val context = LocalContext.current
 
     // ✅ Reset global SIN vm.clear()
     val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsState()
@@ -80,10 +84,20 @@ fun CpoScreen(
             CalcEntry(
                 type = CalcType.CPO,
                 timestampMillis = System.currentTimeMillis(),
-                title = "Cardiac Power Output (CPO/CPI)",
+                title = context.getString(R.string.cpo_report_title),
                 inputs = listOf(
-                    LineItem("MAP", state.map, if (state.mapUnit == CpoViewModel.MapUnit.KPA) "kPa" else "mmHg", "Mean Arterial Pressure"),
-                    LineItem("CO", state.co, if (state.coUnit == CpoViewModel.CoUnit.L_SEC) "L/s" else "L/min", "Cardiac Output"),
+                    LineItem(
+                        "MAP",
+                        state.map,
+                        if (state.mapUnit == CpoViewModel.MapUnit.KPA) "kPa" else "mmHg",
+                        "Mean Arterial Pressure"
+                    ),
+                    LineItem(
+                        "CO",
+                        state.co,
+                        if (state.coUnit == CpoViewModel.CoUnit.L_SEC) "L/s" else "L/min",
+                        "Cardiac Output"
+                    ),
                     LineItem("BSA", state.bsa, "m²", "Body Surface Area (optional)")
                 ),
                 outputs = listOfNotNull(
@@ -95,7 +109,7 @@ fun CpoScreen(
     }
 
     ScreenScaffold(
-        title = "Potencia cardíaca",
+        title = stringResource(R.string.cpo_screen_title),
         onBackToMenu = onBackToMenu
     ) { _ ->
 
@@ -110,11 +124,11 @@ fun CpoScreen(
 
             SectionCard {
                 Text(
-                    "Potencia cardíaca (Cardiac Power Output, CPO) e índice (Cardiac Power Index, CPI)",
+                    stringResource(R.string.cpo_intro_title),
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    "CPO = (MAP × CO) / 451.  CPI = (MAP × CI) / 451 si hay BSA.",
+                    stringResource(R.string.cpo_intro_body),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -124,32 +138,32 @@ fun CpoScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Variables", style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.cpo_section_variables), style = MaterialTheme.typography.titleSmall)
 
                     UnitToggleField(
-                        title = "Presión arterial media (Mean Arterial Pressure, MAP)",
+                        title = stringResource(R.string.cpo_field_map_title),
                         value = state.map,
                         onValueChange = vm::setMAP,
                         unitText = if (state.mapUnit == CpoViewModel.MapUnit.MMHG) "mmHg" else "kPa",
                         onToggleUnit = vm::toggleMapUnit,
-                        help = "Preferible: línea arterial invasiva. Alternativa: MAP ≈ (PAS + 2×PAD) / 3."
+                        help = stringResource(R.string.cpo_field_map_help)
                     )
 
                     UnitToggleField(
-                        title = "Gasto cardíaco (Cardiac Output, CO)",
+                        title = stringResource(R.string.cpo_field_co_title),
                         value = state.co,
                         onValueChange = vm::setCO,
                         unitText = if (state.coUnit == CpoViewModel.CoUnit.L_MIN) "L/min" else "L/s",
                         onToggleUnit = vm::toggleCoUnit,
-                        help = "Tomar del cateterismo derecho: termodilución (promedio) o Fick."
+                        help = stringResource(R.string.cpo_field_co_help)
                     )
 
                     SimpleField(
-                        title = "Superficie corporal (Body Surface Area, BSA) (opcional)",
+                        title = stringResource(R.string.cpo_field_bsa_title),
                         value = state.bsa,
                         onValueChange = vm::setBSA,
                         unit = "m²",
-                        help = "Necesaria solo si quieres CPI (CPO indexado a BSA)."
+                        help = stringResource(R.string.cpo_field_bsa_help)
                     )
                 }
             }
@@ -159,18 +173,18 @@ fun CpoScreen(
                     scrollToResultRequested = true
                     vm.calculate()
                 }
-            ) { Text("Calcular") }
+            ) { Text(stringResource(R.string.common_btn_calculate)) }
 
-            state.error?.let { ResultCard(title = "Error", body = it) }
+            state.error?.let { ResultCard(title = stringResource(R.string.common_error), body = it) }
 
             state.result?.let { r ->
                 ElevatedCard {
                     Column(modifier = Modifier.padding(16.dp)) {
                         MetricTilesRow(
-                            leftLabel = "CPO",
+                            leftLabel = stringResource(R.string.cpo_metric_cpo),
                             leftValue = Format.d(r.cpoWatts, 2),
                             leftUnit = "W",
-                            rightLabel = "CPI",
+                            rightLabel = stringResource(R.string.cpo_metric_cpi),
                             rightValue = r.cpiWattsPerM2?.let { Format.d(it, 2) } ?: "—",
                             rightUnit = "W/m²"
                         )
@@ -181,16 +195,16 @@ fun CpoScreen(
                     appendLine("CPO: ${Format.d(r.cpoWatts, 2)} W")
                     r.cpiWattsPerM2?.let { appendLine("CPI: ${Format.d(it, 2)} W/m²") }
                     appendLine()
-                    appendLine("Siglas:")
-                    appendLine("• MAP: Mean Arterial Pressure (presión arterial media).")
-                    appendLine("• CO: Cardiac Output (gasto cardíaco).")
-                    appendLine("• CI: Cardiac Index (índice cardíaco = CO/BSA).")
-                    appendLine("• BSA: Body Surface Area (superficie corporal).")
-                    appendLine("• CPO: Cardiac Power Output (potencia cardíaca).")
-                    appendLine("• CPI: Cardiac Power Index (CPO indexado a BSA).")
+                    appendLine(stringResource(R.string.cpo_abbrev_title))
+                    appendLine(stringResource(R.string.cpo_abbrev_map))
+                    appendLine(stringResource(R.string.cpo_abbrev_co))
+                    appendLine(stringResource(R.string.cpo_abbrev_ci))
+                    appendLine(stringResource(R.string.cpo_abbrev_bsa))
+                    appendLine(stringResource(R.string.cpo_abbrev_cpo))
+                    appendLine(stringResource(R.string.cpo_abbrev_cpi))
                 }
 
-                ResultCard(title = "Resultado", body = body)
+                ResultCard(title = stringResource(R.string.common_result), body = body)
             }
         }
     }
@@ -264,7 +278,7 @@ private fun UnitToggleField(
         )
 
         Text(help, style = MaterialTheme.typography.bodySmall)
-        Text("Unidad: $unitText", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.common_unit_label, unitText), style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -289,6 +303,6 @@ private fun SimpleField(
         )
 
         Text(help, style = MaterialTheme.typography.bodySmall)
-        Text("Unidad: $unit", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.common_unit_label, unit), style = MaterialTheme.typography.bodySmall)
     }
 }

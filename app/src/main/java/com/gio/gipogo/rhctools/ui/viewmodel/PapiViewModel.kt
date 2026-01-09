@@ -9,14 +9,17 @@ import kotlinx.coroutines.flow.update
 
 class PapiViewModel : ViewModel() {
 
+    enum class ErrorCode { MISSING_INPUTS, RAP_NONPOSITIVE, PASP_LT_PADP }
+    enum class NoteCode { HIGH_RISK, LOWER_RISK }
+
     data class State(
         val pasp: String = "",  // mmHg
         val padp: String = "",  // mmHg
         val rap: String = "",   // mmHg
 
         val papi: Double? = null,
-        val note: String? = null,
-        val error: String? = null
+        val note: NoteCode? = null,
+        val error: ErrorCode? = null
     )
 
     private val _state = MutableStateFlow(State())
@@ -34,26 +37,22 @@ class PapiViewModel : ViewModel() {
         val rap = Parse.toDoubleOrNull(_state.value.rap)
 
         if (pasp == null || padp == null || rap == null) {
-            _state.update { it.copy(error = "PASP, PADP y RAP son obligatorios.", papi = null, note = null) }
+            _state.update { it.copy(error = ErrorCode.MISSING_INPUTS, papi = null, note = null) }
             return
         }
         if (rap <= 0) {
-            _state.update { it.copy(error = "RAP debe ser > 0.", papi = null, note = null) }
+            _state.update { it.copy(error = ErrorCode.RAP_NONPOSITIVE, papi = null, note = null) }
             return
         }
         if (pasp < padp) {
-            _state.update { it.copy(error = "PASP no puede ser menor que PADP. Revisa los valores.", papi = null, note = null) }
+            _state.update { it.copy(error = ErrorCode.PASP_LT_PADP, papi = null, note = null) }
             return
         }
 
         val res = HemodynamicsFormulas.papi(pasp, padp, rap)
 
-        val note = if (res.papi < 0.9) {
-            "PAPi < 0.9 sugiere mayor riesgo de disfunción del ventrículo derecho (según herramienta de referencia)."
-        } else {
-            "PAPi ≥ 0.9: sin criterio de alto riesgo por este umbral (interpretar en contexto clínico)."
-        }
+        val noteCode = if (res.papi < 0.9) NoteCode.HIGH_RISK else NoteCode.LOWER_RISK
 
-        _state.update { it.copy(papi = res.papi, note = note, error = null) }
+        _state.update { it.copy(papi = res.papi, note = noteCode, error = null) }
     }
 }
