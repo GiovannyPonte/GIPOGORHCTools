@@ -6,10 +6,10 @@
     <string name="pdf_app_name">GIPOGO Cath Lab Hemodynamics</string>
 
     <!-- App name -->
-    <string name="app_name">GIPOGO RHC Tools</string>
+    <string name="app_name">GIPOGO Cath Lab Hemodynamics</string>
 
     <!-- Home / Top bar -->
-    <string name="home_title">GIPOGO RHC Tools</string>
+    <string name="home_title">GIPOGO Cath Lab Hemodynamics</string>
     <string name="home_subtitle">Quick hemodynamics (RHC)</string>
 
     <!-- Sections -->

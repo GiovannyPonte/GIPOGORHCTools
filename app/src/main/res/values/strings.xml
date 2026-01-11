@@ -5,7 +5,7 @@
     <!-- ===================== -->
     <string name="pdf_app_name">GIPOGO Cath Lab Hemodynamics</string>
     <!-- Home / Top bar -->
-    <string name="app_name">GIPOGO RHC Tools</string>
+    <string name="app_name">GIPOGO Cath Lab Hemodynamics</string>
 
     <string name="home_title">GIPOGO RHC Tools</string>
     <string name="home_subtitle">Hemodinámica rápida (RHC)</string>
@@ -243,11 +243,13 @@ UNIDADES / NOTAS
     <string name="papi_result_title">Resultado</string>
     <string name="papi_siglas_title">Siglas:</string>
     <string name="papi_sigla_papi">• PAPi: Pulmonary Artery Pulsatility Index (índice de pulsatilidad de AP).</string>
-    <string name="papi_sigla_pasp">• PASP: Pulmonary Artery Systolic Pressure (presión sistólica de AP).</string>
+
     <string name="papi_sigla_padp">• PADP: Pulmonary Artery Diastolic Pressure (presión diastólica de AP).</string>
     <string name="papi_sigla_rap">• RAP: Right Atrial Pressure (presión auricular derecha).</string>
     <string name="papi_sigla_pvc">• PVC: Presión venosa central.</string>
     <string name="papi_sigla_pa">• AP/PA: Arteria pulmonar (Pulmonary Artery).</string>
+    <string name="papi_sigla_pasp">PASP: Presión sistólica de la arteria pulmonar</string>
+
 
     <string name="papi_note_label">Nota: %1$s</string>
 
