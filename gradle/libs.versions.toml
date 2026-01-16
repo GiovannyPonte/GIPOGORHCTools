@@ -31,6 +31,10 @@ compose-foundation = { module = "androidx.compose.foundation:foundation" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom" }
+
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

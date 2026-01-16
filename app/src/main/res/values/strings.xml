@@ -3,6 +3,19 @@
     <!-- ===================== -->
     <!-- PDF app name          -->
     <!-- ===================== -->
+
+    <string name="home_topbar_title">GIPOGO RHC Tools</string>
+    <string name="home_topbar_subtitle">Hemodinámica rápida (RHC)</string>
+
+    <string name="home_section_calcs_title">Cálculos</string>
+    <string name="home_section_calcs_trailing">4 HERRAMIENTAS</string>
+
+    <string name="home_section_report_title">Reporte</string>
+    <string name="home_section_quick_prep_title">Preparación rápida</string>
+
+    <string name="home_report_tip_open_from_reports">Tip: también puedes abrirlo desde Reportes.</string>
+
+
     <string name="pdf_app_name">GIPOGO Cath Lab Hemodynamics</string>
     <!-- Home / Top bar -->
     <string name="app_name">GIPOGO Cath Lab Hemodynamics</string>
@@ -90,6 +103,20 @@ UNIDADES / NOTAS
 • MAP: preferible línea arterial invasiva; alternativa, TA no invasiva y MAP ≈ (PAS + 2×PAD)/3.
 
 • CO: usa un método consistente (termodilución o Fick) para resistencias y potencia.]]></string>
+
+
+    <!-- ===================== -->
+    <!-- comunes (ES)      -->
+    <!-- ===================== -->
+
+
+    <!-- Reset común -->
+    <string name="common_reset_title">Restablecer</string>
+    <string name="common_reset_body">¿Deseas borrar todos los campos y resultados?</string>
+    <string name="common_reset_confirm">Restablecer</string>
+    <string name="common_cancel">Cancelar</string>
+
+
     <!-- ===================== -->
     <!-- Fick Screen (ES)      -->
     <!-- ===================== -->
@@ -138,6 +165,45 @@ UNIDADES / NOTAS
     <!-- ===================== -->
     <!-- Fick: result lines    -->
     <!-- ===================== -->
+
+    <string name="fick_label_sao2_short">SaO₂</string>
+    <string name="fick_label_svo2_short">SvO₂</string>
+    <string name="fick_label_hb_short">Hemoglobina (Hb)</string>
+    <string name="fick_label_hr_short">Frecuencia cardiaca (FC)</string>
+
+    <string name="fick_help_sao2_title">SaO₂</string>
+    <string name="fick_help_sao2_body">Saturación arterial de oxígeno. Idealmente medida en gasometría arterial o co-oximetría. Valores típicos: 95–100%.</string>
+
+    <string name="fick_help_svo2_title">SvO₂</string>
+    <string name="fick_help_svo2_body">Saturación venosa mixta. Idealmente muestra de arteria pulmonar (catéter de Swan-Ganz). Valores típicos: 60–80%.</string>
+
+    <string name="fick_help_hb_title">Hemoglobina (Hb)</string>
+    <string name="fick_help_hb_body">Concentración de hemoglobina. Afecta el contenido arterial/venoso de O₂ en la ecuación de Fick. Unidades comunes: g/dL o g/L.</string>
+
+    <string name="fick_help_hr_title">Frecuencia cardiaca (FC)</string>
+    <string name="fick_help_hr_body">Frecuencia cardiaca en latidos por minuto (bpm). Se usa para derivar volumen sistólico a partir del gasto cardiaco.</string>
+
+
+    <string name="val_warn_double_check">Muy alto; verifique.</string>
+    <string name="val_err_change_to_proceed">Demasiado alto; cambie para continuar.</string>
+
+
+
+
+
+    <string name="fick_next_calc_svr">Siguiente: Resistencia vascular</string>
+
+
+    <string name="fick_bsa_pill_asc">ASC: %1$s m²</string>
+    <string name="fick_section_patient_data">Datos del paciente</string>
+    <string name="fick_section_oxygenation">Oxigenación</string>
+    <string name="fick_section_labs">Laboratorio</string>
+    <string name="fick_section_heart_rate">Frecuencia cardíaca</string>
+    <string name="fick_hb_toggle_unit">Cambiar unidad de Hb</string>
+    <string name="fick_copy_results">Copiar resultados</string>
+
+
+
     <string name="fick_result_co">CO: %1$s L/min</string>
     <string name="fick_result_ci">CI: %1$s L/min/m²</string>
     <string name="fick_result_sv">SV: %1$s mL/beat</string>
@@ -192,6 +258,22 @@ UNIDADES / NOTAS
     <!-- ============================== -->
     <!-- Resistances / SVR Screen (ES)  -->
     <!-- ============================== -->
+
+
+    <string name="tpr_result_title">Resistencia pulmonar total (TPR)</string>
+
+    <string name="svr_msg_review_required_fields">Revisa los campos requeridos (Presión arterial media, Presión venosa central y Gasto cardiaco).</string>
+
+    <string name="svr_hero_eyebrow">Resistencia vascular sistémica</string>
+    <string name="svr_hero_left_label">Wood Units</string>
+    <string name="svr_hero_right_label">dyn·s·cm⁻⁵</string>
+
+    <string name="svr_info_title">¿Qué mide la SVR?</string>
+    <string name="svr_info_body">La resistencia vascular sistémica (Systemic Vascular Resistance, SVR) estima la resistencia al flujo en la circulación sistémica.\n\nFórmula:\nSVR (WU) = (MAP − CVP) / CO\nSVR (dyn·s·cm⁻⁵) = SVR (WU) × 80\n\nMAP: presión arterial media\nCVP: presión venosa central\nCO: gasto cardiaco</string>
+
+
+    <string name="cpo_section_optional">Opcional</string>
+
 
     <string name="svr_screen_title">Resistencia vascular sistémica</string>
 
@@ -269,6 +351,97 @@ UNIDADES / NOTAS
 
 
     <!-- ===================== -->
+    <!-- Resistencia pulmonar  -->
+    <!-- ===================== -->
+
+
+
+
+
+
+
+    --------------------------------
+    <string name="papi_info_title">¿Qué es el PAPi?</string>
+    <string name="papi_info_body">PAPi (Pulmonary Artery Pulsatility Index) = (PASP − PADP) / RAP.\n\nPASP: presión sistólica de arteria pulmonar.\nPADP: presión diastólica de arteria pulmonar.\nRAP: presión auricular derecha.</string>
+
+    <string name="papi_hero_left_label">PAPP</string>
+    <string name="papi_hero_right_label">RAP</string>
+
+    <string name="common_placeholder_numeric">0</string>
+
+    <!-- Home badges -->
+    <string name="home_badge_co">CO</string>
+    <string name="home_badge_svr">SVR</string>
+    <string name="home_badge_cpo">CPO</string>
+    <string name="home_badge_papi">PAPI</string>
+    <string name="home_badge_pvr">PVR</string>
+
+    <string name="home_fick_hero_badge">FICK PRINCIPLE</string>
+
+    <string name="home_tool_pvr_title">Resistencia Pulmonar</string>
+    <string name="home_tool_pvr_subtitle">mPAP - PAWP / CO</string>
+    <string name="home_help_pvr">Calcula la resistencia vascular pulmonar usando presión media de arteria pulmonar (mPAP), presión de enclavamiento (PAWP) y gasto cardíaco (CO).</string>
+
+    <!-- Unidades comunes -->
+    <string name="common_unit_mmhg">mmHg</string>
+    <string name="common_unit_lmin">L/min</string>
+    <string name="common_unit_wu">Wood Units</string>
+    <string name="common_unit_dynes">dyn·s·cm⁻⁵</string>
+
+
+
+    <!-- PVR -->
+    <string name="pvr_screen_title">Resistencia Vascular Pulmonar</string>
+
+    <string name="pvr_section_variables">Variables</string>
+    <string name="pvr_units_title">Unidades</string>
+
+    <string name="pvr_field_mpap_title">Presión media de arteria pulmonar (mPAP)</string>
+    <string name="pvr_field_pawp_title">Presión de enclavamiento (PAWP)</string>
+    <string name="pvr_field_co_title">Flujo pulmonar (Qp) / Gasto cardiaco (CO)</string>
+
+    <string name="pvr_placeholder_mpap">10–45</string>
+    <string name="pvr_placeholder_pawp">4–18</string>
+    <string name="pvr_placeholder_co">2.0–12.0</string>
+
+    <string name="pvr_result_title">Resistencia Vascular Pulmonar</string>
+    <string name="pvr_hero_left_label">WOOD UNITS</string>
+    <string name="pvr_hero_right_label">DYN·S·CM⁻⁵</string>
+
+    <string name="pvr_info_title">Resistencia Vascular Pulmonar</string>
+    <string name="pvr_info_body">Cálculo de resistencias pulmonares a partir de hemodinámica de cateterismo derecho.
+
+PVR (Pulmonary Vascular Resistance, WU) = (mPAP − PAWP) / CO
+TPR (Total Pulmonary Resistance, WU) = mPAP / CO
+
+Conversión:
+dyn·s·cm⁻⁵ = WU × 80
+
+mPAP: presión media de arteria pulmonar
+PAWP: presión wedge (presión capilar pulmonar; aproximación de presión auricular izquierda)
+CO: gasto cardiaco</string>
+
+    <string name="pvr_help_mpap_title">mPAP</string>
+    <string name="pvr_help_mpap_body">Presión media de arteria pulmonar medida durante cateterismo derecho (mmHg).</string>
+
+    <string name="pvr_help_pawp_title">PAWP</string>
+    <string name="pvr_help_pawp_body">Presión de enclavamiento (también PCWP), usada como aproximación de la presión auricular izquierda (mmHg).</string>
+
+    <string name="pvr_help_co_title">Qp / CO</string>
+    <string name="pvr_help_co_body">Flujo pulmonar (Qp). En ausencia de shunt, Qp ≈ CO. Si tienes Qp medido de forma independiente, introdúcelo aquí.</string>
+
+    <string name="pvr_help_units_title">Unidades</string>
+    <string name="pvr_help_units_body">Wood units (WU) es el estándar. Las unidades CGS son dyn·s·cm⁻⁵ (WU × 80).</string>
+
+    <string name="pvr_report_title">Resistencia Vascular Pulmonar (PVR)</string>
+
+    <string name="pvr_error_missing">Faltan datos: mPAP, PAWP y Qp/CO son obligatorios.</string>
+    <string name="pvr_error_co_nonpositive">El flujo / gasto debe ser &gt; 0.</string>
+    <string name="pvr_error_gradient_nonpositive">mPAP − PAWP debe ser &gt; 0. Revisa presiones.</string>
+
+
+
+    <!-- ===================== -->
     <!-- Disclaimer (ES)       -->
     <!-- ===================== -->
     <string name="disclaimer_title">Aviso legal y descargo de responsabilidad</string>
@@ -298,6 +471,15 @@ UNIDADES / NOTAS
     <!-- ===================== -->
     <!-- PDF Preview (ES)      -->
     <!-- ===================== -->
+
+    <string name="pdf_section_inputs">Entradas</string>
+    <string name="pdf_section_outputs">Resultados</string>
+    <string name="pdf_section_notes">Notas</string>
+
+
+    <string name="pdf_btn_open">Abrir</string>
+
+
     <string name="pdf_preview_title">Reporte PDF</string>
     <string name="pdf_btn_close">Cerrar</string>
     <string name="pdf_btn_save">Guardar</string>
@@ -319,6 +501,11 @@ UNIDADES / NOTAS
     <!-- ===================== -->
     <!-- PDF Generator (ES)    -->
     <!-- ===================== -->
+
+    <string name="pdf_bullet">• </string>
+    <string name="pdf_bullet_sep"> • </string>
+
+
     <string name="pdf_header_subtitle">Reporte de hemodinamia (cateterismo derecho)</string>
     <string name="pdf_header_datetime">Fecha/hora: %1$s</string>
     <string name="pdf_footer_page">Página %1$d</string>
@@ -341,6 +528,186 @@ UNIDADES / NOTAS
 
     <!-- Para el Reporte PDF -->
     <string name="cpo_report_title">Cardiac Power Output (CPO/CPI)</string>
+
+    <!-- Validation generic -->
+    <string name="val_invalid_number">Número inválido.</string>
+    <string name="val_required">Campo requerido.</string>
+    <string name="val_must_be_gt_zero">Debe ser &gt; 0.</string>
+
+    <!-- MDCalc-like messages -->
+    <string name="val_too_high_change_to_proceed">Demasiado alto; cambie el valor para continuar.</string>
+    <string name="val_very_low_double_check">Muy bajo; verifique.</string>
+    <string name="val_very_high_double_check">Muy alto; verifique.</string>
+    <string name="val_out_of_hard_range">Fuera de rango permitido.</string>
+
+    <!-- Field-specific optional (mejor UX) -->
+    <string name="val_sao2_bounds">SaO₂ debe estar entre 0 y 100.</string>
+    <string name="val_svo2_bounds">SvO₂ debe estar entre 0 y 100.</string>
+
+    <!-- ===================== -->
+    <!-- boton avanzar (ES)    -->
+    <!-- ===================== -->
+
+    <string name="common_next">Siguiente</string>
+    <string name="common_prev">Anterior</string>
+
+    <!-- ===================== -->
+    <!-- InterpretationGauge (ES)-->
+    <!-- ===================== -->
+
+
+    <!-- Gauge titles -->
+    <string name="interp_fick_co_title">Interpretación (Gasto Cardíaco, CO)</string>
+
+    <!-- Labels para CO -->
+    <string name="interp_low_output">Bajo gasto</string>
+    <string name="interp_normal_flow">Normal</string>
+    <string name="interp_high_output">Alto gasto</string>
+
+    <!-- Rangos CO (ajústalos si cambias T1/T2) -->
+    <string name="interp_fick_co_low_range">&lt; 4.0</string>
+    <string name="interp_fick_co_normal_range">4.0 - 8.0</string>
+    <string name="interp_fick_co_high_range">&gt;= 8.0</string>
+
+
+    <string name="fick_result_eyebrow_co">Gasto Cardíaco (CO)</string>
+    <string name="fick_result_ci_label">Índice Cardíaco</string>
+    <string name="fick_result_sv_label">Volumen Sistólico</string>
+
+    <string name="common_unit_ml">mL</string>
+
+
+    <string name="interp_fick_ci_normal_range">2.2 - 4.0</string>
+    <string name="interp_fick_ci_borderline_range">&lt; 2.2</string>
+    <string name="interp_fick_ci_elevated_range">&gt;= 4.0</string>
+
+    <!-- Si no tienes uno ya para L/min/m² -->
+    <string name="common_unit_lmin_m2">L/min/m²</string>
+
+
+    <string name="interp_title">Interpretación</string>
+    <string name="interp_result">Resultado</string>
+
+    <string name="interp_normal">Normal</string>
+    <string name="interp_borderline">Borderline</string>
+    <string name="interp_elevated">Elevado</string>
+
+    <string name="interp_pvr_normal_range">&lt; 2.0</string>
+    <string name="interp_pvr_borderline_range">2.0 - 3.0</string>
+    <string name="interp_pvr_elevated_range">&gt; 3.0</string>
+
+    <string name="common_unit_wu_short">Wood Units</string>
+
+    <string name="interp_result_line">Resultado: %1$s</string>
+
+
+    <!-- ===================== -->
+    <!-- RVS gauge(ES)-->
+    <!-- ===================== -->
+
+    <string name="interp_svr_title_dynes">Interpretación (RVS, dyn·s·cm⁻⁵)</string>
+    <string name="interp_svr_title_wu">Interpretación (RVS, WU)</string>
+
+    <string name="interp_low_svr">Baja RVS</string>
+    <string name="interp_normal_svr">Normal</string>
+    <string name="interp_high_svr">Alta RVS</string>
+
+    <string name="interp_svr_low_range_dynes">&lt; 800</string>
+    <string name="interp_svr_normal_range_dynes">800 - 1200</string>
+    <string name="interp_svr_high_range_dynes">&gt; 1200</string>
+
+    <string name="interp_svr_low_range_wu">&lt; 10</string>
+    <string name="interp_svr_normal_range_wu">10 - 15</string>
+    <string name="interp_svr_high_range_wu">&gt; 15</string>
+
+
+    <!-- ===================== -->
+    <!-- Potencia cardiaca(ES)-->
+    <!-- ===================== -->
+
+    <string name="interp_cpo_title">Interpretación (CPO)</string>
+
+    <string name="interp_low_cpo">Baja</string>
+    <string name="interp_intermediate_cpo">Intermedia</string>
+    <string name="interp_adequate_cpo">Adecuada</string>
+
+    <string name="interp_cpo_low_range">&lt; 0.6</string>
+    <string name="interp_cpo_intermediate_range">0.6 - 0.8</string>
+    <string name="interp_cpo_adequate_range">&gt; 0.8</string>
+
+    <string name="common_unit_w">W</string>
+
+
+    <string name="cpo_result_eyebrow">Potencia cardíaca (CPO)</string>
+    <string name="common_unit_m2">m²</string>
+    <string name="common_unit_w_m2">W/m²</string>
+    <string name="common_label_bsa">BSA</string>
+    <string name="common_value_na">—</string>
+    <string name="cpo_error_review_required">Revisa los campos requeridos (MAP y CO).</string>
+
+
+    <!-- ===================== -->
+    <!-- Resistencia pulmonar(ES)-->
+    <!-- ===================== -->
+
+    <string name="interp_pvr_title_wu">Interpretación (Resistencia Vascular Pulmonar, WU)</string>
+    <string name="interp_pvr_title_dynes">Interpretación (Resistencia Vascular Pulmonar, dyn·s·cm⁻⁵)</string>
+
+    <string name="interp_pvr_normal">Normal</string>
+    <string name="interp_pvr_borderline">Borderline</string>
+    <string name="interp_pvr_elevated">Elevada</string>
+
+    <string name="interp_pvr_normal_range_wu">&lt; 2.0</string>
+    <string name="interp_pvr_borderline_range_wu">2.0 – 3.0</string>
+    <string name="interp_pvr_elevated_range_wu">&gt; 3.0</string>
+
+    <string name="interp_pvr_normal_range_dynes">&lt; 160</string>
+    <string name="interp_pvr_borderline_range_dynes">160 – 240</string>
+    <string name="interp_pvr_elevated_range_dynes">&gt; 240</string>
+
+    <!-- ===================== -->
+    <!-- papi(ES)-->
+    <!-- ===================== -->
+
+    <string name="interp_papi_title">Interpretación (PAPi)</string>
+
+    <string name="interp_high_risk">Alto riesgo</string>
+    <string name="interp_intermediate">Intermedio</string>
+    <string name="interp_preserved">Preservado</string>
+
+    <string name="interp_papi_high_risk_range">&lt; 1.0</string>
+    <string name="interp_papi_intermediate_range">1.0 – 1.5</string>
+    <string name="interp_papi_preserved_range">&gt; 1.5</string>
+
+    <string name="common_unit_none"></string>
+
+    <!-- Pantalla PAPI -->
+    <string name="papi_section_variables">Variables</string>
+
+    <!-- Campos -->
+
+
+
+    <!-- Etiquetas del resultado -->
+
+
+    <!-- Info (barra superior) -->
+
+    <!-- Ayuda -->
+    <string name="papi_help_pasp_title">PASP</string>
+    <string name="papi_help_pasp_body">Presión sistólica de la arteria pulmonar (mmHg).</string>
+
+    <string name="papi_help_padp_title">PADP</string>
+    <string name="papi_help_padp_body">Presión diastólica de la arteria pulmonar (mmHg).</string>
+
+    <string name="papi_help_rap_title">RAP</string>
+    <string name="papi_help_rap_body">Presión de aurícula derecha (mmHg).</string>
+
+    <!-- Reporte -->
+    <string name="papi_placeholder_pasp">Ej. 35 (15–90)</string>
+    <string name="papi_placeholder_padp">Ej. 15 (5–45)</string>
+    <string name="papi_placeholder_rap">Ej. 8 (0–30)</string>
+
 
 
 </resources>
