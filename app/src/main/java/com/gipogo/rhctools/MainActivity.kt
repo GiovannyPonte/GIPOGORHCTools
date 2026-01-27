@@ -1,19 +1,16 @@
 package com.gipogo.rhctools
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import com.gipogo.rhctools.ui.AppRoot
+import androidx.appcompat.app.AppCompatActivity
 import com.gipogo.rhctools.ui.AppEntry
+import com.gipogo.rhctools.ui.security.AuthSessionManager
 import com.gipogo.rhctools.ui.theme.GipogoRhctoolsTheme
 
-
-
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()   // ✅ 1) Edge-to-edge correcto
+        AuthSessionManager.init(this)
 
         setContent {
             GipogoRhctoolsTheme {
@@ -22,3 +19,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

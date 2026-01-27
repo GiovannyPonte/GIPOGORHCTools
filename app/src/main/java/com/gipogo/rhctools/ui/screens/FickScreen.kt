@@ -34,6 +34,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.gipogo.rhctools.R
+import com.gipogo.rhctools.domain.HemodynamicsFormulas
+import com.gipogo.rhctools.report.CalcEntry
+import com.gipogo.rhctools.report.CalcType
+import com.gipogo.rhctools.report.LineItem
+import com.gipogo.rhctools.report.ReportStore
+import com.gipogo.rhctools.report.SharedKeys
 import com.gipogo.rhctools.ui.components.CalcNavigatorBar
 import com.gipogo.rhctools.ui.components.GipogoCalcTopBar
 import com.gipogo.rhctools.ui.components.GipogoFieldHint
@@ -52,10 +58,22 @@ import com.gipogo.rhctools.ui.validation.NumericValidators
 import com.gipogo.rhctools.ui.validation.Severity
 import com.gipogo.rhctools.ui.validation.UnitConverters
 import com.gipogo.rhctools.ui.viewmodel.FickViewModel
+import com.gipogo.rhctools.util.Format
+import com.gipogo.rhctools.workshop.WorkshopMode
+import com.gipogo.rhctools.workshop.WorkshopPrefillStore
+import com.gipogo.rhctools.workshop.WorkshopSession
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
+
 
 private enum class FickHelpTopic { SAO2, SVO2, HB, HR }
+private enum class CoMethodUi { FICK, THERMODILUTION }
 
 @Composable
 fun FickScreen(
@@ -66,17 +84,84 @@ fun FickScreen(
     vm: FickViewModel
 ) {
     val state by vm.state.collectAsState()
+
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
 
     var submitted by rememberSaveable { mutableStateOf(false) }
+    var method by rememberSaveable { mutableStateOf(CoMethodUi.FICK) }
+
+    // TD inputs (runs L/min)
+    var td1 by rememberSaveable { mutableStateOf("") }
+    var td2 by rememberSaveable { mutableStateOf("") }
+    var td3 by rememberSaveable { mutableStateOf("") }
+
+    // TD results
+    var tdCo by rememberSaveable { mutableStateOf<Double?>(null) }
+    var tdCi by rememberSaveable { mutableStateOf<Double?>(null) }
+    var tdSv by rememberSaveable { mutableStateOf<Double?>(null) }
+    var tdError by rememberSaveable { mutableStateOf<String?>(null) }
 
     var showInfoDialog by remember { mutableStateOf(false) }
     var helpTopic by remember { mutableStateOf<FickHelpTopic?>(null) }
-
     var scrollToResultRequested by remember { mutableStateOf(false) }
 
-    // ---- parse + convert to base units ----
+    // ---------- PREFILL desde BD (solo en modo paciente) ----------
+    val workshopCtx by WorkshopSession.context.collectAsState()
+    val prefill by WorkshopPrefillStore.prefill.collectAsState()
+
+    LaunchedEffect(
+        workshopCtx.mode,
+        prefill,
+        state.weight,
+        state.height,
+        state.ageGroup,
+        state.weightUnit,
+        state.heightUnit
+    ) {
+        if (workshopCtx.mode != WorkshopMode.PATIENT_STUDY) return@LaunchedEffect
+
+        // Peso (kg en BD) -> UI units
+        val wKg = prefill.weightKg
+        if (state.weight.isBlank() && wKg != null) {
+            val valueInUiUnits = when (state.weightUnit) {
+                FickViewModel.WeightUnit.KG -> wKg
+                FickViewModel.WeightUnit.LB -> kgToLb(wKg)
+            }
+            vm.setWeight(String.format("%.0f", valueInUiUnits))
+        }
+
+        // Talla (cm en BD) -> UI units
+        val hCm = prefill.heightCm
+        if (state.height.isBlank() && hCm != null) {
+            val valueInUiUnits = when (state.heightUnit) {
+                FickViewModel.HeightUnit.CM -> hCm
+                FickViewModel.HeightUnit.IN -> cmToIn(hCm)
+                FickViewModel.HeightUnit.M -> cmToM(hCm)
+            }
+            val formatted = when (state.heightUnit) {
+                FickViewModel.HeightUnit.M -> String.format("%.2f", valueInUiUnits)
+                else -> String.format("%.0f", valueInUiUnits)
+            }
+            vm.setHeight(formatted)
+        }
+
+        // Age group desde DOB (millis)
+        val by = prefill.birthDateMillis
+        if (by != null) {
+            val ageYears = ChronoUnit.YEARS.between(
+                Instant.ofEpochMilli(by).atZone(ZoneId.systemDefault()).toLocalDate(),
+                LocalDate.now()
+            ).toInt()
+
+            val target = if (ageYears >= 70) FickViewModel.AgeGroup.GE70 else FickViewModel.AgeGroup.LT70
+            if (state.ageGroup != target) vm.setAgeGroup(target)
+        }
+    }
+
+    // ---- Parse + convert to base units ----
     val weightParsed = NumericParsing.parseDouble(state.weight)
     val weightKg = when (state.weightUnit) {
         FickViewModel.WeightUnit.KG -> weightParsed
@@ -100,7 +185,13 @@ fun FickScreen(
     val svo2Val = NumericParsing.parseDouble(state.svO2)
     val hrVal = NumericParsing.parseDouble(state.heartRate)
 
-    // ---- rules gated by submit ----
+    val td1Val = NumericParsing.parseDouble(td1)
+    val td2Val = NumericParsing.parseDouble(td2)
+    val td3Val = NumericParsing.parseDouble(td3)
+    val tdRuns = listOfNotNull(td1Val, td2Val, td3Val).filter { it > 0.0 }
+    val tdHasError = submitted && tdRuns.isEmpty()
+
+    // ---- Validation rules gated by submit ----
     val weightRule = FickValidation.weightRule.copy(required = submitted)
     val heightRule = FickValidation.heightRule.copy(required = submitted)
     val sao2Rule = FickValidation.sao2Rule.copy(required = submitted)
@@ -119,12 +210,18 @@ fun FickScreen(
         )
     }
 
-    val hasError = validation.values.any { it.severity == Severity.ERROR }
-    val canCalculate = !hasError
+    val fickHasError = validation.values.any { it.severity == Severity.ERROR }
+    val canCalculate = when (method) {
+        CoMethodUi.FICK -> !fickHasError
+        CoMethodUi.THERMODILUTION -> !tdHasError
+    }
 
     // Scroll al final cuando aparece resultado/error
-    LaunchedEffect(state.cardiacOutputLMin, state.error) {
-        if (scrollToResultRequested && (state.cardiacOutputLMin != null || state.error != null)) {
+    LaunchedEffect(state.cardiacOutputLMin, state.error, tdCo, tdError) {
+        val hasFickResult = (state.cardiacOutputLMin != null || state.error != null)
+        val hasTdResult = (tdCo != null || tdError != null)
+
+        if (scrollToResultRequested && (hasFickResult || hasTdResult)) {
             delay(120)
             scrollState.animateScrollTo(scrollState.maxValue)
             scrollToResultRequested = false
@@ -180,12 +277,12 @@ fun FickScreen(
             stringResource(hrV.messageResId)
         else null
 
+    // Units text (legacy hardcoded; puedes migrarlo a strings luego)
     val heightUnitText = when (state.heightUnit) {
         FickViewModel.HeightUnit.CM -> "cm"
         FickViewModel.HeightUnit.IN -> "in"
         FickViewModel.HeightUnit.M -> "m"
     }
-
     val hbUnitText = when (state.hbUnit) {
         FickViewModel.HbUnit.G_DL -> "g/dL"
         FickViewModel.HbUnit.G_L -> "g/L"
@@ -196,6 +293,24 @@ fun FickScreen(
     val hbPlaceholder = "12–17"
     val hrPlaceholder = "60–100"
 
+    // ✅ Precompute strings used inside onClick/try-catch (NO composables there)
+    val strTdReportTitle = stringResource(R.string.td_report_title)
+    val strTdRun1 = stringResource(R.string.td_run_1)
+    val strTdRun2 = stringResource(R.string.td_run_2_optional)
+    val strTdRun3 = stringResource(R.string.td_run_3_optional)
+    val strTdNeedRun = stringResource(R.string.td_error_need_one_run)
+
+    val strUnitLMin = stringResource(R.string.common_unit_lmin)
+    val strUnitM2 = stringResource(R.string.common_unit_m2)
+    val strUnitLMinM2 = stringResource(R.string.common_unit_lmin_m2)
+    val strUnitMl = stringResource(R.string.common_unit_ml)
+
+    val strBadgeCo = stringResource(R.string.home_badge_co)
+    val strLabelBsa = stringResource(R.string.common_label_bsa)
+    val strCiLabel = stringResource(R.string.fick_result_ci_label)
+    val strSvLabel = stringResource(R.string.fick_result_sv_label)
+    val strCommonError = stringResource(R.string.common_error)
+
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
@@ -203,11 +318,14 @@ fun FickScreen(
                 title = stringResource(R.string.fick_screen_title),
                 onBack = onBackToMenu,
                 onInfo = { showInfoDialog = true },
-
-                // ✅ RESET DIRECTO (sin AlertDialog)
                 onReset = {
                     vm.clear()
                     submitted = false
+
+                    // Clear TD
+                    td1 = ""; td2 = ""; td3 = ""
+                    tdCo = null; tdCi = null; tdSv = null; tdError = null
+
                     coroutineScope.launch { scrollState.animateScrollTo(0) }
                 }
             )
@@ -224,6 +342,18 @@ fun FickScreen(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Method selector
+            GipogoSurfaceCard {
+                CoMethodToggleCompat(
+                    selected = method,
+                    onSelect = {
+                        method = it
+                        tdCo = null; tdCi = null; tdSv = null; tdError = null
+                    }
+                )
+            }
+
+            // Patient data (always)
             GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_patient_data))
 
             GipogoSplitInputCard(
@@ -250,81 +380,235 @@ fun FickScreen(
             )
             patientMsg?.let { GipogoFieldHint(severity = patientSeverity ?: Severity.OK, text = it) }
 
-            GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_oxygenation))
+            // Fick-only sections
+            if (method == CoMethodUi.FICK) {
+                GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_oxygenation))
 
-            GipogoSplitInputCard(
-                leftLabel = stringResource(R.string.fick_label_sao2_short),
-                leftValue = state.saO2,
-                leftPlaceholder = sao2Placeholder,
-                leftUnit = "%",
-                onLeftChange = vm::setSaO2,
-                onLeftHelpClick = { helpTopic = FickHelpTopic.SAO2 },
-                leftSeverity = sao2V.severity,
+                GipogoSplitInputCard(
+                    leftLabel = stringResource(R.string.fick_label_sao2_short),
+                    leftValue = state.saO2,
+                    leftPlaceholder = sao2Placeholder,
+                    leftUnit = "%",
+                    onLeftChange = vm::setSaO2,
+                    onLeftHelpClick = { helpTopic = FickHelpTopic.SAO2 },
+                    leftSeverity = sao2V.severity,
 
-                rightLabel = stringResource(R.string.fick_label_svo2_short),
-                rightValue = state.svO2,
-                rightPlaceholder = svo2Placeholder,
-                rightUnit = "%",
-                onRightChange = vm::setSvO2,
-                onRightHelpClick = { helpTopic = FickHelpTopic.SVO2 },
-                rightSeverity = svo2V.severity,
+                    rightLabel = stringResource(R.string.fick_label_svo2_short),
+                    rightValue = state.svO2,
+                    rightPlaceholder = svo2Placeholder,
+                    rightUnit = "%",
+                    onRightChange = vm::setSvO2,
+                    onRightHelpClick = { helpTopic = FickHelpTopic.SVO2 },
+                    rightSeverity = svo2V.severity,
 
-                keyboardType = KeyboardType.Decimal,
-                overallSeverity = oxygenSeverity
-            )
-            oxygenMsg?.let { GipogoFieldHint(severity = oxygenSeverity ?: Severity.OK, text = it) }
+                    keyboardType = KeyboardType.Decimal,
+                    overallSeverity = oxygenSeverity
+                )
+                oxygenMsg?.let { GipogoFieldHint(severity = oxygenSeverity ?: Severity.OK, text = it) }
 
-            GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_labs))
+                GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_labs))
 
-            GipogoSingleInputCard(
-                label = stringResource(R.string.fick_label_hb_short),
-                value = state.hb,
-                placeholder = hbPlaceholder,
-                unit = hbUnitText,
-                onValueChange = vm::setHb,
-                keyboardType = KeyboardType.Decimal,
-                onUnitClick = vm::toggleHbUnit,
-                onHelpClick = { helpTopic = FickHelpTopic.HB },
-                severity = hbV.severity
-            )
-            hbMsg?.let { GipogoFieldHint(severity = hbV.severity, text = it) }
+                GipogoSingleInputCard(
+                    label = stringResource(R.string.fick_label_hb_short),
+                    value = state.hb,
+                    placeholder = hbPlaceholder,
+                    unit = hbUnitText,
+                    onValueChange = vm::setHb,
+                    keyboardType = KeyboardType.Decimal,
+                    onUnitClick = vm::toggleHbUnit,
+                    onHelpClick = { helpTopic = FickHelpTopic.HB },
+                    severity = hbV.severity
+                )
+                hbMsg?.let { GipogoFieldHint(severity = hbV.severity, text = it) }
 
-            GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_heart_rate))
+                GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_heart_rate))
 
-            GipogoSingleInputCard(
-                label = stringResource(R.string.fick_label_hr_short),
-                value = state.heartRate,
-                placeholder = hrPlaceholder,
-                unit = "bpm",
-                onValueChange = vm::setHeartRate,
-                keyboardType = KeyboardType.Decimal,
-                onHelpClick = { helpTopic = FickHelpTopic.HR },
-                severity = hrV.severity
-            )
-            hrMsg?.let { GipogoFieldHint(severity = hrV.severity, text = it) }
+                GipogoSingleInputCard(
+                    label = stringResource(R.string.fick_label_hr_short),
+                    value = state.heartRate,
+                    placeholder = hrPlaceholder,
+                    unit = stringResource(R.string.common_unit_bpm),
+                    onValueChange = vm::setHeartRate,
+                    keyboardType = KeyboardType.Decimal,
+                    onHelpClick = { helpTopic = FickHelpTopic.HR },
+                    severity = hrV.severity
+                )
+                hrMsg?.let { GipogoFieldHint(severity = hrV.severity, text = it) }
 
-            GipogoSurfaceCard {
-                AgeToggleCompat(selected = state.ageGroup, onSelect = vm::setAgeGroup)
+                GipogoSurfaceCard {
+                    AgeToggleCompat(selected = state.ageGroup, onSelect = vm::setAgeGroup)
+                }
+            }
+
+            // TD-only section
+            if (method == CoMethodUi.THERMODILUTION) {
+                GipogoSectionHeaderRow(title = stringResource(R.string.td_section_title))
+
+                GipogoSurfaceCard {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        GipogoSingleInputCard(
+                            label = stringResource(R.string.td_run_1),
+                            value = td1,
+                            placeholder = stringResource(R.string.pvr_placeholder_co),
+                            unit = stringResource(R.string.common_unit_lmin),
+                            onValueChange = { td1 = it },
+                            keyboardType = KeyboardType.Decimal,
+                            onHelpClick = null,
+                            severity = if (submitted && tdRuns.isEmpty()) Severity.ERROR else Severity.OK
+                        )
+
+                        GipogoSingleInputCard(
+                            label = stringResource(R.string.td_run_2_optional),
+                            value = td2,
+                            placeholder = stringResource(R.string.pvr_placeholder_co),
+                            unit = stringResource(R.string.common_unit_lmin),
+                            onValueChange = { td2 = it },
+                            keyboardType = KeyboardType.Decimal,
+                            onHelpClick = null,
+                            severity = Severity.OK
+                        )
+
+                        GipogoSingleInputCard(
+                            label = stringResource(R.string.td_run_3_optional),
+                            value = td3,
+                            placeholder = stringResource(R.string.pvr_placeholder_co),
+                            unit = stringResource(R.string.common_unit_lmin),
+                            onValueChange = { td3 = it },
+                            keyboardType = KeyboardType.Decimal,
+                            onHelpClick = null,
+                            severity = Severity.OK
+                        )
+
+                        if (submitted && tdRuns.isEmpty()) {
+                            GipogoFieldHint(
+                                severity = Severity.ERROR,
+                                text = strTdNeedRun
+                            )
+                        }
+
+                        Text(
+                            text = stringResource(R.string.td_tip_weight_height_optional),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
 
             Button(
                 onClick = {
                     submitted = true
                     if (!canCalculate) return@Button
+
                     scrollToResultRequested = true
-                    vm.calculate()
+
+                    when (method) {
+                        CoMethodUi.FICK -> {
+                            vm.calculate()
+                            // ✅ Marca método y guarda inmediato (si está en PATIENT_STUDY)
+                            WorkshopRhcAutosave.setCoMethod("FICK")
+                            WorkshopRhcAutosave.flushNow(context, coroutineScope)
+                        }
+
+
+                        CoMethodUi.THERMODILUTION -> {
+                            tdError = null
+                            try {
+                                val co = HemodynamicsFormulas.thermodilutionAverageCardiacOutputLMin(tdRuns)
+
+                                val bsa = if (weightKg != null && heightCm != null) {
+                                    HemodynamicsFormulas.bsaMosteller(heightCm, weightKg)
+                                } else null
+
+                                val ci = bsa?.let { co / it }
+
+                                val sv = hrVal?.let { hr ->
+                                    if (hr > 0.0) HemodynamicsFormulas.strokeVolumeMlBeat(co, hr) else null
+                                }
+
+                                tdCo = co
+                                tdCi = ci
+                                tdSv = sv
+
+                                // Share CO/BSA with other tools via ReportStore
+                                ReportStore.upsert(
+                                    CalcEntry(
+                                        type = CalcType.FICK, // (si luego quieres, creas CalcType.TD)
+                                        timestampMillis = System.currentTimeMillis(),
+                                        title = strTdReportTitle,
+                                        inputs = listOf(
+                                            LineItem(label = strTdRun1, value = td1Val?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+                                            LineItem(label = strTdRun2, value = td2Val?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+                                            LineItem(label = strTdRun3, value = td3Val?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+
+                                            LineItem(key = SharedKeys.CO_LMIN, label = strBadgeCo, value = Format.d(co, 2), unit = strUnitLMin, detail = ""),
+                                            LineItem(key = SharedKeys.BSA_M2, label = strLabelBsa, value = bsa?.let { Format.d(it, 2) } ?: "", unit = strUnitM2, detail = ""),
+
+                                            // ✅ CI con key (si bsa existe)
+                                            LineItem(
+                                                key = SharedKeys.CI_LMIN_M2,
+                                                label = strCiLabel,
+                                                value = ci?.let { Format.d(it, 2) } ?: "",
+                                                unit = strUnitLMinM2,
+                                                detail = ""
+                                            ),
+
+                                            // ✅ Método con key (auditable)
+                                            LineItem(
+                                                key = SharedKeys.CO_METHOD,
+                                                label = "CO method",
+                                                value = "TD",
+                                                unit = null,
+                                                detail = null
+                                            )
+                                        ),
+                                        outputs = listOf(
+                                            LineItem(
+                                                key = SharedKeys.CO_LMIN,
+                                                label = strBadgeCo,
+                                                value = Format.d(co, 2),
+                                                unit = strUnitLMin,
+                                                detail = ""
+                                            ),
+                                            LineItem(
+                                                key = SharedKeys.CI_LMIN_M2,
+                                                label = strCiLabel,
+                                                value = ci?.let { Format.d(it, 2) } ?: "",
+                                                unit = strUnitLMinM2,
+                                                detail = ""
+                                            ),
+                                            LineItem(label = strSvLabel, value = sv?.let { Format.d(it, 0) } ?: "", unit = strUnitMl, detail = "")
+                                        )
+
+                                    )
+                                )
+                                // 👉 MARCAR MÉTODO Y GUARDAR YA MISMO
+                                WorkshopRhcAutosave.setCoMethod("TD")
+                                WorkshopRhcAutosave.flushNow(context, coroutineScope)
+                            } catch (e: Exception) {
+                                tdError = e.message ?: strCommonError
+                                tdCo = null; tdCi = null; tdSv = null
+                            }
+                        }
+                    }
+
                     coroutineScope.launch {
                         delay(220)
                         scrollState.animateScrollTo(scrollState.maxValue)
                     }
                 }
-            ) { Text(stringResource(R.string.common_btn_calculate)) }
+            ) {
+                Text(stringResource(R.string.common_btn_calculate))
+            }
 
+            // Fick error
             state.error?.let {
                 Text(text = it, color = MaterialTheme.colorScheme.error)
             }
 
-            // Resultados + gauge (usando CO)
+            // Fick results
             if (state.error == null && state.cardiacOutputLMin != null && state.cardiacIndexLMinM2 != null) {
                 val co = state.cardiacOutputLMin!!
                 val ci = state.cardiacIndexLMinM2!!
@@ -349,6 +633,34 @@ fun FickScreen(
                 )
             }
 
+            // TD results
+            if (method == CoMethodUi.THERMODILUTION) {
+                tdError?.let {
+                    Text(text = it, color = MaterialTheme.colorScheme.error)
+                }
+
+                val co = tdCo
+                if (tdError == null && co != null) {
+                    GipogoResultsHeroCard(
+                        eyebrow = strTdReportTitle,
+                        mainValue = format2(co),
+                        mainUnit = stringResource(R.string.common_unit_lmin),
+                        leftLabel = stringResource(R.string.fick_result_ci_label),
+                        leftValue = tdCi?.let { format2(it) } ?: stringResource(R.string.common_value_na),
+                        leftUnit = stringResource(R.string.common_unit_lmin_m2),
+                        rightLabel = stringResource(R.string.fick_result_sv_label),
+                        rightValue = tdSv?.let { format0(it) } ?: stringResource(R.string.common_value_na),
+                        rightUnit = stringResource(R.string.common_unit_ml),
+                        interpretationContent = {
+                            InterpretationGaugeCardGeneric(
+                                value = co,
+                                spec = FickCoInterpretation.spec
+                            )
+                        }
+                    )
+                }
+            }
+
             if (onNextCalculation != null) {
                 OutlinedButton(onClick = onNextCalculation) {
                     Text(stringResource(R.string.fick_next_calc_svr))
@@ -356,7 +668,6 @@ fun FickScreen(
             }
 
             CalcNavigatorBar(onPrev = onPrevCalc, onNext = onNextCalc)
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -429,6 +740,46 @@ private fun AgeToggleCompat(
         }
     }
 }
+
+@Composable
+private fun CoMethodToggleCompat(
+    selected: CoMethodUi,
+    onSelect: (CoMethodUi) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.co_method_label))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val leftSelected = selected == CoMethodUi.FICK
+            val rightSelected = selected == CoMethodUi.THERMODILUTION
+
+            if (leftSelected) {
+                FilledTonalButton(onClick = { onSelect(CoMethodUi.FICK) }) {
+                    Text(stringResource(R.string.co_method_fick))
+                }
+            } else {
+                OutlinedButton(onClick = { onSelect(CoMethodUi.FICK) }) {
+                    Text(stringResource(R.string.co_method_fick))
+                }
+            }
+
+            if (rightSelected) {
+                FilledTonalButton(onClick = { onSelect(CoMethodUi.THERMODILUTION) }) {
+                    Text(stringResource(R.string.co_method_thermodilution))
+                }
+            } else {
+                OutlinedButton(onClick = { onSelect(CoMethodUi.THERMODILUTION) }) {
+                    Text(stringResource(R.string.co_method_thermodilution))
+                }
+            }
+        }
+    }
+}
+
+// ---------- Local converters for PREFILL (BD kg/cm -> UI units) ----------
+private fun kgToLb(kg: Double): Double = kg / 0.45359237
+private fun cmToIn(cm: Double): Double = cm / 2.54
+private fun cmToM(cm: Double): Double = cm / 100.0
 
 private fun format2(v: Double): String = String.format("%.2f", v)
 private fun format0(v: Double): String = String.format("%.0f", v)

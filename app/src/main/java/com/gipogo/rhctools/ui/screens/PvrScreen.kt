@@ -59,6 +59,9 @@ import com.gipogo.rhctools.ui.validation.Severity
 import com.gipogo.rhctools.ui.viewmodel.PvrViewModel
 import com.gipogo.rhctools.util.Format
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.rememberCoroutineScope
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
+
 
 private enum class PvrHelpTopic { MPAP, PAWP, CO, UNITS }
 
@@ -73,6 +76,7 @@ fun PvrScreen(
     val state by vm.state.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     val entries by ReportStore.entries.collectAsState()
     val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsState()
@@ -234,7 +238,7 @@ fun PvrScreen(
                 placeholder = stringResource(R.string.pvr_placeholder_mpap),
                 unit = stringResource(R.string.common_unit_mmhg),
                 onValueChange = {
-                    mpapEstimated = false // si el usuario escribe, deja de ser estimada
+                    mpapEstimated = false
                     vm.setMPAP(it)
                 },
                 keyboardType = KeyboardType.Decimal,
@@ -243,7 +247,6 @@ fun PvrScreen(
             )
             mpapMsg?.let { GipogoFieldHint(severity = mpapV.severity, text = it) }
 
-            // ✅ NUEVO: etiqueta informativa (no rompe nada)
             if (mpapEstimated) {
                 Text(
                     text = "mPAP estimada a partir de PASP/PADP",
@@ -387,23 +390,44 @@ fun PvrScreen(
 
     // ✅ Guardar en ReportStore si hay al menos un resultado (PVR o TPR)
     LaunchedEffect(state.pvrWu, state.pvrDynes, state.tprWu, state.tprDynes) {
-        val pvrWu = state.pvrWu
-        val pvrDyn = state.pvrDynes
-        val tprWu = state.tprWu
-        val tprDyn = state.tprDynes
+        val pvrWu2 = state.pvrWu
+        val pvrDyn2 = state.pvrDynes
+        val tprWu2 = state.tprWu
+        val tprDyn2 = state.tprDynes
 
-        if (pvrWu == null && tprWu == null) return@LaunchedEffect
+        if (pvrWu2 == null && tprWu2 == null) return@LaunchedEffect
 
         val outputs = mutableListOf<LineItem>()
 
-        if (pvrWu != null && pvrDyn != null) {
-            outputs += LineItem(label = "PVR", value = Format.d(pvrWu, 2), unit = "WU", detail = "Pulmonary Vascular Resistance (Wood Units)")
-            outputs += LineItem(label = "PVR", value = Format.d(pvrDyn, 0), unit = "dyn·s·cm⁻⁵", detail = "Pulmonary Vascular Resistance (CGS)")
+        // ✅ PVR con KEYS (auditable en BD)
+        if (pvrWu2 != null && pvrDyn2 != null) {
+            outputs += LineItem(
+                key = SharedKeys.PVR_WOOD,
+                label = "PVR",
+                value = Format.d(pvrWu2, 2),
+                unit = "WU",
+                detail = "Pulmonary Vascular Resistance (Wood Units)"
+            )
+            outputs += LineItem(
+                key = SharedKeys.PVR_DYN,
+                label = "PVR",
+                value = Format.d(pvrDyn2, 0),
+                unit = "dyn·s·cm⁻⁵",
+                detail = "Pulmonary Vascular Resistance (CGS)"
+            )
+            outputs += LineItem(
+                key = SharedKeys.PVR_UNITS,
+                label = "PVR units",
+                value = if (state.outputUnits == PvrViewModel.OutputUnits.WOOD_UNITS) "WOOD" else "DYN",
+                unit = null,
+                detail = null
+            )
         }
 
-        if (tprWu != null && tprDyn != null) {
-            outputs += LineItem(label = "TPR", value = Format.d(tprWu, 2), unit = "WU", detail = "Total Pulmonary Resistance (Wood Units)")
-            outputs += LineItem(label = "TPR", value = Format.d(tprDyn, 0), unit = "dyn·s·cm⁻⁵", detail = "Total Pulmonary Resistance (CGS)")
+        // TPR (sin keys; no existe columna en BD)
+        if (tprWu2 != null && tprDyn2 != null) {
+            outputs += LineItem(label = "TPR", value = Format.d(tprWu2, 2), unit = "WU", detail = "Total Pulmonary Resistance (Wood Units)")
+            outputs += LineItem(label = "TPR", value = Format.d(tprDyn2, 0), unit = "dyn·s·cm⁻⁵", detail = "Total Pulmonary Resistance (CGS)")
         }
 
         ReportStore.upsert(
@@ -420,6 +444,7 @@ fun PvrScreen(
                 notes = emptyList()
             )
         )
+        WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
 
     if (showInfoDialog) {

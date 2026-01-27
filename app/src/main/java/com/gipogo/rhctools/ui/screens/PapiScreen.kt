@@ -57,6 +57,8 @@ import com.gipogo.rhctools.ui.viewmodel.PapiViewModel
 import com.gipogo.rhctools.util.Format
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
+
 
 private enum class PapiHelpTopic { PASP, PADP, RAP, GLOBAL }
 
@@ -191,7 +193,7 @@ fun PapiScreen(
                 GipogoFieldHint(severity = rapV.severity, text = stringResource(rapV.messageResId))
             }
 
-            // ✅ NUEVO: botón explícito para usar CVP como RAP (NO automático)
+            // ✅ botón explícito para usar CVP como RAP (NO automático)
             if (state.rap.isBlank() && cvpFromStore != null) {
                 Button(
                     onClick = {
@@ -274,17 +276,20 @@ fun PapiScreen(
         )
     }
 
-    // ✅ Persistir en ReportStore — CAMBIO MÍNIMO: añadir keys a inputs (ya estaba)
+    // ✅ Persistir en ReportStore — CAMBIO: PAPi con KEY para BD
     LaunchedEffect(state.papi, state.papp) {
         val papi = state.papi ?: return@LaunchedEffect
 
         val outputs = mutableListOf<LineItem>()
+
         outputs += LineItem(
+            key = SharedKeys.PAPI,
             label = "PAPi",
             value = Format.d(papi, 2),
             unit = "",
             detail = "Pulmonary Artery Pulsatility Index"
         )
+
         state.papp?.let { papp ->
             outputs += LineItem(
                 label = "PAPP",
@@ -325,5 +330,6 @@ fun PapiScreen(
                 outputs = outputs
             )
         )
+        WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
 }

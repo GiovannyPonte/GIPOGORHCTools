@@ -24,14 +24,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.TextToolbar
+import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.yield
+
+/**
+ * ✅ No muestra el menú “Pegar / Seleccionar todo / Autocompletar”
+ * (pero deja cursor/selección funcionales)
+ */
+private object NoTextToolbar : TextToolbar {
+    override val status: TextToolbarStatus get() = TextToolbarStatus.Hidden
+    override fun hide() = Unit
+
+    override fun showMenu(
+        rect: Rect,
+        onCopyRequested: (() -> Unit)?,
+        onPasteRequested: (() -> Unit)?,
+        onCutRequested: (() -> Unit)?,
+        onSelectAllRequested: (() -> Unit)?
+    ) = Unit
+}
 
 @Composable
 fun GipogoBorderlessNumberField(
@@ -50,11 +71,11 @@ fun GipogoBorderlessNumberField(
     // ✅ Cursor claro (fondo oscuro)
     val cursorBrush = remember(cs.primary) { SolidColor(cs.primary) }
 
-    // ✅ Oculta la “gota” (handle) cuando hay selección
+    // ✅ Selección visible + handle visible (profesional)
     val selectionColors = remember(cs.primary) {
         TextSelectionColors(
-            handleColor = Color.Transparent,                 // <- esto elimina la gota
-            backgroundColor = cs.primary.copy(alpha = 0.25f) // selección suave
+            handleColor = cs.primary,
+            backgroundColor = cs.primary.copy(alpha = 0.25f)
         )
     }
 
@@ -74,10 +95,24 @@ fun GipogoBorderlessNumberField(
     )
 
     // ---------- Estado interno para selección ----------
-    var tfv by remember { mutableStateOf(TextFieldValue(text = value)) }
+    var tfv by remember { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
     var wasFocused by remember { mutableStateOf(false) }
 
-    // Mantener sincronía si el value externo cambia (p.ej. clear/reset, toggles, etc.)
+    // ✅ “Select-all” diferido (para que el tap no lo pise)
+    var pendingSelectAll by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pendingSelectAll) {
+        if (pendingSelectAll) {
+            // Espera 1 tick para ganar a la colocación de cursor por tap
+            yield()
+            if (tfv.text.isNotBlank()) {
+                tfv = tfv.copy(selection = TextRange(0, tfv.text.length))
+            }
+            pendingSelectAll = false
+        }
+    }
+
+    // Mantener sincronía si el value externo cambia
     LaunchedEffect(value) {
         if (value != tfv.text) {
             tfv = TextFieldValue(text = value, selection = TextRange(value.length))
@@ -116,7 +151,10 @@ fun GipogoBorderlessNumberField(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Bottom
     ) {
-        CompositionLocalProvider(LocalTextSelectionColors provides selectionColors) {
+        CompositionLocalProvider(
+            LocalTextToolbar provides NoTextToolbar,
+            LocalTextSelectionColors provides selectionColors
+        ) {
             BasicTextField(
                 value = tfv,
                 onValueChange = { next ->
@@ -134,12 +172,12 @@ fun GipogoBorderlessNumberField(
                     .onFocusChanged { fs ->
                         val focused = fs.isFocused
 
-                        // ✅ Al ganar foco: seleccionar todo si hay valor
+                        // ✅ Al ganar foco: select-all (diferido)
                         if (focused && !wasFocused && tfv.text.isNotBlank()) {
-                            tfv = tfv.copy(selection = TextRange(0, tfv.text.length))
+                            pendingSelectAll = true
                         }
 
-                        // ✅ Al perder foco: normaliza (si cambia, propágalo)
+                        // ✅ Al perder foco: normaliza y deja cursor al final
                         if (!focused && wasFocused) {
                             val normalized = normalizeOnBlur(tfv.text)
                             if (normalized != tfv.text) {
@@ -173,7 +211,7 @@ fun GipogoBorderlessNumberField(
             )
         }
 
-        // ✅ Unidad pegada al extremo derecho del Row
+        // ✅ Unidad al extremo derecho del Row
         if (showUnitInField && unitText.isNotBlank()) {
             if (onUnitClick != null) {
                 TextButton(

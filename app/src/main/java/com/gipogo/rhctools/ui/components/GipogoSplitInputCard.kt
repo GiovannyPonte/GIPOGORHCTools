@@ -2,6 +2,7 @@ package com.gipogo.rhctools.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -68,6 +69,7 @@ fun GipogoSplitInputCard(
             onUnitClick = onLeftUnitClick,
             onHelpClick = onLeftHelpClick,
             keyboardType = keyboardType,
+            severity = leftSeverity,
             modifier = Modifier.weight(1f)
         )
 
@@ -87,6 +89,7 @@ fun GipogoSplitInputCard(
             onUnitClick = onRightUnitClick,
             onHelpClick = onRightHelpClick,
             keyboardType = keyboardType,
+            severity = rightSeverity,
             modifier = Modifier.weight(1f)
         )
     }
@@ -102,15 +105,21 @@ private fun SplitField(
     onUnitClick: (() -> Unit)?,
     onHelpClick: (() -> Unit)?,
     keyboardType: KeyboardType,
+    severity: Severity? = null,
     modifier: Modifier = Modifier
 ) {
     val cs = MaterialTheme.colorScheme
+
+    val fieldBorderColor = when (severity) {
+        Severity.ERROR -> cs.error
+        Severity.WARNING -> cs.tertiary
+        else -> cs.outline
+    }
 
     Column(
         modifier = modifier.padding(horizontal = 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // ✅ label + info a la derecha del label
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -131,15 +140,22 @@ private fun SplitField(
             }
         }
 
-        // ✅ valor + unidad dentro, unidad al extremo derecho
-        GipogoBorderlessNumberField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = placeholder,
-            unitText = unit,
-            keyboardType = keyboardType,
-            onUnitClick = onUnitClick,
-            showUnitInField = true
-        )
+        // ✅ borde por mitad
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .gipogoBorder(1.dp, fieldBorderColor, dashed = false, radiusDp = 16.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            GipogoBorderlessNumberField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = placeholder,
+                unitText = unit,
+                keyboardType = keyboardType,
+                onUnitClick = onUnitClick,
+                showUnitInField = true
+            )
+        }
     }
 }

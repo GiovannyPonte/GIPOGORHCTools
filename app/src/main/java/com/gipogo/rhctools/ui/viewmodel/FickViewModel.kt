@@ -302,15 +302,57 @@ class FickViewModel : ViewModel() {
         val ageText = if (_state.value.ageGroup == AgeGroup.LT70) "< 70" else "≥ 70"
 
         val inputs = buildList {
+
+            // Peso / altura (sin key, vienen del prefill)
             add(LineItem(label = "Peso", value = Format.d(wRaw, 1), unit = weightUnitText))
             add(LineItem(label = "Altura", value = Format.d(hRaw, 1), unit = heightUnitText))
-            add(LineItem(label = "SaO₂", value = Format.d(sa, 0), unit = "%"))
-            add(LineItem(label = "SvO₂", value = Format.d(sv, 0), unit = "%"))
-            add(LineItem(label = "Hemoglobina", value = Format.d(hbRaw, 1), unit = hbUnitText))
+
+            // ✅ Fick inputs auditables
+            add(
+                LineItem(
+                    key = SharedKeys.SAO2_PERCENT,
+                    label = "SaO₂",
+                    value = Format.d(sa, 0),
+                    unit = "%"
+                )
+            )
+
+            add(
+                LineItem(
+                    key = SharedKeys.SVO2_PERCENT,
+                    label = "SvO₂",
+                    value = Format.d(sv, 0),
+                    unit = "%"
+                )
+            )
+
+            // Hb SIEMPRE en g/dL (canónico BD)
+            add(
+                LineItem(
+                    key = SharedKeys.HB_GDL,
+                    label = "Hemoglobina",
+                    value = Format.d(hb_gDl, 1),
+                    unit = "g/dL"
+                )
+            )
+
+            // HR opcional
             if (!state.value.heartRate.isBlank()) {
-                hr?.let { add(LineItem(label = "Frecuencia cardíaca", value = Format.d(it, 0), unit = "bpm")) }
+                hr?.let {
+                    add(
+                        LineItem(
+                            key = SharedKeys.HR_BPM,
+                            label = "Frecuencia cardíaca",
+                            value = Format.d(it, 0),
+                            unit = "bpm"
+                        )
+                    )
+                }
             }
+
             add(LineItem(label = "Edad", value = ageText, unit = "años"))
+
+            // BSA
             add(
                 LineItem(
                     key = SharedKeys.BSA_M2,
@@ -321,16 +363,31 @@ class FickViewModel : ViewModel() {
                 )
             )
 
+            // VO2 usado
             add(
-                if (_state.value.useMeasuredVo2) {
-                    LineItem(label = "VO₂", value = Format.d(vo2Used, 0), unit = "mL/min", detail = "Medido")
-                } else {
-                    LineItem(label = "VO₂", value = Format.d(vo2Used, 0), unit = "mL/min", detail = "Estimado")
-                }
+                LineItem(
+                    key = SharedKeys.VO2_MLMIN,
+                    label = "VO₂",
+                    value = Format.d(vo2Used, 0),
+                    unit = "mL/min",
+                    detail = if (_state.value.useMeasuredVo2) "Medido" else "Estimado"
+                )
+            )
+
+            // VO2 mode
+            add(
+                LineItem(
+                    key = SharedKeys.VO2_MODE,
+                    label = "VO₂ mode",
+                    value = if (_state.value.useMeasuredVo2) "MEASURED" else "ESTIMATED",
+                    unit = null
+                )
             )
         }
 
+
         val outputs = buildList {
+
             add(
                 LineItem(
                     key = SharedKeys.CO_LMIN,
@@ -341,13 +398,33 @@ class FickViewModel : ViewModel() {
                 )
             )
 
-            add(LineItem(label = "CI", value = Format.d(ci, 2), unit = "L/min/m²", detail = "Cardiac Index"))
-            svMlBeat?.let { add(LineItem(label = "SV", value = Format.d(it, 0), unit = "mL", detail = "Stroke Volume")) }
+            // ✅ CI con key (muy importante)
+            add(
+                LineItem(
+                    key = SharedKeys.CI_LMIN_M2,
+                    label = "CI",
+                    value = Format.d(ci, 2),
+                    unit = "L/min/m²",
+                    detail = "Cardiac Index"
+                )
+            )
+
+            svMlBeat?.let {
+                add(
+                    LineItem(
+                        label = "SV",
+                        value = Format.d(it, 0),
+                        unit = "mL",
+                        detail = "Stroke Volume"
+                    )
+                )
+            }
 
             add(LineItem(label = "CaO₂", value = Format.d(ca, 2), unit = "mL/dL"))
             add(LineItem(label = "CvO₂", value = Format.d(cv, 2), unit = "mL/dL"))
-            add(LineItem(label = "ΔA-V O₂", value = Format.d(avDiff, 2), unit = "mL/dL", detail = "CaO₂ − CvO₂"))
+            add(LineItem(label = "ΔA-V O₂", value = Format.d(avDiff, 2), unit = "mL/dL"))
         }
+
 
         val entry = CalcEntry(
             type = CalcType.FICK,

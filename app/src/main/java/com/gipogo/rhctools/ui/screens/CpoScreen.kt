@@ -54,8 +54,10 @@ import com.gipogo.rhctools.ui.validation.NumericValidators
 import com.gipogo.rhctools.ui.validation.Severity
 import com.gipogo.rhctools.ui.viewmodel.CpoViewModel
 import com.gipogo.rhctools.util.Format
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
 
 private enum class CpoHelpTopic { MAP, CO, BSA, GLOBAL }
 
@@ -331,7 +333,7 @@ fun CpoScreen(
         }
     }
 
-    // ✅ Persistir CPO: publica MAP/CO/BSA con KEYS para que SVR/PVR/CPO se autollenan
+    // ✅ Persistir CPO: outputs con KEYS para BD
     LaunchedEffect(state.result) {
         val r = state.result ?: return@LaunchedEffect
 
@@ -353,11 +355,25 @@ fun CpoScreen(
                     LineItem(key = SharedKeys.BSA_M2, label = "BSA", value = bsaRaw2?.let { Format.d(it, 2) } ?: "", unit = "m²", detail = "Body Surface Area")
                 ),
                 outputs = listOf(
-                    LineItem(label = "CPO", value = Format.d(r.cpoWatts, 2), unit = "W", detail = "Cardiac Power Output"),
-                    LineItem(label = "CPI", value = r.cpiWattsPerM2?.let { Format.d(it, 2) } ?: "", unit = "W/m²", detail = "Cardiac Power Index")
+                    LineItem(
+                        key = SharedKeys.CPO_W,
+                        label = "CPO",
+                        value = Format.d(r.cpoWatts, 2),
+                        unit = "W",
+                        detail = "Cardiac Power Output"
+                    ),
+                    LineItem(
+                        key = SharedKeys.CPI_W_M2,
+                        label = "CPI",
+                        value = r.cpiWattsPerM2?.let { Format.d(it, 2) } ?: "",
+                        unit = "W/m²",
+                        detail = "Cardiac Power Index"
+                    )
                 )
+
             )
         )
+        WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
 
     helpTopic?.let { topic ->

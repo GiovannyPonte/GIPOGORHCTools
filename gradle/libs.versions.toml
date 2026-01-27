@@ -5,6 +5,15 @@ compileSdk = "36"
 minSdk = "24"
 targetSdk = "36"
 datastore = "1.1.1"
+room = "2.8.4"
+ksp = "2.2.21-2.0.4"
+fragment = "1.7.1"
+biometric = "1.2.0-alpha05"
+appCompat = "1.7.0"
+
+
+
+
 
 
 composeBom = "2025.12.00" # Compose December '25 stable :contentReference[oaicite:7]{index=7}
@@ -34,10 +43,23 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom" }
 
+room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+
+sqlcipher = { module = "net.zetetic:android-database-sqlcipher", version = "4.5.7" }
+sqlite = { module = "androidx.sqlite:sqlite", version = "2.4.0" }
+sqlite-ktx = { module = "androidx.sqlite:sqlite-ktx", version = "2.4.0" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
+
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appCompat" }
 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android       = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose       = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # :contentReference[oaicite:12]{index=12}
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 

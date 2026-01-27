@@ -227,5 +227,51 @@ object HemodynamicsFormulas {
         }
         return null to false
     }
+    // -------------------------------------------------------------------------
+    // ✅ NUEVO: Termodilución (TD)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Termodilución práctica para tu UI:
+     * - El usuario introduce 1–3 corridas (L/min) y se calcula el promedio.
+     *
+     * Reglas:
+     * - Requiere al menos 1 valor > 0
+     */
+    fun thermodilutionAverageCardiacOutputLMin(runs_LMin: List<Double>): Double {
+        val valid = runs_LMin.filter { it.isFinite() && it > 0.0 }
+        require(valid.isNotEmpty()) { "At least one thermodilution run must be > 0" }
+        return valid.average()
+    }
+
+    /**
+     * Stewart–Hamilton (conceptual/avanzado):
+     *
+     * CO = (V_i * (T_b - T_i) * K) / ∫ΔT(t) dt
+     *
+     * - V_i: volumen de inyectado (mL)
+     * - (T_b - T_i): diferencia de temperatura (°C)
+     * - K: constante (densidad/calor específico, etc.) depende del sistema/monitor
+     * - integralDegreeCSeconds: área bajo la curva de termodilución (°C·s)
+     *
+     * Nota: tu UI actual NO captura el integral; por ahora usa el promedio.
+     */
+    fun stewartHamiltonThermodilutionCardiacOutputLMin(
+        injectateVolumeMl: Double,
+        deltaTempC: Double,
+        k: Double,
+        integralDegreeCSeconds: Double
+    ): Double {
+        require(injectateVolumeMl > 0.0) { "Injectate volume must be > 0" }
+        require(deltaTempC > 0.0) { "Delta temperature must be > 0" }
+        require(k > 0.0) { "K must be > 0" }
+        require(integralDegreeCSeconds > 0.0) { "Integral must be > 0" }
+
+        // Resultado en mL/s -> convertir a L/min:
+        // (mL/s) * (60 s/min) / (1000 mL/L) = * 0.06
+        val coMlPerSec = (injectateVolumeMl * deltaTempC * k) / integralDegreeCSeconds
+        return coMlPerSec * 0.06
+    }
+
 
 }

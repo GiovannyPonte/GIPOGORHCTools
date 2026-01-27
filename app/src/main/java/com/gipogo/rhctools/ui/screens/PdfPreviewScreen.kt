@@ -6,23 +6,39 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.NavigateBefore
+import androidx.compose.material.icons.outlined.NavigateNext
+import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,18 +47,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.ui.components.ScreenScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.max
 
 @Composable
 fun PdfPreviewScreen(
@@ -50,27 +71,36 @@ fun PdfPreviewScreen(
     pdfFileForShare: File,
     onClose: () -> Unit
 ) {
+    var zoom by rememberSaveable { mutableStateOf(1f) }
+    var currentPage by rememberSaveable { mutableStateOf(0) }
+
     val context = LocalContext.current
 
     var bitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val openOtherAppLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { /* no-op */ }
-
     LaunchedEffect(pdfUri) {
         try {
+            error = null
             bitmaps = renderPdfToBitmaps(context, pdfUri)
+            currentPage = 0
+            zoom = 1f
         } catch (e: Exception) {
             error = context.getString(R.string.pdf_error_render, e.message ?: "")
         }
     }
 
     ScreenScaffold(
-
         title = stringResource(R.string.pdf_preview_title),
-        onBackToMenu = onClose
+        onBackToMenu = onClose,
+        actions = {
+            IconButton(onClick = { /* placeholder */ }) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = stringResource(R.string.common_more_options)
+                )
+            }
+        }
     ) { _ ->
 
         Column(
@@ -80,20 +110,22 @@ fun PdfPreviewScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { sharePdfFile(context, pdfFileForShare) }
-                ) { Text(stringResource(R.string.pdf_btn_share)) }
-
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = { openInOtherApp(context, pdfFileForShare) }
-                ) { Text(stringResource(R.string.pdf_btn_open)) }
+            if (bitmaps.isNotEmpty()) {
+                currentPage = currentPage.coerceIn(0, bitmaps.lastIndex)
             }
+
+            PdfControlsRow(
+                hasPdf = bitmaps.isNotEmpty(),
+                currentPage = currentPage,
+                pageCount = bitmaps.size,
+                zoom = zoom,
+                onPrev = { currentPage = (currentPage - 1).coerceAtLeast(0) },
+                onNext = { currentPage = (currentPage + 1).coerceAtMost((bitmaps.size - 1).coerceAtLeast(0)) },
+                onZoomOut = { zoom = (zoom - 0.25f).coerceIn(1f, 2f) },
+                onZoomIn = { zoom = (zoom + 0.25f).coerceIn(1f, 2f) },
+                onShare = { sharePdfFile(context, pdfFileForShare) },
+                onOpen = { openInOtherApp(context, pdfFileForShare) }
+            )
 
             if (error != null) {
                 ElevatedCard {
@@ -108,36 +140,35 @@ fun PdfPreviewScreen(
 
             if (bitmaps.isEmpty()) {
                 Text(
-                    stringResource(R.string.pdf_generating_preview),
+                    text = stringResource(R.string.pdf_generating_preview),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 return@Column
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                itemsIndexed(bitmaps) { index, bmp ->
-                    ElevatedCard {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text(
-                                stringResource(R.string.pdf_page, index + 1),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-
-                            // ✅ Zoom/pan por página
-                            ZoomablePdfPage(
-                                bitmap = bmp,
-                                contentDescription = stringResource(R.string.pdf_page_cd, index + 1),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                stateKey = index
-                            )
-                        }
+            ElevatedCard {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AnimatedContent(
+                        targetState = currentPage,
+                        transitionSpec = {
+                            val dir = if (targetState > initialState) 1 else -1
+                            (slideInHorizontally(tween(220)) { it * dir } + fadeIn(tween(220)))
+                                .togetherWith(slideOutHorizontally(tween(220)) { -it * dir } + fadeOut(tween(220)))
+                        },
+                        label = "pdf_page_transition"
+                    ) { pageIndex ->
+                        ZoomablePdfPagePan(
+                            bitmap = bitmaps[pageIndex],
+                            contentDescription = stringResource(R.string.pdf_page_cd, pageIndex + 1),
+                            zoom = zoom,
+                            stateKey = pageIndex,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        )
                     }
                 }
             }
@@ -145,44 +176,153 @@ fun PdfPreviewScreen(
     }
 }
 
+/* =========================
+ * BARRA DE CONTROLES PDF
+ * ========================= */
 @Composable
-private fun ZoomablePdfPage(
+private fun PdfControlsRow(
+    hasPdf: Boolean,
+    currentPage: Int,
+    pageCount: Int,
+    zoom: Float,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onZoomOut: () -> Unit,
+    onZoomIn: () -> Unit,
+    onShare: () -> Unit,
+    onOpen: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        // Documento
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalIconButton(onClick = onShare, enabled = hasPdf) {
+                Icon(Icons.Outlined.Share, stringResource(R.string.pdf_btn_share))
+            }
+            FilledTonalIconButton(onClick = onOpen, enabled = hasPdf) {
+                Icon(Icons.Outlined.OpenInNew, stringResource(R.string.pdf_btn_open_other))
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        // Navegación
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalIconButton(onClick = onPrev, enabled = hasPdf && currentPage > 0) {
+                Icon(Icons.Outlined.NavigateBefore, stringResource(R.string.pdf_btn_prev_page))
+            }
+            Text(
+                text = if (hasPdf) "${currentPage + 1}/$pageCount" else "0/0",
+                style = MaterialTheme.typography.labelLarge
+            )
+            FilledTonalIconButton(onClick = onNext, enabled = hasPdf && currentPage < pageCount - 1) {
+                Icon(Icons.Outlined.NavigateNext, stringResource(R.string.pdf_btn_next_page))
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        // Zoom instrumental
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 1.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onZoomOut, enabled = zoom > 1f) {
+                    Icon(Icons.Outlined.Remove, stringResource(R.string.pdf_btn_zoom_out))
+                }
+                Text(
+                    text = "${(zoom * 100).toInt()}%",
+                    modifier = Modifier.widthIn(min = 48.dp, max = 64.dp),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelLarge
+                )
+                IconButton(onClick = onZoomIn, enabled = zoom < 2f) {
+                    Icon(Icons.Outlined.Add, stringResource(R.string.pdf_btn_zoom_in))
+                }
+            }
+        }
+    }
+}
+
+/* =========================
+ * PAN + ZOOM DE PÁGINA
+ * ========================= */
+@Composable
+private fun ZoomablePdfPagePan(
     bitmap: Bitmap,
     contentDescription: String,
-    modifier: Modifier = Modifier,
-    stateKey: Int
+    zoom: Float,
+    stateKey: Int,
+    modifier: Modifier = Modifier
 ) {
-    var scale by rememberSaveable(stateKey) { mutableStateOf(1f) }
     var offsetX by rememberSaveable(stateKey) { mutableStateOf(0f) }
     var offsetY by rememberSaveable(stateKey) { mutableStateOf(0f) }
 
-    Image(
-        bitmap = bitmap.asImageBitmap(),
-        contentDescription = contentDescription,
-        modifier = modifier
-            .pointerInput(stateKey) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(1f, 5f)
+    var boxW by remember { mutableStateOf(0) }
+    var boxH by remember { mutableStateOf(0) }
 
-                    if (newScale == 1f) {
-                        offsetX = 0f
-                        offsetY = 0f
-                    } else {
-                        offsetX += pan.x
-                        offsetY += pan.y
-                    }
-                    scale = newScale
-                }
+    LaunchedEffect(zoom) {
+        if (zoom <= 1f) {
+            offsetX = 0f
+            offsetY = 0f
+        }
+    }
+
+    fun clampOffsets(x: Float, y: Float): Pair<Float, Float> {
+        val maxX = max(0f, (bitmap.width * zoom - boxW) / 2f)
+        val maxY = max(0f, (bitmap.height * zoom - boxH) / 2f)
+        return x.coerceIn(-maxX, maxX) to y.coerceIn(-maxY, maxY)
+    }
+
+    Box(
+        modifier = modifier
+            .onSizeChanged {
+                boxW = it.width
+                boxH = it.height
+                val (cx, cy) = clampOffsets(offsetX, offsetY)
+                offsetX = cx
+                offsetY = cy
             }
-            .graphicsLayer(
-                scaleX = scale,
-                scaleY = scale,
+            .then(
+                if (zoom > 1f) {
+                    Modifier.pointerInput(zoom, stateKey) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consumeAllChanges()
+                            val (cx, cy) = clampOffsets(offsetX + dragAmount.x, offsetY + dragAmount.y)
+                            offsetX = cx
+                            offsetY = cy
+                        }
+                    }
+                } else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = Modifier.graphicsLayer(
+                scaleX = zoom,
+                scaleY = zoom,
                 translationX = offsetX,
                 translationY = offsetY
             )
-    )
+        )
+    }
 }
 
+/* =========================
+ * PDF → BITMAPS
+ * ========================= */
 private suspend fun renderPdfToBitmaps(context: Context, uri: Uri): List<Bitmap> = withContext(Dispatchers.IO) {
     val pfd: ParcelFileDescriptor =
         context.contentResolver.openFileDescriptor(uri, "r")
@@ -191,14 +331,13 @@ private suspend fun renderPdfToBitmaps(context: Context, uri: Uri): List<Bitmap>
     pfd.use { parcel ->
         PdfRenderer(parcel).use { renderer ->
             val pages = mutableListOf<Bitmap>()
-            for (i in 0 until renderer.pageCount) {
+            val targetWidthPx = 1400
+
+            repeat(renderer.pageCount) { i ->
                 renderer.openPage(i).use { page ->
-                    val scale = 2
-                    val bmp = Bitmap.createBitmap(
-                        page.width * scale,
-                        page.height * scale,
-                        Bitmap.Config.ARGB_8888
-                    )
+                    val scale = targetWidthPx.toFloat() / page.width.toFloat()
+                    val h = (page.height * scale).toInt().coerceAtLeast(1)
+                    val bmp = Bitmap.createBitmap(targetWidthPx, h, Bitmap.Config.ARGB_8888)
                     page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     pages.add(bmp)
                 }
@@ -214,12 +353,13 @@ private fun sharePdfFile(context: Context, file: File) {
         "${context.packageName}.fileprovider",
         file
     )
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "application/pdf"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, context.getString(R.string.pdf_chooser_share)))
+    context.startActivity(
+        Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    )
 }
 
 private fun openInOtherApp(context: Context, file: File) {
@@ -228,9 +368,10 @@ private fun openInOtherApp(context: Context, file: File) {
         "${context.packageName}.fileprovider",
         file
     )
-    val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/pdf")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, context.getString(R.string.pdf_chooser_open_with)))
+    context.startActivity(
+        Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    )
 }

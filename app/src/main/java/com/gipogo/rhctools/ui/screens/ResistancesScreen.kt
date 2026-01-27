@@ -56,6 +56,9 @@ import com.gipogo.rhctools.ui.viewmodel.ResistancesViewModel
 import com.gipogo.rhctools.util.Format
 import kotlinx.coroutines.delay
 import com.gipogo.rhctools.ui.interpretation.SvrInterpretation
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
+import androidx.compose.runtime.rememberCoroutineScope
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +70,8 @@ fun ResistancesScreen(
 ) {
     val state by vm.state.collectAsState()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     val scrollState = rememberScrollState()
 
     val entries by ReportStore.entries.collectAsState()
@@ -364,10 +369,32 @@ fun ResistancesScreen(
                     )
                 ),
                 outputs = listOf(
-                    LineItem(label = "SVR", value = Format.d(wu, 2), unit = "WU", detail = "Wood Units"),
-                    LineItem(label = "SVR", value = Format.d(dyn, 0), unit = "dyn·s·cm⁻⁵", detail = "CGS units")
+                    LineItem(
+                        key = SharedKeys.SVR_WOOD,
+                        label = "SVR",
+                        value = Format.d(wu, 2),
+                        unit = "WU",
+                        detail = "Wood Units"
+                    ),
+                    LineItem(
+                        key = SharedKeys.SVR_DYN,
+                        label = "SVR",
+                        value = Format.d(dyn, 0),
+                        unit = "dyn·s·cm⁻⁵",
+                        detail = "CGS units"
+                    ),
+                    LineItem(
+                        key = SharedKeys.SVR_UNITS,
+                        label = "SVR units",
+                        value = if (state.outputUnits == ResistancesViewModel.OutputUnits.WOOD_UNITS) "WOOD" else "DYN",
+                        unit = null,
+                        detail = null
+                    )
                 )
+
             )
         )
+        WorkshopRhcAutosave.flushNow(context, coroutineScope)
+
     }
 }

@@ -1,154 +1,95 @@
 <resources>
-
-    <!-- ===================== -->
-    <!-- PDF app name          -->
-    <!-- ===================== -->
-
-
+    <!--  =====================  -->
+    <!--  PDF app name           -->
+    <!--  =====================  -->
     <string name="home_topbar_title">GIPOGO RHC Tools</string>
     <string name="home_topbar_subtitle">Quick hemodynamics (RHC)</string>
-
     <string name="home_section_calcs_title">Calculations</string>
     <string name="home_section_calcs_trailing">4 TOOLS</string>
-
     <string name="home_section_report_title">Report</string>
     <string name="home_section_quick_prep_title">Quick prep</string>
-
     <string name="home_report_tip_open_from_reports">Tip: you can also open it from Reports.</string>
-
-
     <string name="pdf_app_name">GIPOGO Cath Lab Hemodynamics</string>
 
-    <!-- App name -->
+    <!--  App name  -->
     <string name="app_name">GIPOGO Cath Lab Hemodynamics</string>
 
-    <!-- Home / Top bar -->
+    <!--  Home / Top bar  -->
     <string name="home_title">GIPOGO Cath Lab Hemodynamics</string>
     <string name="home_subtitle">Quick hemodynamics (RHC)</string>
 
-    <!-- Sections -->
+    <!--  Sections  -->
     <string name="home_section_calculations">Calculations</string>
     <string name="home_section_report">Report</string>
 
-    <!-- Tool rows (titles + subtitles) -->
-    <string name="home_tool_fick_title">Fick: cardiac output</string>
-    <string name="home_tool_fick_subtitle">CO/CI/SV with weight, height, SaO₂, SvO₂ (PA), Hb, HR and age.</string>
-
+    <!--  Tool rows (titles + subtitles)  -->
+    <string name="home_tool_fick_title">Cardiac output</string>
+    <string name="home_tool_fick_subtitle">Fick or thermodilution</string>
     <string name="home_tool_svr_title">Systemic vascular resistance</string>
     <string name="home_tool_svr_subtitle">MAP + CVP + CO. Output in Wood Units or dyn·s·cm⁻⁵.</string>
-
     <string name="home_tool_cpo_title">Cardiac power</string>
     <string name="home_tool_cpo_subtitle">CPO/CPI with MAP + CO (+ BSA optional).</string>
-
     <string name="home_tool_papi_title">Pulmonary artery pulsatility index</string>
     <string name="home_tool_papi_subtitle">(PASP − PADP) / RAP.</string>
 
-    <!-- Formula help texts -->
-    <string name="home_help_fick"><![CDATA[FORMULAS
-• CaO₂ = 1.34 × Hb × SaO₂ + 0.0031 × PaO₂
-• CvO₂ = 1.34 × Hb × SvO₂ + 0.0031 × PvO₂
-• ΔC(a−v)O₂ = CaO₂ − CvO₂
-• CO (L/min) = VO₂ / (ΔC(a−v)O₂ × 10)
-• CI (L/min/m²) = CO / BSA
-• SV (mL) = (CO × 1000) / HR
+    <!--  Formula help texts  -->
+    <string name="home_help_fick">Calculates cardiac output (CO) using either the Fick method or thermodilution runs. The result is shared with the other tools (SVR, PVR, cardiac power, PAPI).</string>
 
-UNITS / NOTES
-• Hb in g/dL. Saturations in % (convert if needed).
-• SvO₂ ideally: mixed venous sample from pulmonary artery.
-• 0.0031×PO₂ is usually small and can be omitted if blood gases are not available.
-• VO₂: ideally measured; if estimated, depends on formula/sex/body size.]]></string>
+    <string name="home_help_svr">
+<![CDATA[ FORMULAS • SVR (Wood Units) = (MAP − CVP) / CO • SVR (dyn·s·cm⁻⁵) = SVR(WU) × 80 UNITS / NOTES • MAP and CVP (or RAP) in mmHg; CO in L/min. • If non-invasive MAP: MAP ≈ (SBP + 2×DBP)/3. • Use a consistent CO method for comparability. ]]>
+</string>
+    <string name="home_help_cpo">
+<![CDATA[ FORMULAS • CPO (W) = (MAP × CO) / 451 • CPI (W/m²) = CPO / BSA UNITS / NOTES • MAP in mmHg; CO in L/min. • 451 is the conversion factor to Watts. • Always interpret in clinical context. ]]>
+</string>
+    <string name="home_help_papi">
+<![CDATA[ FORMULAS • PAPi = (PASP − PADP) / RAP UNITS / NOTES • PASP, PADP, RAP in mmHg. • RAP = right atrial pressure (RAP/CVP). ]]>
+</string>
 
-    <string name="home_help_svr"><![CDATA[FORMULAS
-• SVR (Wood Units) = (MAP − CVP) / CO
-• SVR (dyn·s·cm⁻⁵) = SVR(WU) × 80
-
-UNITS / NOTES
-• MAP and CVP (or RAP) in mmHg; CO in L/min.
-• If non-invasive MAP: MAP ≈ (SBP + 2×DBP)/3.
-• Use a consistent CO method for comparability.]]></string>
-
-    <string name="home_help_cpo"><![CDATA[FORMULAS
-• CPO (W) = (MAP × CO) / 451
-• CPI (W/m²) = CPO / BSA
-
-UNITS / NOTES
-• MAP in mmHg; CO in L/min.
-• 451 is the conversion factor to Watts.
-• Always interpret in clinical context.]]></string>
-
-    <string name="home_help_papi"><![CDATA[FORMULAS
-• PAPi = (PASP − PADP) / RAP
-
-UNITS / NOTES
-• PASP, PADP, RAP in mmHg.
-• RAP = right atrial pressure (RAP/CVP).]]></string>
-
-    <!-- Report card -->
+    <!--  Report card  -->
     <string name="home_report_pdf_title">PDF Report</string>
     <string name="home_report_ready">Ready to generate a PDF with date/time and completed calculations.</string>
     <string name="home_report_need_calc">Perform at least one calculation to enable the report.</string>
     <string name="home_btn_open_pdf">Open PDF</string>
     <string name="home_btn_reset">Reset</string>
 
-    <!-- Quick prep card -->
+    <!--  Quick prep card  -->
     <string name="home_prep_quick_title">Quick setup</string>
     <string name="home_prep_quick_body">• Swan-Ganz pressures + CO\n• If using Fick: arterial + pulmonary artery sample (SvO₂) and Hb</string>
     <string name="home_btn_see_more">See more</string>
 
-    <!-- Dialogs -->
+    <!--  Dialogs  -->
     <string name="home_dialog_prep_title">Full setup</string>
     <string name="home_dialog_close">Close</string>
+    <string name="home_prep_full">
+<![CDATA[ • Swan-Ganz pressures: RAP (RA), PA (PASP/PADP/mPAP) and PCWP (wedge), ideally at end-expiration. • If using Fick: systemic arterial sample and mixed venous sample from pulmonary artery (PA). Label sampling site and send for co-oximetry/blood gas for SaO₂/SvO₂ and Hb. • MAP: preferably invasive arterial line; alternatively non-invasive BP and MAP ≈ (SBP + 2×DBP)/3. • CO: use a consistent method (thermodilution or Fick) for resistances and power. ]]>
+</string>
 
-    <string name="home_prep_full"><![CDATA[• Swan-Ganz pressures: RAP (RA), PA (PASP/PADP/mPAP) and PCWP (wedge), ideally at end-expiration.
-
-• If using Fick: systemic arterial sample and mixed venous sample from pulmonary artery (PA). Label sampling site and send for co-oximetry/blood gas for SaO₂/SvO₂ and Hb.
-
-• MAP: preferably invasive arterial line; alternatively non-invasive BP and MAP ≈ (SBP + 2×DBP)/3.
-
-• CO: use a consistent method (thermodilution or Fick) for resistances and power.]]></string>
-
-    <!-- ===================== -->
-    <!-- comunes (EN)      -->
-    <!-- ===================== -->
-
-    <!-- Common reset dialog -->
+    <!--  =====================  -->
+    <!--  comunes (EN)       -->
+    <!--  =====================  -->
+    <!--  Common reset dialog  -->
     <string name="common_reset_title">Reset</string>
     <string name="common_reset_body">Do you want to clear all fields and results?</string>
     <string name="common_reset_confirm">Reset</string>
-    <string name="common_cancel">Cancel</string>
 
-    <!-- ===================== -->
-    <!-- Fick Screen (EN)      -->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  Fick Screen (EN)       -->
+    <!--  =====================  -->
     <string name="fick_label_sao2_short">SaO₂</string>
     <string name="fick_label_svo2_short">SvO₂</string>
     <string name="fick_label_hb_short">Hemoglobin (Hb)</string>
     <string name="fick_label_hr_short">Heart rate (HR)</string>
-
     <string name="fick_help_sao2_title">SaO₂</string>
     <string name="fick_help_sao2_body">Arterial oxygen saturation. Ideally measured from arterial blood gas or co-oximetry. Typical values: 95–100%.</string>
-
     <string name="fick_help_svo2_title">SvO₂</string>
     <string name="fick_help_svo2_body">Mixed venous oxygen saturation. Ideally a pulmonary artery sample (Swan–Ganz catheter). Typical values: 60–80%.</string>
-
     <string name="fick_help_hb_title">Hemoglobin (Hb)</string>
     <string name="fick_help_hb_body">Hemoglobin concentration. Impacts arterial/venous O₂ content used in the Fick equation. Common units: g/dL or g/L.</string>
-
     <string name="fick_help_hr_title">Heart rate (HR)</string>
     <string name="fick_help_hr_body">Heart rate in beats per minute (bpm). Used to derive stroke volume from cardiac output.</string>
-
-
     <string name="val_warn_double_check">Very high; double-check.</string>
     <string name="val_err_change_to_proceed">Too high; please change to proceed.</string>
-
-
-
-
-
     <string name="fick_next_calc_svr">Next: Vascular resistance</string>
-
-
     <string name="fick_bsa_pill_asc">BSA: %1$s m²</string>
     <string name="fick_section_patient_data">Patient data</string>
     <string name="fick_section_oxygenation">Oxygenation</string>
@@ -156,25 +97,19 @@ UNITS / NOTES
     <string name="fick_section_heart_rate">Heart rate</string>
     <string name="fick_hb_toggle_unit">Change Hb unit</string>
     <string name="fick_copy_results">Copy results</string>
-
-
     <string name="fick_screen_title">Cardiac output (Fick)</string>
-
     <string name="fick_intro_title">Cardiac output (Fick method)</string>
     <string name="fick_intro_body">MDCalc-style interface: weight, height, SaO₂, SvO₂, Hb, HR and age. Estimated VO₂ adjusts automatically by age; advanced option for measured VO₂.</string>
-
     <string name="fick_card_weight_height">Weight / Height</string>
     <string name="fick_field_weight">Weight</string>
     <string name="fick_field_height">Height</string>
     <string name="fick_bsa_mosteller">BSA (Mosteller): %1$s m²</string>
-
     <string name="fick_required_vars_title">Required variables</string>
     <string name="fick_field_sao2">SaO₂ (arterial) – ideally from blood gas/co-oximetry</string>
     <string name="fick_field_svo2">SvO₂ (mixed) – pulmonary artery sample (PA) via Swan-Ganz</string>
     <string name="fick_field_hb">Hemoglobin (Hb) – lab</string>
     <string name="fick_field_hr">Heart rate (HR)</string>
     <string name="fick_vo2_auto">Auto-estimated VO₂ by age: %1$s mL/min/m²</string>
-
     <string name="fick_advanced_show">Advanced options</string>
     <string name="fick_advanced_hide">Hide advanced options</string>
     <string name="fick_use_measured_vo2">Use measured VO₂ (indirect calorimetry)</string>
@@ -182,18 +117,15 @@ UNITS / NOTES
     <string name="fick_include_dissolved">Include dissolved component (PaO₂/PvO₂)</string>
     <string name="fick_pao2">PaO₂ (arterial)</string>
     <string name="fick_pvo2">PvO₂ (venous)</string>
-
     <string name="fick_age_title">Age</string>
     <string name="fick_age_lt70">&lt; 70 years</string>
     <string name="fick_age_ge70">≥ 70 years</string>
-
     <string name="fick_abbrev_title">Abbreviations:</string>
-
     <string name="fick_report_title">Cardiac output (Fick)</string>
 
-    <!-- ===================== -->
-    <!-- Fick: result lines    -->
-    <!-- ===================== -->
+    <!--  =====================  -->
+    <!--  Fick: result lines     -->
+    <!--  =====================  -->
     <string name="fick_result_co">CO: %1$s L/min</string>
     <string name="fick_result_ci">CI: %1$s L/min/m²</string>
     <string name="fick_result_sv">SV: %1$s mL/beat</string>
@@ -203,7 +135,6 @@ UNITS / NOTES
     <string name="fick_result_cvo2">CvO₂: %1$s mL/dL</string>
     <string name="fick_result_avdiff">A–V diff: %1$s mL/dL</string>
     <string name="fick_result_vo2_factor">VO₂ factor used: %1$s mL/min/m²</string>
-
     <string name="fick_abbrev_co">• CO: Cardiac Output.</string>
     <string name="fick_abbrev_ci">• CI: Cardiac Index (CO/BSA).</string>
     <string name="fick_abbrev_sv">• SV: Stroke Volume (CO/HR).</string>
@@ -213,28 +144,21 @@ UNITS / NOTES
     <string name="fick_abbrev_cvo2">• CvO₂: Venous O₂ content.</string>
     <string name="fick_abbrev_avdiff">• A–V diff: Arterio-venous O₂ difference.</string>
 
-    <!-- ===================== -->
-    <!-- CPO Screen (EN)       -->
-    <!-- ===================== -->
+    <!--  =====================  -->
+    <!--  CPO Screen (EN)        -->
+    <!--  =====================  -->
     <string name="cpo_screen_title">Cardiac power</string>
-
     <string name="cpo_intro_title">Cardiac power (CPO) and index (CPI)</string>
-    <string name="cpo_intro_body">CPO = (MAP × CO) / 451.  CPI = (MAP × CI) / 451 when BSA is available.</string>
-
+    <string name="cpo_intro_body">CPO = (MAP × CO) / 451. CPI = (MAP × CI) / 451 when BSA is available.</string>
     <string name="cpo_section_variables">Variables</string>
-
     <string name="cpo_field_map_title">Mean arterial pressure (MAP)</string>
     <string name="cpo_field_map_help">Preferred: invasive arterial line. Alternative: MAP ≈ (SBP + 2×DBP) / 3.</string>
-
     <string name="cpo_field_co_title">Cardiac output (CO)</string>
     <string name="cpo_field_co_help">From right-heart cath: thermodilution (average) or Fick.</string>
-
     <string name="cpo_field_bsa_title">Body surface area (BSA) (optional)</string>
     <string name="cpo_field_bsa_help">Only needed if you want CPI (CPO indexed to BSA).</string>
-
     <string name="cpo_metric_cpo">CPO</string>
     <string name="cpo_metric_cpi">CPI</string>
-
     <string name="cpo_abbrev_title">Abbreviations:</string>
     <string name="cpo_abbrev_map">• MAP: Mean arterial pressure.</string>
     <string name="cpo_abbrev_co">• CO: Cardiac output.</string>
@@ -243,34 +167,24 @@ UNITS / NOTES
     <string name="cpo_abbrev_cpo">• CPO: Cardiac power output.</string>
     <string name="cpo_abbrev_cpi">• CPI: Cardiac power index.</string>
 
-    <!-- ============================== -->
-    <!-- Resistances / SVR Screen (EN)  -->
-    <!-- ============================== -->
-
+    <!--  ==============================  -->
+    <!--  Resistances / SVR Screen (EN)   -->
+    <!--  ==============================  -->
     <string name="svr_msg_review_required_fields">Review the required fields (Mean Arterial Pressure, Central Venous Pressure, and Cardiac Output).</string>
-
     <string name="svr_hero_eyebrow">Systemic vascular resistance</string>
     <string name="svr_hero_left_label">Wood Units</string>
     <string name="svr_hero_right_label">dyn·s·cm⁻⁵</string>
-
     <string name="svr_info_title">What does SVR measure?</string>
     <string name="svr_info_body">Systemic Vascular Resistance (SVR) estimates resistance to flow in the systemic circulation.\n\nFormula:\nSVR (WU) = (MAP − CVP) / CO\nSVR (dyn·s·cm⁻⁵) = SVR (WU) × 80\n\nMAP: mean arterial pressure\nCVP: central venous pressure\nCO: cardiac output</string>
-
-
     <string name="cpo_section_optional">Optional</string>
-
     <string name="svr_screen_title">Systemic vascular resistance</string>
-
     <string name="svr_section_questions">Variables</string>
-
     <string name="svr_field_map_title">Mean arterial pressure (MAP)</string>
     <string name="svr_field_cvp_title">Central venous pressure (CVP)</string>
     <string name="svr_field_co_title">Cardiac output (CO)</string>
-
     <string name="svr_units_title">Units</string>
     <string name="svr_units_wood">Wood Units</string>
     <string name="svr_units_dynes">dyn·s·cm⁻⁵</string>
-
     <string name="svr_result_title">Systemic vascular resistance</string>
     <string name="svr_siglas_title">Abbreviations:</string>
     <string name="svr_sigla_svr">• SVR: Systemic Vascular Resistance.</string>
@@ -279,30 +193,23 @@ UNITS / NOTES
     <string name="svr_sigla_co">• CO: Cardiac output.</string>
     <string name="svr_sigla_wood">• Wood Units: resistance units.</string>
     <string name="svr_sigla_dynes">• dyn·s·cm⁻⁵: CGS units.</string>
-
     <string name="svr_report_title">Systemic Vascular Resistance (SVR)</string>
-
     <string name="svr_error_missing">MAP, CVP and CO are required.</string>
     <string name="svr_error_co_nonpositive">CO must be &gt; 0.</string>
 
-    <!-- ===================== -->
-    <!-- PAPi Screen (EN)      -->
-    <!-- ===================== -->
+    <!--  =====================  -->
+    <!--  PAPi Screen (EN)       -->
+    <!--  =====================  -->
     <string name="papi_screen_title">PAPi</string>
-
     <string name="papi_intro_title">Pulmonary artery pulsatility index (PAPi)</string>
     <string name="papi_intro_body">Formula: PAPi = (PASP − PADP) / RAP</string>
-
     <string name="papi_inputs_title">Variables</string>
-
     <string name="papi_field_pasp_title">Pulmonary artery systolic pressure (PASP)</string>
     <string name="papi_field_padp_title">Pulmonary artery diastolic pressure (PADP)</string>
     <string name="papi_field_rap_title">Right atrial pressure / central venous pressure (RAP)</string>
-
     <string name="papi_help_pasp">Measure on pulmonary artery tracing via Swan-Ganz. Record PASP.</string>
     <string name="papi_help_padp">Measure on pulmonary artery tracing via Swan-Ganz. Record PADP.</string>
     <string name="papi_help_rap">Measure in right atrium via Swan-Ganz (or CVP). Ideally end-expiration.</string>
-
     <string name="papi_result_title">Result</string>
     <string name="papi_siglas_title">Abbreviations:</string>
     <string name="papi_sigla_papi">• PAPi: Pulmonary Artery Pulsatility Index.</string>
@@ -311,299 +218,215 @@ UNITS / NOTES
     <string name="papi_sigla_rap">• RAP: Right atrial pressure.</string>
     <string name="papi_sigla_pvc">• CVP: Central venous pressure.</string>
     <string name="papi_sigla_pa">• PA: Pulmonary artery.</string>
-
     <string name="papi_note_label">Note: %1$s</string>
-
     <string name="papi_error_missing">PASP, PADP and RAP are required.</string>
     <string name="papi_error_rap_nonpositive">RAP must be &gt; 0.</string>
     <string name="papi_error_pasp_lt_padp">PASP cannot be lower than PADP. Please verify values.</string>
-
     <string name="papi_note_high_risk">PAPi &lt; 0.9 suggests higher risk of right ventricular dysfunction (per reference tool threshold).</string>
     <string name="papi_note_lower_risk">PAPi ≥ 0.9: no high-risk criterion by this threshold (interpret in clinical context).</string>
-
     <string name="papi_report_title">Pulmonary Artery Pulsatility Index (PAPi)</string>
-
     <string name="papi_result_line">PAPi: %1$s</string>
 
-
-
-
-    <!-- ===================== -->
-    <!-- Resistencia pulmonar  -->
-    <!-- ===================== -->
-
-
-
-
-
-------------------------------------------
-
+    <!--  =====================  -->
+    <!--  Resistencia pulmonar   -->
+    <!--  =====================  -->
     <string name="papi_info_title">What is PAPi?</string>
     <string name="papi_info_body">PAPi (Pulmonary Artery Pulsatility Index) = (PASP − PADP) / RAP.\n\nPASP: pulmonary artery systolic pressure.\nPADP: pulmonary artery diastolic pressure.\nRAP: right atrial pressure.</string>
-
     <string name="papi_hero_left_label">PAPP</string>
     <string name="papi_hero_right_label">RAP</string>
-
     <string name="common_placeholder_numeric">0</string>
-
     <string name="tpr_result_title">Total pulmonary resistance (TPR)</string>
 
-    <!-- Home badges -->
+    <!--  Home badges  -->
     <string name="home_badge_co">CO</string>
     <string name="home_badge_svr">SVR</string>
     <string name="home_badge_cpo">CPO</string>
     <string name="home_badge_papi">PAPI</string>
     <string name="home_badge_pvr">PVR</string>
-
     <string name="home_fick_hero_badge">FICK PRINCIPLE</string>
-
     <string name="home_tool_pvr_title">Pulmonary Vascular Resistance</string>
     <string name="home_tool_pvr_subtitle">mPAP - PAWP / CO</string>
     <string name="home_help_pvr">Calculates pulmonary vascular resistance using mean pulmonary artery pressure (mPAP), pulmonary artery wedge pressure (PAWP), and cardiac output (CO).</string>
 
-    <!-- Common units -->
+    <!--  Common units  -->
     <string name="common_unit_mmhg">mmHg</string>
     <string name="common_unit_lmin">L/min</string>
     <string name="common_unit_wu">Wood Units</string>
     <string name="common_unit_dynes">dyn·s·cm⁻⁵</string>
 
-
-
-    <!-- PVR -->
+    <!--  PVR  -->
     <string name="pvr_screen_title">Pulmonary Vascular Resistance</string>
-
     <string name="pvr_section_variables">Variables</string>
     <string name="pvr_units_title">Units</string>
-
     <string name="pvr_field_mpap_title">Mean pulmonary artery pressure (mPAP)</string>
     <string name="pvr_field_pawp_title">Pulmonary artery wedge pressure (PAWP)</string>
     <string name="pvr_field_co_title">Pulmonary flow (Qp) / Cardiac output (CO)</string>
-
     <string name="pvr_placeholder_mpap">10–45</string>
     <string name="pvr_placeholder_pawp">4–18</string>
     <string name="pvr_placeholder_co">2.0–12.0</string>
-
     <string name="pvr_result_title">Pulmonary Vascular Resistance</string>
     <string name="pvr_hero_left_label">WOOD UNITS</string>
     <string name="pvr_hero_right_label">DYN·S·CM⁻⁵</string>
-
     <string name="pvr_info_title">Pulmonary Vascular Resistance</string>
-    <string name="pvr_info_body">Pulmonary resistance calculations based on right-heart catheterization hemodynamics.
-
-PVR (Pulmonary Vascular Resistance, WU) = (mPAP − PAWP) / CO
-TPR (Total Pulmonary Resistance, WU) = mPAP / CO
-
-Conversion:
-dyn·s·cm⁻⁵ = WU × 80
-
-mPAP: mean pulmonary artery pressure
-PAWP: pulmonary artery wedge pressure (surrogate of left atrial pressure)
-CO: cardiac output</string>
-
+    <string name="pvr_info_body">Pulmonary resistance calculations based on right-heart catheterization hemodynamics. PVR (Pulmonary Vascular Resistance, WU) = (mPAP − PAWP) / CO TPR (Total Pulmonary Resistance, WU) = mPAP / CO Conversion: dyn·s·cm⁻⁵ = WU × 80 mPAP: mean pulmonary artery pressure PAWP: pulmonary artery wedge pressure (surrogate of left atrial pressure) CO: cardiac output</string>
     <string name="pvr_help_mpap_title">mPAP</string>
     <string name="pvr_help_mpap_body">Mean pulmonary artery pressure measured during right heart catheterization (mmHg).</string>
-
     <string name="pvr_help_pawp_title">PAWP</string>
     <string name="pvr_help_pawp_body">Pulmonary artery wedge pressure (also called PCWP), used as a surrogate of left atrial pressure (mmHg).</string>
-
     <string name="pvr_help_co_title">Qp / CO</string>
     <string name="pvr_help_co_body">Pulmonary blood flow (Qp). In the absence of shunt, Qp ≈ CO. If you have measured Qp separately, you may enter it here.</string>
-
     <string name="pvr_help_units_title">Units</string>
     <string name="pvr_help_units_body">Wood units (WU) are the standard for PVR. CGS units are dyn·s·cm⁻⁵ (WU × 80).</string>
-
     <string name="pvr_report_title">Pulmonary Vascular Resistance (PVR)</string>
-
     <string name="pvr_error_missing">Missing data: mPAP, PAWP and Qp/CO are required.</string>
     <string name="pvr_error_co_nonpositive">Cardiac output / flow must be &gt; 0.</string>
     <string name="pvr_error_gradient_nonpositive">mPAP − PAWP must be &gt; 0. Check pressures.</string>
 
-
-    <!-- ===================== -->
-    <!-- Disclaimer (EN)       -->
-    <!-- ===================== -->
+    <!--  =====================  -->
+    <!--  Disclaimer (EN)        -->
+    <!--  =====================  -->
     <string name="disclaimer_title">Legal notice and disclaimer</string>
-
     <string name="disclaimer_section_edu_title">Educational use only</string>
-    <string name="disclaimer_section_edu_body" formatted="false"><![CDATA[This application is intended exclusively for educational and instructional purposes. The calculations and recommendations are supportive tools and may depend on input quality, clinical conditions and assumptions. They do not replace comprehensive medical evaluation, clinical guidelines, institutional protocols or clinical judgment.]]></string>
-
+    <string name="disclaimer_section_edu_body" formatted="false">
+<![CDATA[ This application is intended exclusively for educational and instructional purposes. The calculations and recommendations are supportive tools and may depend on input quality, clinical conditions and assumptions. They do not replace comprehensive medical evaluation, clinical guidelines, institutional protocols or clinical judgment. ]]>
+</string>
     <string name="disclaimer_section_user_title">User responsibility</string>
-    <string name="disclaimer_section_user_body" formatted="false"><![CDATA[The user (healthcare professional) is solely responsible for:
-• Verifying entered data (units, measurement source, timing).
-• Interpreting results in the patient’s clinical context.
-• Making diagnostic and therapeutic decisions based on professional judgment.
-• Complying with local regulations and institutional policies.]]></string>
-
+    <string name="disclaimer_section_user_body" formatted="false">
+<![CDATA[ The user (healthcare professional) is solely responsible for: • Verifying entered data (units, measurement source, timing). • Interpreting results in the patient’s clinical context. • Making diagnostic and therapeutic decisions based on professional judgment. • Complying with local regulations and institutional policies. ]]>
+</string>
     <string name="disclaimer_section_limit_title">Limitation of liability</string>
-    <string name="disclaimer_section_limit_body" formatted="false"><![CDATA[The developer assumes no responsibility for direct or indirect damages arising from the use of this application. It is recommended to cross-check results with reliable sources and, when applicable, reference methods.]]></string>
-
+    <string name="disclaimer_section_limit_body" formatted="false">
+<![CDATA[ The developer assumes no responsibility for direct or indirect damages arising from the use of this application. It is recommended to cross-check results with reliable sources and, when applicable, reference methods. ]]>
+</string>
     <string name="disclaimer_section_privacy_title">Privacy</string>
-    <string name="disclaimer_section_privacy_body" formatted="false"><![CDATA[Avoid entering identifiable patient information if not necessary. If you choose to do so, you are responsible for handling it in accordance with applicable law.]]></string>
-
-    <string name="disclaimer_checkbox_text" formatted="false"><![CDATA[I have read and accept the terms. I understand that the use and interpretation of the information is my professional responsibility.]]></string>
-
+    <string name="disclaimer_section_privacy_body" formatted="false">
+<![CDATA[ Avoid entering identifiable patient information if not necessary. If you choose to do so, you are responsible for handling it in accordance with applicable law. ]]>
+</string>
+    <string name="disclaimer_checkbox_text" formatted="false">
+<![CDATA[ I have read and accept the terms. I understand that the use and interpretation of the information is my professional responsibility. ]]>
+</string>
     <string name="disclaimer_btn_decline">Decline</string>
     <string name="disclaimer_btn_accept">Accept</string>
 
-    <!-- ===================== -->
-    <!-- PDF Preview (EN)      -->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  PDF Preview (EN)       -->
+    <!--  =====================  -->
     <string name="pdf_section_inputs">Inputs</string>
     <string name="pdf_section_outputs">Outputs</string>
     <string name="pdf_section_notes">Notes</string>
-
     <string name="pdf_btn_open">Open</string>
-
-
-
     <string name="pdf_preview_title">PDF Report</string>
     <string name="pdf_btn_close">Close</string>
     <string name="pdf_btn_save">Save</string>
     <string name="pdf_btn_share">Share</string>
     <string name="pdf_btn_open_other">Open in another app</string>
-
     <string name="pdf_error_render" formatted="false">Could not render the PDF: %1$s</string>
     <string name="pdf_error_open_file">Could not open the file.</string>
     <string name="pdf_generating_preview">Generating preview…</string>
-
     <string name="pdf_page">Page %1$d</string>
     <string name="pdf_page_cd">PDF page %1$d</string>
-
     <string name="pdf_default_filename">GIPOGO_RHC_Report.pdf</string>
     <string name="pdf_chooser_share">Share report</string>
     <string name="pdf_chooser_open_with">Open with</string>
 
-    <!-- ===================== -->
-    <!-- PDF Generator (EN)    -->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  PDF Generator (EN)     -->
+    <!--  =====================  -->
     <string name="pdf_bullet">• </string>
     <string name="pdf_bullet_sep"> • </string>
-
-
     <string name="pdf_header_subtitle">Hemodynamics report (right-heart catheterization)</string>
     <string name="pdf_header_datetime">Date/time: %1$s</string>
     <string name="pdf_footer_page">Page %1$d</string>
-
     <string name="pdf_table_inputs">Inputs</string>
     <string name="pdf_table_outputs">Outputs</string>
     <string name="pdf_notes_title">Notes</string>
-
     <string name="pdf_disclaimer">Notice: decision-support tool. Does not replace clinical judgment.</string>
 
-    <!-- Reusables -->
+    <!--  Reusables  -->
     <string name="common_btn_calculate">Calculate</string>
     <string name="common_error">Error</string>
     <string name="common_result">Result</string>
     <string name="common_unit_label">Unit: %1$s</string>
 
-    <!-- For PDF report -->
+    <!--  For PDF report  -->
     <string name="cpo_report_title">Cardiac Power Output (CPO/CPI)</string>
 
-    <!-- Validation generic -->
+    <!--  Validation generic  -->
     <string name="val_invalid_number">Invalid number.</string>
     <string name="val_required">Required field.</string>
     <string name="val_must_be_gt_zero">Must be &gt; 0.</string>
 
-    <!-- MDCalc-like messages -->
+    <!--  MDCalc-like messages  -->
     <string name="val_too_high_change_to_proceed">Too high; please change to proceed.</string>
     <string name="val_very_low_double_check">Very low; double-check.</string>
     <string name="val_very_high_double_check">Very high; double-check.</string>
     <string name="val_out_of_hard_range">Out of allowed range.</string>
 
-    <!-- Field-specific optional -->
+    <!--  Field-specific optional  -->
     <string name="val_sao2_bounds">SaO₂ must be between 0 and 100.</string>
     <string name="val_svo2_bounds">SvO₂ must be between 0 and 100.</string>
 
-
-    <!-- ===================== -->
-    <!-- boton avanzar (EN)    -->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  boton avanzar (EN)     -->
+    <!--  =====================  -->
     <string name="common_next">Next</string>
     <string name="common_prev">Previous</string>
 
-    <!-- ===================== -->
-    <!-- InterpretationGauge (ES)-->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  InterpretationGauge (EN) -->
+    <!--  =====================  -->
     <string name="interp_fick_co_title">Interpretation (Cardiac Output, CO)</string>
-
     <string name="interp_low_output">Low output</string>
     <string name="interp_normal_flow">Normal</string>
     <string name="interp_high_output">High output</string>
-
     <string name="interp_fick_co_low_range">&lt; 4.0</string>
     <string name="interp_fick_co_normal_range">4.0 - 8.0</string>
     <string name="interp_fick_co_high_range">&gt;= 8.0</string>
-
-
     <string name="fick_result_eyebrow_co">Cardiac Output (CO)</string>
     <string name="fick_result_ci_label">Cardiac Index</string>
     <string name="fick_result_sv_label">Stroke Volume</string>
-
     <string name="common_unit_ml">mL</string>
-
-
     <string name="interp_fick_ci_normal_range">2.2 - 4.0</string>
     <string name="interp_fick_ci_borderline_range">&lt; 2.2</string>
     <string name="interp_fick_ci_elevated_range">&gt;= 4.0</string>
-
     <string name="common_unit_lmin_m2">L/min/m²</string>
-
-
     <string name="interp_title">Interpretation</string>
     <string name="interp_result">Result</string>
-
     <string name="interp_normal">Normal</string>
     <string name="interp_borderline">Borderline</string>
     <string name="interp_elevated">Elevated</string>
-
     <string name="interp_pvr_normal_range">&lt; 2.0</string>
     <string name="interp_pvr_borderline_range">2.0 - 3.0</string>
     <string name="interp_pvr_elevated_range">&gt; 3.0</string>
-
     <string name="common_unit_wu_short">Wood Units</string>
-
-
     <string name="interp_result_line">Result: %1$s</string>
 
-    <!-- ===================== -->
-    <!-- RVS gauge(EN)      -->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  SVR gauge (EN)       -->
+    <!--  =====================  -->
     <string name="interp_svr_title_dynes">Interpretation (SVR, dyn·s·cm⁻⁵)</string>
     <string name="interp_svr_title_wu">Interpretation (SVR, WU)</string>
-
     <string name="interp_low_svr">Low SVR</string>
     <string name="interp_normal_svr">Normal</string>
     <string name="interp_high_svr">High SVR</string>
-
     <string name="interp_svr_low_range_dynes">&lt; 800</string>
     <string name="interp_svr_normal_range_dynes">800 - 1200</string>
     <string name="interp_svr_high_range_dynes">&gt; 1200</string>
-
     <string name="interp_svr_low_range_wu">&lt; 10</string>
     <string name="interp_svr_normal_range_wu">10 - 15</string>
     <string name="interp_svr_high_range_wu">&gt; 15</string>
 
-    <!-- ===================== -->
-    <!-- Potencia cardiaca(EN)-->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  Cardiac power (EN) -->
+    <!--  =====================  -->
     <string name="interp_cpo_title">Interpretation (CPO)</string>
-
     <string name="interp_low_cpo">Low</string>
     <string name="interp_intermediate_cpo">Intermediate</string>
     <string name="interp_adequate_cpo">Adequate</string>
-
     <string name="interp_cpo_low_range">&lt; 0.6</string>
     <string name="interp_cpo_intermediate_range">0.6 - 0.8</string>
     <string name="interp_cpo_adequate_range">&gt; 0.8</string>
-
     <string name="common_unit_w">W</string>
-
     <string name="cpo_result_eyebrow">Cardiac power (CPO)</string>
     <string name="common_unit_m2">m²</string>
     <string name="common_unit_w_m2">W/m²</string>
@@ -611,73 +434,562 @@ CO: cardiac output</string>
     <string name="common_value_na">—</string>
     <string name="cpo_error_review_required">Review required fields (MAP and CO).</string>
 
-    <!-- ===================== -->
-    <!-- Potencia cardiaca(ES)-->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  PVR interpretation (EN) -->
+    <!--  =====================  -->
     <string name="interp_pvr_title_wu">Interpretation (Pulmonary Vascular Resistance, WU)</string>
     <string name="interp_pvr_title_dynes">Interpretation (Pulmonary Vascular Resistance, dyn·s·cm⁻⁵)</string>
-
     <string name="interp_pvr_normal">Normal</string>
     <string name="interp_pvr_borderline">Borderline</string>
     <string name="interp_pvr_elevated">Elevated</string>
-
     <string name="interp_pvr_normal_range_wu">&lt; 2.0</string>
     <string name="interp_pvr_borderline_range_wu">2.0 – 3.0</string>
     <string name="interp_pvr_elevated_range_wu">&gt; 3.0</string>
-
     <string name="interp_pvr_normal_range_dynes">&lt; 160</string>
     <string name="interp_pvr_borderline_range_dynes">160 – 240</string>
     <string name="interp_pvr_elevated_range_dynes">&gt; 240</string>
 
-    <!-- ===================== -->
-    <!-- papi(EN)-->
-    <!-- ===================== -->
-
+    <!--  =====================  -->
+    <!--  PAPi interpretation (EN) -->
+    <!--  =====================  -->
     <string name="interp_papi_title">Interpretation (PAPi)</string>
-
     <string name="interp_high_risk">High risk</string>
     <string name="interp_intermediate">Intermediate</string>
     <string name="interp_preserved">Preserved</string>
-
     <string name="interp_papi_high_risk_range">&lt; 1.0</string>
     <string name="interp_papi_intermediate_range">1.0 – 1.5</string>
     <string name="interp_papi_preserved_range">&gt; 1.5</string>
 
+    <!--  PAPI screen  -->
+    <string name="papi_section_variables">Variables</string>
+    <string name="papi_help_pasp_title">PASP</string>
+    <string name="papi_help_pasp_body">Pulmonary artery systolic pressure (mmHg).</string>
+    <string name="papi_help_padp_title">PADP</string>
+    <string name="papi_help_padp_body">Pulmonary artery diastolic pressure (mmHg).</string>
+    <string name="papi_help_rap_title">RAP</string>
+    <string name="papi_help_rap_body">Right atrial pressure (mmHg).</string>
 
-
-
-        <!-- PAPI screen -->
-        <string name="papi_section_variables">Variables</string>
-
-        <!-- Fields -->
-
-
-
-        <!-- Hero labels -->
-
-
-        <!-- Info (top bar) -->
-
-        <!-- Help dialogs -->
-        <string name="papi_help_pasp_title">PASP</string>
-        <string name="papi_help_pasp_body">Pulmonary artery systolic pressure (mmHg).</string>
-
-        <string name="papi_help_padp_title">PADP</string>
-        <string name="papi_help_padp_body">Pulmonary artery diastolic pressure (mmHg).</string>
-
-        <string name="papi_help_rap_title">RAP</string>
-        <string name="papi_help_rap_body">Right atrial pressure (mmHg).</string>
-
-        <!-- Report -->
-
-
+    <!-- Note: placeholders kept as-is from your input -->
     <string name="papi_placeholder_pasp">Ej. 35 (15–90)</string>
     <string name="papi_placeholder_padp">Ej. 15 (5–45)</string>
     <string name="papi_placeholder_rap">Ej. 8 (0–30)</string>
 
+    <!--  =====================  -->
+    <!--  Home Landing (EN)      -->
+    <!--  =====================  -->
+    <string name="home_landing_title">GIPOGO RHC</string>
+    <string name="home_landing_subtitle">Hemodynamic Decision Support</string>
+    <string name="home_landing_patients_title">Patients and Studies</string>
+    <string name="home_landing_patients_body">Manage your clinical database securely. Access patient profiles, hemodynamic history, and generate detailed PDF reports for your clinical practice.</string>
+    <string name="home_landing_patients_cta">Open Patients</string>
+    <string name="home_landing_patients_cta_soon">Coming Soon</string>
+    <string name="home_landing_quick_calcs_title">Quick Calculations</string>
+    <string name="home_landing_quick_calcs_subtitle">Temporary mode without saving</string>
+    <string name="home_landing_quick_calcs_body">Ideal for quick hemodynamic checks where data persistence and report generation are not required.</string>
+    <string name="home_landing_quick_calcs_cta">Open Calculators</string>
+    <string name="home_landing_privacy_title">Privacy Commitment</string>
+    <string name="home_landing_privacy_body">Data entered in Quick Calculations mode is not stored. Use the Patients module to save information.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+
+    <!--  =====================  -->
+    <!--  Patients List (EN)     -->
+    <!--  =====================  -->
+    <string name="patients_title_app">GIPOGO RHC</string>
+    <string name="patients_chip_last_7d">Last 7 days</string>
+    <string name="patients_chip_shock">Shock</string>
+    <string name="patients_chip_hf">HF</string>
+    <string name="patients_chip_preop">Pre-Op</string>
+    <string name="patients_chip_pah">PAH</string>
+    <string name="patients_chip_postop">Post-Op</string>
+    <string name="patients_last_study">Last Study: %1$s</string>
+    <string name="patients_view_details">View Details</string>
+    <string name="patients_time_today">Today</string>
+    <string name="patients_time_yesterday">Yesterday</string>
+    <string name="patients_time_oct_24_2023">Oct 24, 2023</string>
+    <string name="patients_time_sep_12_2023">Sep 12, 2023</string>
+    <string name="patients_tag_pah_eval">PAH Eval</string>
+    <string name="patients_tag_follow_up">Follow-up</string>
+    <string name="patients_tag_pre_transplant">Pre-Transplant</string>
+    <string name="patients_tag_stable">Stable</string>
+    <string name="patients_tag_checkup">Check-up</string>
+    <string name="patients_tag_post_op">Post-Op</string>
+    <string name="patients_insight_pvr_high">PVR &gt; 3.0 WU</string>
+    <string name="patients_insight_mpap_high">mPAP High</string>
+    <string name="patients_insight_normal_hemo">Normal Hemodynamics</string>
+    <string name="patients_insight_monitor_ci">Monitor CI</string>
+
+    <!--  =====================  -->
+    <!--  Patient Detail (EN)    -->
+    <!--  =====================  -->
+    <string name="patient_tab_overview">Overview</string>
+    <string name="patient_tab_studies">Studies</string>
+    <string name="patient_tab_trends">Trends</string>
+    <string name="patient_tab_reports">Reports</string>
+    <string name="patient_subtitle_age_sex">%1$s</string>
+    <string name="patient_last_update">Last update: %1$s</string>
+    <string name="patient_last_update_today">Today</string>
+    <string name="patient_action_new_study">New Study</string>
+    <string name="patient_action_export">Export</string>
+    <string name="patient_overview_latest_summary">Latest Study Summary</string>
+    <string name="patient_overview_recent_studies">Recent Studies</string>
+    <string name="patient_flag_pvr_high">PVR high</string>
+    <string name="patient_flag_cpo_low">CPO low</string>
+    <string name="patient_action_open_last_study">Open last study</string>
+    <string name="patient_action_export_pdf">Export PDF</string>
+    <string name="patient_action_view_details">View details</string>
+    <string name="patient_action_duplicate">Duplicate</string>
+    <string name="patient_trends_title">Trends</string>
+    <string name="patient_trends_placeholder">Charts will appear here once you have multiple studies saved for this patient.</string>
+    <string name="patient_reports_title">Reports</string>
+    <string name="patient_reports_latest_pdf">Latest study PDF</string>
+    <string name="patient_reports_longitudinal_pdf">Longitudinal summary PDF</string>
+    <string name="patient_reports_hint">Tip: Export reports from the correct clinical context to ensure traceability.</string>
+    <string name="patient_tag_pah_eval">PAH Eval</string>
+    <string name="patient_tag_follow_up">Follow-up</string>
+    <string name="patient_study_title_rhc">RHC Study</string>
+    <string name="patient_study_date_today">Today</string>
+    <string name="patient_study_date_oct_24_2023">Oct 24, 2023</string>
+    <string name="patient_study_context_baseline">Baseline</string>
+    <string name="patient_study_context_followup">Follow-up</string>
+    <string name="patient_study_method_fick">Fick</string>
+    <string name="patient_study_method_td">Thermodilution</string>
+    <string name="patient_study_insight_pvr_high">PVR &gt; 3.0 WU</string>
+    <string name="patient_study_insight_mpap_high">mPAP High</string>
+    <string name="patients_age_sex_format">· %1$s</string>
+
+    <!-- ===================== -->
+    <!-- Patient Detail (NEW)  -->
+    <!-- ===================== -->
+
+    <string name="patient_action_copy_id">Copy ID</string>
+    <string name="patient_msg_copied">Copied</string>
+    <string name="patient_msg_copy_failed">Unable to copy.</string>
+
+    <string name="common_retry">Retry</string>
+
+    <string name="common_today_time">Today · %1$s</string>
+    <string name="common_yesterday_time">Yesterday · %1$s</string>
+
+    <string name="patient_empty_studies_title">No studies</string>
+    <string name="patient_empty_studies_body">No studies have been saved for this patient yet. Create a new study to start the workshop.</string>
+    <string name="patient_overview_no_data">No hemodynamic data is available for the latest study.</string>
+    <string name="patient_error_invalid_id">Invalid patient ID.</string>
+    <string name="patient_error_generic">Unable to load data.</string>
+
+    <string name="rhc_label_pcwp_short">PCWP</string>
+    <string name="rhc_label_ci_short">CI</string>
+
+    <string name="patient_study_title_generic">Study</string>
+
+    <string name="patient_trends_not_enough_data">At least two studies with data are required to show trends.</string>
+    <string name="patient_trends_section_pressures_title">Pressures &amp; congestion</string>
+    <string name="patient_trends_section_flow_title">Flow &amp; performance</string>
+    <string name="patient_trends_section_resistance_title">Resistances</string>
+    <string name="patient_trends_clinical_opinion_title">Clinical read</string>
+
+    <string name="trend_direction_increasing">Increasing</string>
+    <string name="trend_direction_decreasing">Decreasing</string>
+    <string name="trend_direction_stable">Stable</string>
+    <string name="trend_direction_insufficient">Insufficient data</string>
+
+    <string name="patient_trends_metric_trend_line">%1$s: %2$s</string>
+
+    <string name="patient_trends_insight_postcap">mPAP and PAWP increase in parallel: possible rising post-capillary contribution (correlate with volume status and left-sided filling pressures).</string>
+    <string name="patient_trends_insight_precap">mPAP and PVR increase with non-increasing PAWP: possible rising pre-capillary load.</string>
+    <string name="patient_trends_insight_rv_congestion_low_flow">RAP rising with falling CI/CPO: possible right-sided congestion with reduced forward flow.</string>
+    <string name="patient_trends_insight_favorable">PVR decreasing with improving CI/CPO: pattern consistent with favorable hemodynamic response.</string>
+    <string name="patient_trends_insight_none">No dominant longitudinal pattern detected.</string>
+
+    <string name="patient_reports_select_study_pdf">Study PDF (select)</string>
+    <string name="patient_reports_select_study_title">Select study</string>
+    <string name="patient_reports_select_study_subtitle">Choose a study to export an individual PDF.</string>
+    <string name="patient_reports_no_studies">No studies available to export.</string>
 
 
+    <!--  =====================  -->
+    <!--  Common (EN)            -->
+    <!--  =====================  -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_save">Save</string>
 
+    <!--  =====================  -->
+    <!--  Patient Edit (EN)      -->
+    <!--  =====================  -->
+    <string name="patient_edit_title_create">New patient</string>
+    <string name="patient_edit_title_edit">Edit patient</string>
+    <string name="patient_edit_field_code">Patient code</string>
+    <string name="patient_edit_field_code_hint">Autogenerated. You may edit if needed.</string>
+    <string name="patient_edit_field_dob">Date of birth</string>
+    <string name="patient_edit_field_dob_hint">Select date</string>
+    <string name="patient_edit_field_dob_support">Tap the icon to pick a date.</string>
+    <string name="patient_edit_age_computed">Age: %1$d years</string>
+    <string name="patient_edit_field_sex">Sex</string>
+    <string name="sex_male">Male</string>
+    <string name="sex_female">Female</string>
+    <string name="sex_not_specified">Not specified</string>
+    <string name="patient_edit_section_physical">Physical data (optional)</string>
+    <string name="patient_edit_field_weight">Weight</string>
+    <string name="patient_edit_field_height">Height</string>
+    <string name="patient_edit_bsa_computed">Body surface area (BSA): %1$s</string>
+    <string name="patient_edit_field_tags">Tags</string>
+    <string name="patient_edit_tags_support">Select one or more predefined tags.</string>
+    <string name="patient_edit_field_notes">Notes</string>
+    <string name="patient_edit_field_notes_hint">Brief, factual summary (optional).</string>
+
+    <string name="patient_edit_field_name">Patient name (optional)</string>
+    <string name="patient_edit_field_name_hint">e.g., John Doe</string>
+
+    <string name="patient_edit_code_taken">This code already exists. Choose another or generate a new one.</string>
+
+
+    <string name="val_invalid_format">Invalid format.</string>
+    <string name="val_recommended">Recommended</string>
+    <string name="val_out_of_typical_range">Out of typical range; please verify.</string>
+
+    <!--  Units (EN)             -->
+    <string name="units_metric">kg/cm</string>
+    <string name="units_imperial">lb/in</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_cm">cm</string>
+    <string name="unit_lb">lb</string>
+    <string name="unit_in">in</string>
+
+    <!--  Tags (EN) (deduped) -->
+    <string name="tag_pah">PAH</string>
+    <string name="tag_shock">Shock</string>
+    <string name="tag_hf">HF</string>
+    <string name="tag_preop">Pre-Op</string>
+    <string name="tag_postop">Post-Op</string>
+    <string name="tag_followup">Follow-up</string>
+    <string name="tag_checkup">Check-up</string>
+    <string name="tag_pretransplant">Pre-Transplant</string>
+
+    <!--  =====================  -->
+    <!--  Study Edit (EN)        -->
+    <!--  =====================  -->
+    <string name="study_edit_title_edit">Edit study</string>
+    <string name="study_edit_title_create">New study</string>
+    <string name="study_edit_subtitle_patient">Patient: %1$s</string>
+    <string name="study_edit_field_title">Study title</string>
+    <string name="study_edit_field_title_hint">e.g., RHC Baseline / Shock reassessment</string>
+    <string name="study_edit_section_method">Method</string>
+    <string name="study_method_fick">Fick</string>
+    <string name="study_method_td">Thermodilution</string>
+    <string name="study_edit_section_context">Context</string>
+    <string name="study_context_baseline">Baseline</string>
+    <string name="study_context_followup">Follow-up</string>
+    <string name="study_context_postop">Post-Op</string>
+    <string name="study_context_shock_reassess">Shock reassessment</string>
+    <string name="study_edit_section_inputs">Inputs</string>
+    <string name="study_input_rap">Right atrial pressure (RAP)</string>
+    <string name="study_input_mpap">Mean pulmonary artery pressure (mPAP)</string>
+    <string name="study_input_pcwp">Pulmonary capillary wedge pressure (PCWP)</string>
+    <string name="study_input_co">Cardiac output (CO)</string>
+    <string name="study_input_hb">Hemoglobin (Hb)</string>
+    <string name="study_input_sao2">Arterial oxygen saturation (SaO2)</string>
+    <string name="study_input_svo2">Mixed venous oxygen saturation (SvO2)</string>
+    <string name="study_edit_field_notes">Notes (optional)</string>
+    <string name="study_edit_field_notes_hint">Add a brief, factual note (optional).</string>
+
+    <string name="patient_edit_section_identity">Identity</string>
+
+
+    <!--  Units (EN)             -->
+    <string name="unit_mmhg">mmHg</string>
+    <string name="unit_l_min">L/min</string>
+    <string name="unit_g_dl">g/dL</string>
+    <string name="unit_percent">%</string>
+
+    <!-- ===================== -->
+    <!-- Tag Help Sheet (EN)   -->
+    <!-- ===================== -->
+
+    <string name="tag_help_title">Tag help</string>
+    <string name="tag_help_subtitle">Select predefined clinical tags. Labels change by language, while the database stores stable internal keys.</string>
+
+    <string name="tag_help_pah">Pulmonary arterial hypertension (evaluation/follow-up).</string>
+    <string name="tag_help_shock">Shock context: hemodynamic evaluation or reassessment.</string>
+    <string name="tag_help_hf">Heart failure: diagnosis or follow-up.</string>
+    <string name="tag_help_preop">Pre-operative evaluation.</string>
+    <string name="tag_help_postop">Post-operative follow-up.</string>
+    <string name="tag_help_followup">Follow-up visit.</string>
+    <string name="tag_help_checkup">Routine check-up.</string>
+    <string name="tag_help_pretransplant">Pre-transplant evaluation.</string>
+
+    <!--  =====================  -->
+    <!--  Authentication (EN)  -->
+    <!--  =====================  -->
+
+    <string name="auth_unavailable_no_hardware">Authentication is not available on this device.</string>
+    <string name="auth_unavailable_hw_unavailable">Authentication is temporarily unavailable.</string>
+    <string name="auth_unavailable_none_enrolled">Set up biometrics or a device lock to use this feature.</string>
+    <string name="auth_unavailable_security_update_required">A security update is required for authentication.</string>
+    <string name="auth_unavailable_unsupported">Authentication is not supported on this device.</string>
+    <string name="auth_unavailable_unknown">Unable to check authentication availability.</string>
+
+    <string name="auth_error_hw_unavailable">Authentication is temporarily unavailable.</string>
+    <string name="auth_error_lockout">Too many attempts. Try again later.</string>
+    <string name="auth_error_lockout_permanent">Authentication locked. Use device unlock.</string>
+    <string name="auth_error_no_biometrics">No biometrics are set up.</string>
+    <string name="auth_error_no_device_credential">No device lock is set up.</string>
+    <string name="auth_error_no_space">Not enough space for authentication.</string>
+    <string name="auth_error_unable_to_process">Unable to process authentication. Try again.</string>
+    <string name="auth_error_vendor">Authentication vendor error.</string>
+    <string name="auth_error_security_update_required">A security update is required for authentication.</string>
+    <string name="auth_error_generic">Authentication failed.</string>
+
+    <string name="auth_prompt_patients_title">Protected access</string>
+    <string name="auth_prompt_patients_subtitle">Authenticate to continue</string>
+    <string name="auth_locked_patients_title">Patients protected</string>
+    <string name="auth_locked_patients_body">To view or edit patients, confirm your identity.</string>
+    <string name="auth_locked_patients_cta">Authenticate</string>
+
+    <!--  =====================  -->
+    <!--  Home - Last Patient (EN)  -->
+    <!--  =====================  -->
+    <string name="home_last_patient_title">Last patient</string>
+    <string name="home_last_patient_status_locked">Protected access</string>
+    <string name="home_last_patient_status_unlocked">Session active</string>
+    <string name="home_last_patient_body_locked">Protected quick access. No identifying data is shown.</string>
+    <string name="home_last_patient_cta_locked">Open with biometrics</string>
+    <string name="home_last_patient_cta_unlocked">Open patient</string>
+    <string name="home_last_patient_empty">No recent patient available.</string>
+    <string name="home_last_patient_age_years">%1$d years</string>
+    <string name="home_last_patient_age_na">Age: —</string>
+    <string name="home_last_patient_study_na">Last study: —</string>
+    <string name="home_last_patient_details_line">%1$s · %2$s</string>
+
+    <!--  =====================  -->
+    <!--  Authentication Prompts (EN)  -->
+    <!--  =====================  -->
+    <string name="auth_prompt_last_patient_title">Protected access</string>
+    <string name="auth_prompt_last_patient_subtitle">Authenticate to open the last patient</string>
+
+    <!-- ===================== -->
+    <!-- Common (Patients CRUD) -->
+    <!-- ===================== -->
+    <string name="common_edit">Edit</string>
+    <string name="common_delete_confirm">Do you want to delete this patient? This action cannot be undone.</string>
+
+    <!-- ===================== -->
+    <!-- Patients -->
+    <!-- ===================== -->
+    <string name="patients_empty">No patients yet. Tap + to create one.</string>
+
+    <string name="patient_edit_err_name_required">Name required (minimum 2 characters).</string>
+    <string name="patient_edit_err_code_required">Code is required.</string>
+    <string name="patient_edit_name_support">A name clinicians can easily recognize.</string>
+
+    <string name="patient_edit_name_optional">Optional (avoid sensitive data)</string>
+    <string name="patient_edit_fix_errors">Please review the fields marked in red.</string>
+    <string name="val_name_too_short">Name is too short.</string>
+    <string name="val_name_too_long">Name is too long (max 60).</string>
+
+    <string name="units_metric_kg_cm">Metric (kg/cm)</string>
+    <string name="units_imperial_lb_in">Imperial (lb/in)</string>
+
+    <!-- ===================== -->
+    <!-- Workshop mode banners -->
+    <!-- ===================== -->
+    <string name="workshop_mode_quick_banner">Quick calculation mode. No patient data is linked.</string>
+    <string name="workshop_mode_patient_banner">Patient study mode. Results can be linked to a study.</string>
+
+    <!-- ===================== -->
+    <!-- Report card (quick)   -->
+    <!-- ===================== -->
+    <string name="home_report_pdf_title_quick">PDF report (anonymous)</string>
+    <string name="home_report_ready_quick">Ready to export an anonymous report. No patient identifiers will be included.</string>
+
+    <string name="common_back">Back</string>
+
+    <string name="co_method_label">Method</string>
+    <string name="co_method_fick">Fick</string>
+    <string name="co_method_thermodilution">Thermodilution</string>
+
+    <string name="td_section_title">Thermodilution runs</string>
+    <string name="td_run_1">Run #1</string>
+    <string name="td_run_2_optional">Run #2 (optional)</string>
+    <string name="td_run_3_optional">Run #3 (optional)</string>
+    <string name="td_error_need_one_run">Enter at least one TD run &gt; 0.</string>
+    <string name="td_tip_weight_height_optional">Tip: you can still enter Weight/Height above (optional) to compute CI/BSA.</string>
+    <string name="td_report_title">Cardiac output (Thermodilution)</string>
+
+    <string name="common_unit_bpm">bpm</string>
+
+    <string name="workshop_exit_incomplete_title">Workshop incomplete</string>
+    <string name="workshop_exit_incomplete_body">Some calculations are still missing. If you exit now, the study will be saved with the information available. Do you want to exit the hemodynamic workshop?</string>
+    <string name="workshop_exit_confirm">Exit</string>
+    <string name="workshop_exit_cancel">Continue</string>
+
+    <string name="home_workshop_entry_hint">Recommended workshop entry: start with Cardiac output (CO).</string>
+
+    <string name="patient_action_delete_study">Delete study</string>
+    <string name="patient_delete_study_title">Delete study</string>
+    <string name="patient_delete_study_body">This action cannot be undone.</string>
+    <string name="common_delete">Delete</string>
+    <string name="patient_msg_study_deleted">Study deleted.</string>
+
+    <string name="workshop_exit_save_or_discard_title">Incomplete workshop</string>
+    <string name="workshop_exit_save_or_discard_body">You have performed some calculations, but the workshop is not complete. Do you want to save the study as it is or discard it?</string>
+    <string name="workshop_exit_save_incomplete_confirm">Save as is</string>
+    <string name="workshop_exit_discard_confirm">Discard</string>
+
+    <string name="report_page_indicator">Page %1$d / %2$d</string>
+    <string name="report_longitudinal_label">Longitudinal</string>
+    <string name="report_header_meta">Date/time: %1$s | %2$s</string>
+
+    <string name="report_cover_title">Longitudinal summary</string>
+    <string name="report_cover_extra">%1$d studies | %2$s → %3$s</string>
+    <string name="report_cover_period_label">Period</string>
+    <string name="report_cover_period_value">%1$s → %2$s</string>
+    <string name="report_cover_total_studies_label">Number of studies</string>
+
+    <string name="report_study_extra_line">Study %1$d of %2$d | %3$s → %4$s</string>
+    <string name="report_trends_extra_line">%1$d studies | %2$s → %3$s</string>
+
+    <string name="report_export_building">Preparing report…</string>
+    <string name="report_export_rendering">Generating PDF… (%1$d/%2$d)</string>
+    <string name="report_export_done">PDF generated.</string>
+    <string name="report_export_failed">Could not generate the PDF.</string>
+
+
+    <!-- ===================== -->
+    <!-- PDF Preview · Controls (EN) -->
+    <!-- ===================== -->
+
+    <string name="pdf_btn_prev_page">Previous page</string>
+    <string name="pdf_btn_next_page">Next page</string>
+    <string name="pdf_btn_zoom_out">Zoom out</string>
+    <string name="pdf_btn_zoom_in">Zoom in</string>
+
+    <!-- ===================== -->
+    <!-- Common actions (EN)   -->
+    <!-- ===================== -->
+    <string name="common_more_options">More options</string>
+
+    <string name="common_sex_m_short">M</string>
+    <string name="common_sex_f_short">F</string>
+
+    <string name="patients_tag_rhc">RHC</string>
+
+
+    <string name="patients_search_hint">Search</string>
+
+    <string name="patient_edit_err_physical_required">Weight and height are required.</string>
+    <string name="patient_edit_err_weight_required">Weight is required.</string>
+    <string name="patient_edit_err_height_required">Height is required.</string>
+    <string name="patient_edit_err_weight_invalid">Invalid weight value.</string>
+    <string name="patient_edit_err_height_invalid">Invalid height value.</string>
+
+    <string name="patient_edit_warn_physical_range">Weight and height look out of the usual range. Please verify.</string>
+    <string name="patient_edit_warn_weight_range">Weight looks out of the usual range. Please verify.</string>
+    <string name="patient_edit_warn_height_range">Height looks out of the usual range. Please verify.</string>
+
+    <string name="patient_edit_placeholder_weight_metric">20–300</string>
+    <string name="patient_edit_placeholder_weight_imperial">44–660</string>
+    <string name="patient_edit_placeholder_height_metric">120–230</string>
+    <string name="patient_edit_placeholder_height_imperial">47–91</string>
+
+    <string name="patient_edit_err_dob_future">Date of birth cannot be in the future.</string>
+    <string name="patient_edit_err_dob_range">Date of birth is outside a plausible range.</string>
+
+    <!-- Forrester chart -->
+    <string name="study_detail_section_forrester">Forrester Chart</string>
+    <string name="study_detail_section_forrester_subtitle">CI (Y-axis) versus PCWP (X-axis).</string>
+    <string name="study_detail_forrester_missing_values">Both CI and PCWP are required to display the chart.</string>
+
+    <!-- Axis titles (NO hardcoded units) -->
+    <string name="study_detail_forrester_x_axis_title">PCWP (%1$s)</string>
+    <string name="study_detail_forrester_y_axis_title">CI (%1$s)</string>
+
+    <!-- Threshold labels (NO hardcoded text) -->
+
+
+    <!-- Threshold labels (NO hardcoded text) -->
+    <string name="study_detail_forrester_pcwp_threshold_label">PCWP %1$d</string>
+    <string name="study_detail_forrester_ci_threshold_label">CI %1$.1f</string>
+
+
+    <string name="study_detail_forrester_note_title">Hemodynamic <string name="study_detail_forrester_note_title">Hemodynamic interpretation</string>
+<string name="study_detail_forrester_note_considerations_title">Clinical considerations</string>
+<string name="study_detail_forrester_note_measurement_title">Measurement notes</string>
+<string name="study_detail_forrester_note_measurement_text">• Confirm proper transducer leveling/zeroing (phlebostatic axis) and end-expiratory reading.\n• Review the PCWP waveform (large V-waves, under-/over-wedging) and its relationship to pulmonary artery pressures.\n• Interpret PCWP/CI in the context of mechanical ventilation, high PEEP, arrhythmias, and rapid changes in volume/vasoactive support.</string>
+
+<string name="study_detail_forrester_profile_i_title">Profile I · Warm and dry</string>
+<string name="study_detail_forrester_profile_ii_title">Profile II · Warm and wet</string>
+<string name="study_detail_forrester_profile_iii_title">Profile III · Cold and dry</string>
+<string name="study_detail_forrester_profile_iv_title">Profile IV · Cold and wet</string>
+
+<string name="study_detail_forrester_profile_i_meaning">CI ≥ %1$.1f L/min/m² and PCWP ≤ %2$.0f mmHg: preserved perfusion without significant congestion.</string>
+<string name="study_detail_forrester_profile_ii_meaning">CI ≥ %1$.1f L/min/m² and PCWP &gt; %2$.0f mmHg: preserved perfusion with congestion (elevated filling pressures).</string>
+<string name="study_detail_forrester_profile_iii_meaning">CI &lt; %1$.1f L/min/m² and PCWP ≤ %2$.0f mmHg: hypoperfusion without marked congestion.</string>
+<string name="study_detail_forrester_profile_iv_meaning">CI &lt; %1$.1f L/min/m² and PCWP &gt; %2$.0f mmHg: hypoperfusion with congestion (higher-risk hemodynamic profile).</string>
+
+<string name="study_detail_forrester_profile_i_considerations">• Profile generally consistent with hemodynamic stability.\n• If symptomatic, integrate with RAP/PAP, oxygenation, echocardiography, and clinical examination.\n• If values are discordant with the clinical picture, prioritize measurement quality checks.</string>
+
+<string name="study_detail_forrester_profile_ii_considerations">• Congestion with preserved perfusion is common in acute decompensated heart failure.\n• Review PCWP for large V-waves (e.g., mitral regurgitation) or reduced left atrial compliance.\n• Integrate with RAP and PAP for biventricular congestion and pulmonary edema risk.\n• Trend awareness: rising PCWP with falling CI suggests hemodynamic deterioration.</string>
+
+<string name="study_detail_forrester_profile_iii_considerations">• Hypoperfusion with low/normal PCWP: consider low preload, increased afterload, RV failure, or mechanical causes (e.g., tamponade).\n• Correlate with SvO2, lactate, and cardiac power output (CPO) when available.\n• Prefer dynamic assessment of preload responsiveness when clinically appropriate.</string>
+
+<string name="study_detail_forrester_profile_iv_considerations">• Hypoperfusion with elevated filling pressures is a high-risk profile consistent with cardiogenic shock physiology.\n• Correlate with MAP, lactate, SvO2, CPO, and RV markers (RAP, PAPi) when available.\n• Consider urgent escalation and cause-directed management per institutional protocols.\n• Reassess serially after interventions to document hemodynamic response.</string>
+</string>
+
+    <!-- PDF · Plain text report -->
+    <string name="pdf_plaintext_entry_header_format">=== %1$s ===</string>
+    <string name="pdf_plaintext_bullet_line_format">• %1$s</string>
+
+    <!-- PDF · Forrester chart -->
+    <string name="pdf_forrester_title">Forrester chart</string>
+    <string name="pdf_forrester_subtitle">CI (Y-axis) versus PCWP (X-axis).</string>
+    <string name="pdf_forrester_missing_values">CI and PCWP are required to display the chart.</string>
+
+    <!-- Axis titles (NO hardcoded units) -->
+    <string name="pdf_forrester_x_axis_title">PCWP (%1$s)</string>
+    <string name="pdf_forrester_y_axis_title">CI (%1$s)</string>
+
+    <!-- Threshold labels -->
+    <string name="pdf_forrester_pcwp_threshold_label">PCWP %1$d</string>
+    <string name="pdf_forrester_ci_threshold_label">CI %1$.1f</string>
+
+    <!-- Quadrant labels -->
+    <string name="pdf_forrester_q1_label">I · Warm and dry</string>
+    <string name="pdf_forrester_q2_label">II · Warm and wet</string>
+    <string name="pdf_forrester_q3_label">III · Cold and dry</string>
+    <string name="pdf_forrester_q4_label">IV · Cold and wet</string>
+
+    <!-- Legend -->
+    <string name="pdf_forrester_thresholds_legend">Thresholds: CI %1$.1f %2$s · PCWP %3$.0f %4$s</string>
+
+    <string name="trends_dash_section_congestion">CONGESTION</string>
+    <string name="trends_dash_section_perfusion">PERFUSION</string>
+    <string name="trends_dash_section_resistance">RESISTANCE</string>
+
+    <string name="trends_dash_last_label">Last: %1$s</string>
+    <string name="trends_dash_ref_label">Ref %1$s</string>
+
+    <string name="trends_dash_arrow_up">▲</string>
+    <string name="trends_dash_arrow_down">▼</string>
+
+
+    <string name="trends_dash_points_count">n=%1$d</string>
+
+    <string name="trends_dash_target_le">Target ≤ %1$s</string>
+    <string name="trends_dash_threshold_gt">Threshold &gt; %1$s</string>
+    <string name="trends_dash_threshold_lt">Threshold &lt; %1$s</string>
+
+    <string name="forrester_traj_title">Forrester classification</string>
+    <string name="forrester_traj_subtitle">Trajectory by CI (Y-axis) and PCWP (X-axis) across studies.</string>
+    <string name="forrester_traj_missing">CI and PCWP are required in at least one study to plot the chart.</string>
+
+    <string name="forrester_traj_now_label">Now</string>
+    <string name="forrester_traj_current_pill">Current: %1$s</string>
+
+    <string name="forrester_traj_profile_i">Warm and dry</string>
+    <string name="forrester_traj_profile_ii">Warm and wet</string>
+    <string name="forrester_traj_profile_iii">Cold and dry</string>
+    <string name="forrester_traj_profile_iv">Cold and wet</string>
 
 </resources>
