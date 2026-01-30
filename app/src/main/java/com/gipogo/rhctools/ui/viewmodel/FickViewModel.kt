@@ -2,18 +2,12 @@ package com.gipogo.rhctools.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.gipogo.rhctools.domain.HemodynamicsFormulas
-import com.gipogo.rhctools.report.CalcEntry
-import com.gipogo.rhctools.report.CalcType
-import com.gipogo.rhctools.report.LineItem
-import com.gipogo.rhctools.report.ReportStore
-import com.gipogo.rhctools.report.SharedKeys
 import com.gipogo.rhctools.util.Format
 import com.gipogo.rhctools.util.Parse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlin.math.sqrt
-
 
 class FickViewModel : ViewModel() {
 
@@ -92,35 +86,6 @@ class FickViewModel : ViewModel() {
 
     fun clear() = _state.update { State() }
 
-    // -------- conversions --------
-    private fun kgToLb(kg: Double) = kg / 0.45359237
-    private fun lbToKg(lb: Double) = lb * 0.45359237
-    private fun cmToIn(cm: Double) = cm / 2.54
-    private fun inToCm(`in`: Double) = `in` * 2.54
-
-    private fun toKg(value: Double, unit: WeightUnit) =
-        if (unit == WeightUnit.KG) value else lbToKg(value)
-
-    private fun toCm(value: Double, unit: HeightUnit): Double = when (unit) {
-        HeightUnit.CM -> value
-        HeightUnit.IN -> inToCm(value)
-        HeightUnit.M  -> value * 100.0
-    }
-
-    private fun bsaMosteller(heightCm: Double, weightKg: Double): Double =
-        sqrt((heightCm * weightKg) / 3600.0)
-
-    fun toggleWeightUnit() = _state.update { s ->
-        val current = Parse.toDoubleOrNull(s.weight)
-        if (current == null) {
-            s.copy(weightUnit = if (s.weightUnit == WeightUnit.KG) WeightUnit.LB else WeightUnit.KG)
-        } else {
-            val newUnit = if (s.weightUnit == WeightUnit.KG) WeightUnit.LB else WeightUnit.KG
-            val newValue = if (newUnit == WeightUnit.LB) kgToLb(current) else lbToKg(current)
-            s.copy(weightUnit = newUnit, weight = "%.1f".format(newValue))
-        }
-    }
-
     fun toggleHbUnit() {
         val current = state.value.hb
         val unit = state.value.hbUnit
@@ -146,7 +111,7 @@ class FickViewModel : ViewModel() {
         val nextUnit = when (currentUnit) {
             HeightUnit.CM -> HeightUnit.IN
             HeightUnit.IN -> HeightUnit.M
-            HeightUnit.M  -> HeightUnit.CM
+            HeightUnit.M -> HeightUnit.CM
         }
 
         val converted = if (parsed == null) {
@@ -156,7 +121,7 @@ class FickViewModel : ViewModel() {
             val nextValue = when (nextUnit) {
                 HeightUnit.CM -> cm
                 HeightUnit.IN -> cmToIn(cm)
-                HeightUnit.M  -> cm / 100.0
+                HeightUnit.M -> cm / 100.0
             }
             if (nextUnit == HeightUnit.M) Format.d(nextValue, 2) else Format.d(nextValue, 1)
         }
@@ -164,10 +129,56 @@ class FickViewModel : ViewModel() {
         _state.update { it.copy(heightUnit = nextUnit, height = converted) }
     }
 
-    fun calculate() {
-        // Limpia error previo
-        _state.update { it.copy(error = null) }
+    private fun fail(msg: String) {
+        _state.update {
+            it.copy(
+                error = msg,
 
+                cardiacOutputLMin = null,
+                cardiacIndexLMinM2 = null,
+                strokeVolumeMlBeat = null,
+
+                bsa = null,
+                vo2UsedMlMin = null,
+                vo2FactorUsedMlMinM2 = null,
+                caO2_mlDl = null,
+                cvO2_mlDl = null,
+                avDiff_mlDl = null
+            )
+        }
+    }
+
+    // -------- conversions --------
+    private fun kgToLb(kg: Double) = kg / 0.45359237
+    private fun lbToKg(lb: Double) = lb * 0.45359237
+    private fun cmToIn(cm: Double) = cm / 2.54
+    private fun inToCm(`in`: Double) = `in` * 2.54
+
+    private fun toKg(value: Double, unit: WeightUnit) =
+        if (unit == WeightUnit.KG) value else lbToKg(value)
+
+    private fun toCm(value: Double, unit: HeightUnit) =
+        when (unit) {
+            HeightUnit.CM -> value
+            HeightUnit.IN -> inToCm(value)
+            HeightUnit.M -> value * 100.0
+        }
+
+    private fun bsaMosteller(heightCm: Double, weightKg: Double): Double =
+        sqrt((heightCm * weightKg) / 3600.0)
+
+    fun toggleWeightUnit() = _state.update { s ->
+        val current = Parse.toDoubleOrNull(s.weight)
+        if (current == null) {
+            s.copy(weightUnit = if (s.weightUnit == WeightUnit.KG) WeightUnit.LB else WeightUnit.KG)
+        } else {
+            val newUnit = if (s.weightUnit == WeightUnit.KG) WeightUnit.LB else WeightUnit.KG
+            val newValue = if (newUnit == WeightUnit.LB) kgToLb(current) else lbToKg(current)
+            s.copy(weightUnit = newUnit, weight = "%.1f".format(newValue))
+        }
+    }
+
+    fun calculate() {
         val wRaw = Parse.toDoubleOrNull(_state.value.weight)
         val hRaw = Parse.toDoubleOrNull(_state.value.height)
         val sa = Parse.toDoubleOrNull(_state.value.saO2)
@@ -175,42 +186,53 @@ class FickViewModel : ViewModel() {
         val hbRaw = Parse.toDoubleOrNull(_state.value.hb)
 
         if (wRaw == null || hRaw == null || sa == null || sv == null || hbRaw == null) {
-            _state.update {
-                it.copy(
-                    error = "Faltan datos: peso, talla, SaO₂, SvO₂ y Hb.",
-                    cardiacOutputLMin = null,
-                    cardiacIndexLMinM2 = null,
-                    strokeVolumeMlBeat = null
-                )
-            }
+            fail("Faltan datos: peso, talla, SaO₂, SvO₂ y Hb.")
             return
         }
 
-        // Hb siempre en g/dL para fórmula
-        val hb_gDl = when (_state.value.hbUnit) {
-            HbUnit.G_DL -> hbRaw
-            HbUnit.G_L  -> hbRaw / 10.0
+        // Validaciones fisiológicas mínimas (A.1.2)
+        if (sa !in 0.0..100.0) {
+            fail("SaO₂ debe estar entre 0 y 100%.")
+            return
+        }
+        if (sv !in 0.0..100.0) {
+            fail("SvO₂ debe estar entre 0 y 100%.")
+            return
         }
 
         val wKg = toKg(wRaw, _state.value.weightUnit)
         val hCm = toCm(hRaw, _state.value.heightUnit)
 
-        if (wKg <= 0 || hCm <= 0) {
-            _state.update {
-                it.copy(
-                    error = "Peso y talla deben ser > 0.",
-                    cardiacOutputLMin = null,
-                    cardiacIndexLMinM2 = null,
-                    strokeVolumeMlBeat = null
-                )
-            }
+        if (wKg <= 0.0 || hCm <= 0.0) {
+            fail("Peso y talla deben ser > 0.")
             return
         }
 
-        val bsa = bsaMosteller(hCm, wKg)
+        // Hb: convertir a g/dL si el usuario está en g/L
+        val hb_gDl = when (_state.value.hbUnit) {
+            HbUnit.G_DL -> hbRaw
+            HbUnit.G_L -> hbRaw / 10.0
+        }
+        if (hb_gDl <= 0.0) {
+            fail("Hb debe ser > 0.")
+            return
+        }
 
         val paO2 = Parse.toDoubleOrNull(_state.value.paO2)
         val pvO2 = Parse.toDoubleOrNull(_state.value.pvO2)
+
+        if (_state.value.includeDissolved) {
+            if (paO2 != null && paO2 < 0.0) {
+                fail("PaO₂ no puede ser negativa.")
+                return
+            }
+            if (pvO2 != null && pvO2 < 0.0) {
+                fail("PvO₂ no puede ser negativa.")
+                return
+            }
+        }
+
+        val bsa = bsaMosteller(hCm, wKg)
 
         val ca = HemodynamicsFormulas.oxygenContentMlPerDl(
             hb_gDl = hb_gDl,
@@ -227,15 +249,8 @@ class FickViewModel : ViewModel() {
         )
 
         val avDiff = ca - cv
-        if (avDiff <= 0) {
-            _state.update {
-                it.copy(
-                    error = "CaO₂ − CvO₂ ≤ 0. Revisa saturaciones/Hb.",
-                    cardiacOutputLMin = null,
-                    cardiacIndexLMinM2 = null,
-                    strokeVolumeMlBeat = null
-                )
-            }
+        if (avDiff <= 0.0 || !avDiff.isFinite()) {
+            fail("CaO₂ − CvO₂ ≤ 0. Revisa saturaciones/Hb.")
             return
         }
 
@@ -243,30 +258,34 @@ class FickViewModel : ViewModel() {
 
         val vo2Used = if (_state.value.useMeasuredVo2) {
             val measured = Parse.toDoubleOrNull(_state.value.vo2Measured)
-            if (measured == null || measured <= 0) {
-                _state.update {
-                    it.copy(
-                        error = "VO₂ medido debe ser > 0.",
-                        cardiacOutputLMin = null,
-                        cardiacIndexLMinM2 = null,
-                        strokeVolumeMlBeat = null
-                    )
-                }
+            if (measured == null) {
+                fail("VO₂ medido no es un número válido.")
+                return
+            }
+            if (measured <= 0.0) {
+                fail("VO₂ medido debe ser > 0.")
                 return
             }
             measured
         } else {
-            HemodynamicsFormulas.estimatedVo2MlMin(bsa_m2 = bsa, factor_mlMinM2 = factor)
+            val est = HemodynamicsFormulas.estimatedVo2MlMin(bsa_m2 = bsa, factor_mlMinM2 = factor)
+            if (!est.isFinite() || est <= 0.0) {
+                fail("VO₂ estimado no es válido.")
+                return
+            }
+            est
         }
 
-        // CO = VO2 / (AVdiff * 10)
         val co = vo2Used / (avDiff * 10.0)
+        if (!co.isFinite() || co <= 0.0) {
+            fail("No se puede calcular CO: datos no fisiológicos o inválidos.")
+            return
+        }
         val ci = co / bsa
 
         val hr = Parse.toDoubleOrNull(_state.value.heartRate)
-        val svMlBeat = if (hr != null && hr > 0) (co * 1000.0) / hr else null
+        val svMlBeat = if (hr != null && hr > 0.0) (co * 1000.0) / hr else null
 
-        // ✅ Actualiza UI state (éxito)
         _state.update {
             it.copy(
                 bsa = bsa,
@@ -284,157 +303,5 @@ class FickViewModel : ViewModel() {
                 error = null
             )
         }
-
-        // ✅ Guardar en ReportStore SOLO si fue exitoso (aquí siempre lo es)
-        val now = System.currentTimeMillis()
-
-        val weightUnitText = if (_state.value.weightUnit == WeightUnit.KG) "kg" else "lb"
-        val heightUnitText = when (_state.value.heightUnit) {
-            HeightUnit.CM -> "cm"
-            HeightUnit.IN -> "in"
-            HeightUnit.M  -> "m"
-        }
-        val hbUnitText = when (_state.value.hbUnit) {
-            HbUnit.G_DL -> "g/dL"
-            HbUnit.G_L  -> "g/L"
-        }
-
-        val ageText = if (_state.value.ageGroup == AgeGroup.LT70) "< 70" else "≥ 70"
-
-        val inputs = buildList {
-
-            // Peso / altura (sin key, vienen del prefill)
-            add(LineItem(label = "Peso", value = Format.d(wRaw, 1), unit = weightUnitText))
-            add(LineItem(label = "Altura", value = Format.d(hRaw, 1), unit = heightUnitText))
-
-            // ✅ Fick inputs auditables
-            add(
-                LineItem(
-                    key = SharedKeys.SAO2_PERCENT,
-                    label = "SaO₂",
-                    value = Format.d(sa, 0),
-                    unit = "%"
-                )
-            )
-
-            add(
-                LineItem(
-                    key = SharedKeys.SVO2_PERCENT,
-                    label = "SvO₂",
-                    value = Format.d(sv, 0),
-                    unit = "%"
-                )
-            )
-
-            // Hb SIEMPRE en g/dL (canónico BD)
-            add(
-                LineItem(
-                    key = SharedKeys.HB_GDL,
-                    label = "Hemoglobina",
-                    value = Format.d(hb_gDl, 1),
-                    unit = "g/dL"
-                )
-            )
-
-            // HR opcional
-            if (!state.value.heartRate.isBlank()) {
-                hr?.let {
-                    add(
-                        LineItem(
-                            key = SharedKeys.HR_BPM,
-                            label = "Frecuencia cardíaca",
-                            value = Format.d(it, 0),
-                            unit = "bpm"
-                        )
-                    )
-                }
-            }
-
-            add(LineItem(label = "Edad", value = ageText, unit = "años"))
-
-            // BSA
-            add(
-                LineItem(
-                    key = SharedKeys.BSA_M2,
-                    label = "BSA",
-                    value = Format.d(bsa, 2),
-                    unit = "m²",
-                    detail = "Body Surface Area"
-                )
-            )
-
-            // VO2 usado
-            add(
-                LineItem(
-                    key = SharedKeys.VO2_MLMIN,
-                    label = "VO₂",
-                    value = Format.d(vo2Used, 0),
-                    unit = "mL/min",
-                    detail = if (_state.value.useMeasuredVo2) "Medido" else "Estimado"
-                )
-            )
-
-            // VO2 mode
-            add(
-                LineItem(
-                    key = SharedKeys.VO2_MODE,
-                    label = "VO₂ mode",
-                    value = if (_state.value.useMeasuredVo2) "MEASURED" else "ESTIMATED",
-                    unit = null
-                )
-            )
-        }
-
-
-        val outputs = buildList {
-
-            add(
-                LineItem(
-                    key = SharedKeys.CO_LMIN,
-                    label = "CO",
-                    value = Format.d(co, 2),
-                    unit = "L/min",
-                    detail = "Cardiac Output"
-                )
-            )
-
-            // ✅ CI con key (muy importante)
-            add(
-                LineItem(
-                    key = SharedKeys.CI_LMIN_M2,
-                    label = "CI",
-                    value = Format.d(ci, 2),
-                    unit = "L/min/m²",
-                    detail = "Cardiac Index"
-                )
-            )
-
-            svMlBeat?.let {
-                add(
-                    LineItem(
-                        label = "SV",
-                        value = Format.d(it, 0),
-                        unit = "mL",
-                        detail = "Stroke Volume"
-                    )
-                )
-            }
-
-            add(LineItem(label = "CaO₂", value = Format.d(ca, 2), unit = "mL/dL"))
-            add(LineItem(label = "CvO₂", value = Format.d(cv, 2), unit = "mL/dL"))
-            add(LineItem(label = "ΔA-V O₂", value = Format.d(avDiff, 2), unit = "mL/dL"))
-        }
-
-
-        val entry = CalcEntry(
-            type = CalcType.FICK,
-            timestampMillis = now,
-            title = "Fick: Gasto Cardíaco",
-            inputs = inputs,
-            outputs = outputs,
-            notes = emptyList()
-        )
-
-        ReportStore.upsert(entry)
     }
 }

@@ -18,7 +18,6 @@ class PapiViewModel : ViewModel() {
         val rap: String = "",   // mmHg
 
         val papi: Double? = null,
-        val papp: Double? = null, // PASP - PADP
         val note: NoteCode? = null,
         val error: ErrorCode? = null
     )
@@ -38,22 +37,27 @@ class PapiViewModel : ViewModel() {
         val rap = Parse.toDoubleOrNull(_state.value.rap)
 
         if (pasp == null || padp == null || rap == null) {
-            _state.update { it.copy(error = ErrorCode.MISSING_INPUTS, papi = null, papp = null, note = null) }
+            _state.update { it.copy(error = ErrorCode.MISSING_INPUTS, papi = null, note = null) }
             return
         }
-        if (rap <= 0) {
-            _state.update { it.copy(error = ErrorCode.RAP_NONPOSITIVE, papi = null, papp = null, note = null) }
+        if (rap <= 0.0) {
+            _state.update { it.copy(error = ErrorCode.RAP_NONPOSITIVE, papi = null, note = null) }
             return
         }
         if (pasp < padp) {
-            _state.update { it.copy(error = ErrorCode.PASP_LT_PADP, papi = null, papp = null, note = null) }
+            _state.update { it.copy(error = ErrorCode.PASP_LT_PADP, papi = null, note = null) }
             return
         }
 
         val res = HemodynamicsFormulas.papi(pasp, padp, rap)
-        val papp = pasp - padp
-        val noteCode = if (res.papi < 0.9) NoteCode.HIGH_RISK else NoteCode.LOWER_RISK
 
-        _state.update { it.copy(papi = res.papi, papp = papp, note = noteCode, error = null) }
+        // ✅ A.2/A.3: bloquear no finitos (no dejar NaN en state)
+        if (!res.papi.isFinite()) {
+            _state.update { it.copy(error = ErrorCode.RAP_NONPOSITIVE, papi = null, note = null) }
+            return
+        }
+
+        val noteCode = if (res.papi < 0.9) NoteCode.HIGH_RISK else NoteCode.LOWER_RISK
+        _state.update { it.copy(papi = res.papi, note = noteCode, error = null) }
     }
 }

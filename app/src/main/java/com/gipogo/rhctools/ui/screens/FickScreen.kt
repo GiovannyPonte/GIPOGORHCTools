@@ -30,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -62,15 +63,13 @@ import com.gipogo.rhctools.util.Format
 import com.gipogo.rhctools.workshop.WorkshopMode
 import com.gipogo.rhctools.workshop.WorkshopPrefillStore
 import com.gipogo.rhctools.workshop.WorkshopSession
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.platform.LocalContext
-import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
-
 
 private enum class FickHelpTopic { SAO2, SVO2, HB, HR }
 private enum class CoMethodUi { FICK, THERMODILUTION }
@@ -88,7 +87,6 @@ fun FickScreen(
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-
 
     var submitted by rememberSaveable { mutableStateOf(false) }
     var method by rememberSaveable { mutableStateOf(CoMethodUi.FICK) }
@@ -123,7 +121,6 @@ fun FickScreen(
     ) {
         if (workshopCtx.mode != WorkshopMode.PATIENT_STUDY) return@LaunchedEffect
 
-        // Peso (kg en BD) -> UI units
         val wKg = prefill.weightKg
         if (state.weight.isBlank() && wKg != null) {
             val valueInUiUnits = when (state.weightUnit) {
@@ -133,7 +130,6 @@ fun FickScreen(
             vm.setWeight(String.format("%.0f", valueInUiUnits))
         }
 
-        // Talla (cm en BD) -> UI units
         val hCm = prefill.heightCm
         if (state.height.isBlank() && hCm != null) {
             val valueInUiUnits = when (state.heightUnit) {
@@ -148,7 +144,6 @@ fun FickScreen(
             vm.setHeight(formatted)
         }
 
-        // Age group desde DOB (millis)
         val by = prefill.birthDateMillis
         if (by != null) {
             val ageYears = ChronoUnit.YEARS.between(
@@ -188,7 +183,9 @@ fun FickScreen(
     val td1Val = NumericParsing.parseDouble(td1)
     val td2Val = NumericParsing.parseDouble(td2)
     val td3Val = NumericParsing.parseDouble(td3)
-    val tdRuns = listOfNotNull(td1Val, td2Val, td3Val).filter { it > 0.0 }
+
+    // ✅ FIX A.1.3: TD runs deben ser finitos y > 0
+    val tdRuns = listOfNotNull(td1Val, td2Val, td3Val).filter { it.isFinite() && it > 0.0 }
     val tdHasError = submitted && tdRuns.isEmpty()
 
     // ---- Validation rules gated by submit ----
@@ -216,7 +213,6 @@ fun FickScreen(
         CoMethodUi.THERMODILUTION -> !tdHasError
     }
 
-    // Scroll al final cuando aparece resultado/error
     LaunchedEffect(state.cardiacOutputLMin, state.error, tdCo, tdError) {
         val hasFickResult = (state.cardiacOutputLMin != null || state.error != null)
         val hasTdResult = (tdCo != null || tdError != null)
@@ -277,7 +273,6 @@ fun FickScreen(
             stringResource(hrV.messageResId)
         else null
 
-    // Units text (legacy hardcoded; puedes migrarlo a strings luego)
     val heightUnitText = when (state.heightUnit) {
         FickViewModel.HeightUnit.CM -> "cm"
         FickViewModel.HeightUnit.IN -> "in"
@@ -293,7 +288,6 @@ fun FickScreen(
     val hbPlaceholder = "12–17"
     val hrPlaceholder = "60–100"
 
-    // ✅ Precompute strings used inside onClick/try-catch (NO composables there)
     val strTdReportTitle = stringResource(R.string.td_report_title)
     val strTdRun1 = stringResource(R.string.td_run_1)
     val strTdRun2 = stringResource(R.string.td_run_2_optional)
@@ -322,7 +316,6 @@ fun FickScreen(
                     vm.clear()
                     submitted = false
 
-                    // Clear TD
                     td1 = ""; td2 = ""; td3 = ""
                     tdCo = null; tdCi = null; tdSv = null; tdError = null
 
@@ -342,7 +335,6 @@ fun FickScreen(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Method selector
             GipogoSurfaceCard {
                 CoMethodToggleCompat(
                     selected = method,
@@ -353,7 +345,6 @@ fun FickScreen(
                 )
             }
 
-            // Patient data (always)
             GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_patient_data))
 
             GipogoSplitInputCard(
@@ -380,7 +371,6 @@ fun FickScreen(
             )
             patientMsg?.let { GipogoFieldHint(severity = patientSeverity ?: Severity.OK, text = it) }
 
-            // Fick-only sections
             if (method == CoMethodUi.FICK) {
                 GipogoSectionHeaderRow(title = stringResource(R.string.fick_section_oxygenation))
 
@@ -440,7 +430,6 @@ fun FickScreen(
                 }
             }
 
-            // TD-only section
             if (method == CoMethodUi.THERMODILUTION) {
                 GipogoSectionHeaderRow(title = stringResource(R.string.td_section_title))
 
@@ -507,46 +496,54 @@ fun FickScreen(
                     when (method) {
                         CoMethodUi.FICK -> {
                             vm.calculate()
-                            // ✅ Marca método y guarda inmediato (si está en PATIENT_STUDY)
                             WorkshopRhcAutosave.setCoMethod("FICK")
                             WorkshopRhcAutosave.flushNow(context, coroutineScope)
                         }
 
-
                         CoMethodUi.THERMODILUTION -> {
                             tdError = null
                             try {
-                                val co = HemodynamicsFormulas.thermodilutionAverageCardiacOutputLMin(tdRuns)
+                                val rawCo = HemodynamicsFormulas.thermodilutionAverageCardiacOutputLMin(tdRuns)
 
-                                val bsa = if (weightKg != null && heightCm != null) {
+                                // ✅ FIX A.1.3: no permitir NaN/Inf ni CO <= 0
+                                val co = rawCo.takeIf { it.isFinite() && it > 0.0 }
+                                if (co == null) {
+                                    tdError = strCommonError
+                                    tdCo = null; tdCi = null; tdSv = null
+                                    return@Button
+                                }
+
+                                val rawBsa = if (weightKg != null && heightCm != null) {
                                     HemodynamicsFormulas.bsaMosteller(heightCm, weightKg)
                                 } else null
+                                val bsa = rawBsa?.takeIf { it.isFinite() && it > 0.0 }
 
-                                val ci = bsa?.let { co / it }
+                                val ci = bsa?.let { (co / it).takeIf { v -> v.isFinite() && v > 0.0 } }
 
                                 val sv = hrVal?.let { hr ->
-                                    if (hr > 0.0) HemodynamicsFormulas.strokeVolumeMlBeat(co, hr) else null
+                                    if (hr.isFinite() && hr > 0.0) {
+                                        HemodynamicsFormulas.strokeVolumeMlBeat(co, hr).takeIf { it.isFinite() && it > 0.0 }
+                                    } else null
                                 }
 
                                 tdCo = co
                                 tdCi = ci
                                 tdSv = sv
 
-                                // Share CO/BSA with other tools via ReportStore
+                                // ✅ Persistencia: solo con valores finitos
                                 ReportStore.upsert(
                                     CalcEntry(
-                                        type = CalcType.FICK, // (si luego quieres, creas CalcType.TD)
+                                        type = CalcType.FICK, // si luego quieres, creas CalcType.TD
                                         timestampMillis = System.currentTimeMillis(),
                                         title = strTdReportTitle,
                                         inputs = listOf(
-                                            LineItem(label = strTdRun1, value = td1Val?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
-                                            LineItem(label = strTdRun2, value = td2Val?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
-                                            LineItem(label = strTdRun3, value = td3Val?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+                                            LineItem(label = strTdRun1, value = td1Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+                                            LineItem(label = strTdRun2, value = td2Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+                                            LineItem(label = strTdRun3, value = td3Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
 
                                             LineItem(key = SharedKeys.CO_LMIN, label = strBadgeCo, value = Format.d(co, 2), unit = strUnitLMin, detail = ""),
                                             LineItem(key = SharedKeys.BSA_M2, label = strLabelBsa, value = bsa?.let { Format.d(it, 2) } ?: "", unit = strUnitM2, detail = ""),
 
-                                            // ✅ CI con key (si bsa existe)
                                             LineItem(
                                                 key = SharedKeys.CI_LMIN_M2,
                                                 label = strCiLabel,
@@ -555,7 +552,6 @@ fun FickScreen(
                                                 detail = ""
                                             ),
 
-                                            // ✅ Método con key (auditable)
                                             LineItem(
                                                 key = SharedKeys.CO_METHOD,
                                                 label = "CO method",
@@ -579,12 +575,16 @@ fun FickScreen(
                                                 unit = strUnitLMinM2,
                                                 detail = ""
                                             ),
-                                            LineItem(label = strSvLabel, value = sv?.let { Format.d(it, 0) } ?: "", unit = strUnitMl, detail = "")
+                                            LineItem(
+                                                label = strSvLabel,
+                                                value = sv?.let { Format.d(it, 0) } ?: "",
+                                                unit = strUnitMl,
+                                                detail = ""
+                                            )
                                         )
-
                                     )
                                 )
-                                // 👉 MARCAR MÉTODO Y GUARDAR YA MISMO
+
                                 WorkshopRhcAutosave.setCoMethod("TD")
                                 WorkshopRhcAutosave.flushNow(context, coroutineScope)
                             } catch (e: Exception) {
@@ -603,16 +603,19 @@ fun FickScreen(
                 Text(stringResource(R.string.common_btn_calculate))
             }
 
-            // Fick error
             state.error?.let {
                 Text(text = it, color = MaterialTheme.colorScheme.error)
             }
 
-            // Fick results
-            if (state.error == null && state.cardiacOutputLMin != null && state.cardiacIndexLMinM2 != null) {
-                val co = state.cardiacOutputLMin!!
-                val ci = state.cardiacIndexLMinM2!!
-                val sv = state.strokeVolumeMlBeat
+            // ✅ FIX A.1.3: No render si CO/CI no son finitos
+            val coFinite = state.cardiacOutputLMin?.takeIf { it.isFinite() }
+            val ciFinite = state.cardiacIndexLMinM2?.takeIf { it.isFinite() }
+            val svFinite = state.strokeVolumeMlBeat?.takeIf { it.isFinite() }
+
+            if (state.error == null && coFinite != null && ciFinite != null) {
+                val co = coFinite
+                val ci = ciFinite
+                val sv = svFinite
 
                 GipogoResultsHeroCard(
                     eyebrow = stringResource(R.string.fick_result_eyebrow_co),
@@ -633,23 +636,26 @@ fun FickScreen(
                 )
             }
 
-            // TD results
             if (method == CoMethodUi.THERMODILUTION) {
                 tdError?.let {
                     Text(text = it, color = MaterialTheme.colorScheme.error)
                 }
 
-                val co = tdCo
+                // ✅ FIX A.1.3: No render si TD CO no es finito
+                val co = tdCo?.takeIf { it.isFinite() }
+                val ci = tdCi?.takeIf { it.isFinite() }
+                val sv = tdSv?.takeIf { it.isFinite() }
+
                 if (tdError == null && co != null) {
                     GipogoResultsHeroCard(
                         eyebrow = strTdReportTitle,
                         mainValue = format2(co),
                         mainUnit = stringResource(R.string.common_unit_lmin),
                         leftLabel = stringResource(R.string.fick_result_ci_label),
-                        leftValue = tdCi?.let { format2(it) } ?: stringResource(R.string.common_value_na),
+                        leftValue = ci?.let { format2(it) } ?: stringResource(R.string.common_value_na),
                         leftUnit = stringResource(R.string.common_unit_lmin_m2),
                         rightLabel = stringResource(R.string.fick_result_sv_label),
-                        rightValue = tdSv?.let { format0(it) } ?: stringResource(R.string.common_value_na),
+                        rightValue = sv?.let { format0(it) } ?: stringResource(R.string.common_value_na),
                         rightUnit = stringResource(R.string.common_unit_ml),
                         interpretationContent = {
                             InterpretationGaugeCardGeneric(

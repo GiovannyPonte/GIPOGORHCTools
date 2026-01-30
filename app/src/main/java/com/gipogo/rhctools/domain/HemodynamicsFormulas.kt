@@ -1,11 +1,10 @@
 package com.gipogo.rhctools.domain
 
-import kotlin.math.max
 import kotlin.math.sqrt
 
 object HemodynamicsFormulas {
 
-    // O2 content (ml O2 / dL)
+    // O2 content (mL O2 / dL)
     // CaO2 = 1.36 * Hb * SaO2 + 0.0031 * PaO2
     // Nota: la parte disuelta (0.0031*PaO2) suele ser pequeña; la app permite incluirla o no.
     fun oxygenContentMlPerDl(
@@ -14,6 +13,10 @@ object HemodynamicsFormulas {
         po2_mmHg: Double?,
         includeDissolved: Boolean
     ): Double {
+        // Fail-clean: si inputs no son finitos, no “inventar” contenido de O2.
+        if (!hb_gDl.isFinite() || !sat_percent.isFinite()) return Double.NaN
+        if (includeDissolved && po2_mmHg != null && !po2_mmHg.isFinite()) return Double.NaN
+
         val sat = sat_percent / 100.0
         val bound = 1.36 * hb_gDl * sat
         val dissolved = if (includeDissolved && po2_mmHg != null) 0.0031 * po2_mmHg else 0.0
@@ -22,6 +25,9 @@ object HemodynamicsFormulas {
 
     // VO2 estimado en reposo: ~125 mL/min/m2 * BSA (StatPearls)
     fun estimatedVo2MlMin(bsa_m2: Double, factor_mlMinM2: Double = 125.0): Double {
+        // Fail-clean: requiere inputs finitos y BSA > 0.
+        if (!bsa_m2.isFinite() || !factor_mlMinM2.isFinite()) return Double.NaN
+        if (bsa_m2 <= 0.0 || factor_mlMinM2 <= 0.0) return Double.NaN
         return factor_mlMinM2 * bsa_m2
     }
 
@@ -32,6 +38,26 @@ object HemodynamicsFormulas {
         cvO2_mlPerDl: Double,
         bsa_m2: Double?
     ): FickResult {
+
+        // Fail-clean: si VO2 o contenidos no son finitos, no calcular.
+        if (!vo2_mlMin.isFinite() || !caO2_mlPerDl.isFinite() || !cvO2_mlPerDl.isFinite()) {
+            return FickResult(
+                cardiacOutputLMin = Double.NaN,
+                cardiacIndexLMinM2 = null,
+                caO2_mlPerDl = caO2_mlPerDl,
+                cvO2_mlPerDl = cvO2_mlPerDl,
+                avDiff_mlPerDl = Double.NaN
+            )
+        }
+        if (vo2_mlMin <= 0.0) {
+            return FickResult(
+                cardiacOutputLMin = Double.NaN,
+                cardiacIndexLMinM2 = null,
+                caO2_mlPerDl = caO2_mlPerDl,
+                cvO2_mlPerDl = cvO2_mlPerDl,
+                avDiff_mlPerDl = caO2_mlPerDl - cvO2_mlPerDl
+            )
+        }
 
         val avDiff = caO2_mlPerDl - cvO2_mlPerDl
 
@@ -47,7 +73,7 @@ object HemodynamicsFormulas {
         }
 
         val co = vo2_mlMin / (avDiff * 10.0)
-        val ci = bsa_m2?.takeIf { it > 0 }?.let { co / it }
+        val ci = bsa_m2?.takeIf { it.isFinite() && it > 0.0 }?.let { co / it }
 
         return FickResult(
             cardiacOutputLMin = co,
@@ -58,51 +84,40 @@ object HemodynamicsFormulas {
         )
     }
 
-
-    // PVR (Wood Units) = (mPAP - PCWP)/CO ; dyn = WU*80
+    // PVR (Wood Units) = (mPAP - PCWP)/CO ; dyn·s·cm⁻⁵ = WU × 80
     fun pulmonaryVascularResistance(
         meanPap_mmHg: Double,
         pcwp_mmHg: Double,
         cardiacOutput_LMin: Double
     ): ResistanceResult {
-
-        // Motivo clínico/técnico:
-        // Un gasto cardíaco (CO) <= 0 es no fisiológico o un error de entrada.
-        // Se evita la división por cero/valores engañosos y se devuelve NaN para que la capa
-        // superior (ViewModel/UI) canalice el error y evite mostrar/guardar resultados inválidos.
-        if (cardiacOutput_LMin <= 0.0) {
-            return ResistanceResult(
-                woodUnits = Double.NaN,
-                dynesSecCm5 = Double.NaN
-            )
+        // Fail-clean: inputs no finitos o CO <= 0 → no calcular resistencia.
+        if (!meanPap_mmHg.isFinite() || !pcwp_mmHg.isFinite()) {
+            return ResistanceResult(woodUnits = Double.NaN, dynesSecCm5 = Double.NaN)
+        }
+        if (!cardiacOutput_LMin.isFinite() || cardiacOutput_LMin <= 0.0) {
+            return ResistanceResult(woodUnits = Double.NaN, dynesSecCm5 = Double.NaN)
         }
 
-        // Fórmula estándar:
-        // PVR (WU) = (mPAP - PCWP) / CO ; conversión a dyn·s·cm⁻⁵ = WU × 80
+        // Fórmula estándar: PVR (WU) = (mPAP - PCWP) / CO. La conversión a dyn·s·cm⁻⁵ es WU × 80.
         val wu = (meanPap_mmHg - pcwp_mmHg) / cardiacOutput_LMin
         return ResistanceResult(woodUnits = wu, dynesSecCm5 = wu * 80.0)
     }
 
-    // SVR (dyn·s·cm−5) = 80*(MAP - RAP)/CO ; WU = (MAP - RAP)/CO
+    // SVR (Wood Units) = (MAP - RAP)/CO ; dyn·s·cm⁻⁵ = WU × 80
     fun systemicVascularResistance(
         map_mmHg: Double,
         rap_mmHg: Double,
         cardiacOutput_LMin: Double
     ): ResistanceResult {
 
-        // Motivo clínico/técnico:
-        // Un gasto cardíaco (CO) <= 0 es no fisiológico o un error de entrada.
-        // Se evita la división por cero/valores engañosos y se devuelve NaN para que la capa
-        // superior (ViewModel/UI) canalice el error y evite mostrar/guardar resultados inválidos.
-        if (cardiacOutput_LMin <= 0.0) {
-            return ResistanceResult(
-                woodUnits = Double.NaN,
-                dynesSecCm5 = Double.NaN
-            )
+        // Fail-clean: CO inválido → no calcular resistencia.
+        if (!cardiacOutput_LMin.isFinite() || cardiacOutput_LMin <= 0.0) {
+            return ResistanceResult(woodUnits = Double.NaN, dynesSecCm5 = Double.NaN)
+        }
+        if (!map_mmHg.isFinite() || !rap_mmHg.isFinite()) {
+            return ResistanceResult(woodUnits = Double.NaN, dynesSecCm5 = Double.NaN)
         }
 
-        // Fórmula estándar:
-        // SVR (WU) = (MAP - RAP) / CO ; conversión a dyn·s·cm⁻⁵ = WU × 80
         val wu = (map_mmHg - rap_mmHg) / cardiacOutput_LMin
         return ResistanceResult(woodUnits = wu, dynesSecCm5 = wu * 80.0)
     }
@@ -113,8 +128,14 @@ object HemodynamicsFormulas {
         cardiacOutput_LMin: Double,
         bsa_m2: Double?
     ): CpoResult {
+        // Fail-clean: si MAP/CO no son finitos, devolver NaN (no excepción).
+        if (!map_mmHg.isFinite() || !cardiacOutput_LMin.isFinite()) {
+            return CpoResult(cpoWatts = Double.NaN, cpiWattsPerM2 = null)
+        }
         val cpo = (map_mmHg * cardiacOutput_LMin) / 451.0
-        val cpi = bsa_m2?.takeIf { it > 0 }?.let { (map_mmHg * (cardiacOutput_LMin / it)) / 451.0 }
+        val cpi = bsa_m2
+            ?.takeIf { it.isFinite() && it > 0.0 }
+            ?.let { (map_mmHg * (cardiacOutput_LMin / it)) / 451.0 }
 
         return CpoResult(cpoWatts = cpo, cpiWattsPerM2 = cpi)
     }
@@ -126,30 +147,28 @@ object HemodynamicsFormulas {
         rap_mmHg: Double
     ): PapiResult {
 
-        // Motivo clínico/técnico:
-        // RAP <= 0 es fisiológicamente implausible o un error de entrada en este contexto.
-        // Se devuelve NaN para que la capa superior (ViewModel/UI) canalice el error y evite
-        // mostrar/guardar un valor artificialmente inflado.
+        // Fail-clean: RAP <= 0 o inputs no finitos → NaN.
+        if (!pasp_mmHg.isFinite() || !padp_mmHg.isFinite() || !rap_mmHg.isFinite()) {
+            return PapiResult(papi = Double.NaN)
+        }
         if (rap_mmHg <= 0.0) {
             return PapiResult(papi = Double.NaN)
         }
 
-        // Fórmula estándar:
-        // PAPi = (PASP - PADP) / RAP
         val value = (pasp_mmHg - padp_mmHg) / rap_mmHg
         return PapiResult(papi = value)
     }
 
     // -------------------------------------------------------------------------
-    // ✅ NUEVO: Resistencias pulmonares "tipo QxMD": PVR + TPR en un solo cálculo
+    // Resistencias pulmonares: PVR + TPR en un solo cálculo (fail-clean)
     // -------------------------------------------------------------------------
 
     data class PulmonaryResistanceResult(
         val gradientMmhg: Double,  // mPAP - PAWP
         val pvrWu: Double?,        // null si gradiente <= 0
         val pvrDynes: Double?,     // null si gradiente <= 0
-        val tprWu: Double,         // siempre calculable si CO > 0
-        val tprDynes: Double       // siempre calculable si CO > 0
+        val tprWu: Double,         // NaN si CO inválido
+        val tprDynes: Double       // NaN si CO inválido
     )
 
     /**
@@ -158,15 +177,24 @@ object HemodynamicsFormulas {
      * - TPR = mPAP/CO
      *
      * Regla:
-     * - Requiere CO > 0
-     * - Si (mPAP - PAWP) <= 0 → PVR = null, pero TPR se calcula.
+     * - Requiere CO > 0 (fail-clean: si no, devuelve NaN)
+     * - Si (mPAP - PAWP) <= 0 → PVR = null, pero TPR se calcula (si CO válido)
      */
     fun pulmonaryResistanceWithTpr(
         mpap_mmHg: Double,
         pawp_mmHg: Double,
         cardiacOutput_LMin: Double
     ): PulmonaryResistanceResult {
-        require(cardiacOutput_LMin > 0.0) { "Cardiac output must be > 0" }
+
+        if (!mpap_mmHg.isFinite() || !pawp_mmHg.isFinite() || !cardiacOutput_LMin.isFinite() || cardiacOutput_LMin <= 0.0) {
+            return PulmonaryResistanceResult(
+                gradientMmhg = Double.NaN,
+                pvrWu = null,
+                pvrDynes = null,
+                tprWu = Double.NaN,
+                tprDynes = Double.NaN
+            )
+        }
 
         val gradient = mpap_mmHg - pawp_mmHg
 
@@ -195,31 +223,32 @@ object HemodynamicsFormulas {
 
     /**
      * Solo TPR (Total Pulmonary Resistance):
-     * TPR (WU) = mPAP / CO ; dyn = WU*80
+     * TPR (WU) = mPAP / CO ; dyn·s·cm⁻⁵ = WU × 80
      */
     fun totalPulmonaryResistance(
         mpap_mmHg: Double,
         cardiacOutput_LMin: Double
     ): ResistanceResult {
-        require(cardiacOutput_LMin > 0.0) { "Cardiac output must be > 0" }
+        if (!mpap_mmHg.isFinite() || !cardiacOutput_LMin.isFinite() || cardiacOutput_LMin <= 0.0) {
+            return ResistanceResult(woodUnits = Double.NaN, dynesSecCm5 = Double.NaN)
+        }
         val wu = mpap_mmHg / cardiacOutput_LMin
         return ResistanceResult(woodUnits = wu, dynesSecCm5 = wu * 80.0)
     }
 
     // -------------------------------------------------------------------------
-    // ✅ NUEVO: Derivados útiles (usados por tus screens)
+    // Derivados útiles
     // -------------------------------------------------------------------------
 
     /**
      * Stroke Volume (mL/beat) = CO(L/min) * 1000 / HR(bpm)
+     * Fail-clean: no inventar resultados si HR o CO no son válidos.
      */
     fun strokeVolumeMlBeat(co_LMin: Double, hr_bpm: Double): Double {
-        // Fail-clean: no inventar resultados si HR o CO no son válidos.
         if (!co_LMin.isFinite() || co_LMin <= 0.0) return Double.NaN
         if (!hr_bpm.isFinite() || hr_bpm <= 0.0) return Double.NaN
         return (co_LMin * 1000.0) / hr_bpm
     }
-
 
     /**
      * Pulmonary Artery Pulse Pressure (PAPP) = PASP - PADP (mmHg)
@@ -227,48 +256,46 @@ object HemodynamicsFormulas {
     fun pulmonaryArteryPulsePressure(
         pasp_mmHg: Double,
         padp_mmHg: Double
-    ): Double = pasp_mmHg - padp_mmHg
+    ): Double {
+        if (!pasp_mmHg.isFinite() || !padp_mmHg.isFinite()) return Double.NaN
+        return pasp_mmHg - padp_mmHg
+    }
 
     /**
      * BSA (Mosteller) = sqrt( (heightCm * weightKg) / 3600 )
+     * Fail-clean: devuelve NaN si inputs inválidos.
      */
     fun bsaMosteller(heightCm: Double, weightKg: Double): Double {
-        require(heightCm > 0.0) { "Height must be > 0" }
-        require(weightKg > 0.0) { "Weight must be > 0" }
+        if (!heightCm.isFinite() || !weightKg.isFinite()) return Double.NaN
+        if (heightCm <= 0.0 || weightKg <= 0.0) return Double.NaN
         return sqrt((heightCm * weightKg) / 3600.0)
     }
+
     // -------------------------------------------------------------------------
-    // ✅ NUEVO: Estimaciones y “puentes” clínicos para reutilización entre pantallas
+    // Estimaciones / puentes clínicos
     // -------------------------------------------------------------------------
 
     /**
-     * mPAP estimada a partir de PASP y PADP.
-     * Fórmula clásica: mPAP ≈ (PASP + 2*PADP) / 3
-     *
-     * Útil cuando solo tienes PASP/PADP (por ejemplo, ya capturados en PAPi)
-     * y necesitas mPAP para PVR.
+     * mPAP estimada: mPAP ≈ (PASP + 2*PADP) / 3
      */
     fun meanPulmonaryArteryPressureFromSystolicDiastolic(
         pasp_mmHg: Double,
         padp_mmHg: Double
     ): Double {
+        if (!pasp_mmHg.isFinite() || !padp_mmHg.isFinite()) return Double.NaN
         return (pasp_mmHg + 2.0 * padp_mmHg) / 3.0
     }
 
     /**
-     * En la práctica CVP (presión venosa central) ≈ RAP (presión auricular derecha).
-     * Esta función NO cambia el número, solo formaliza la equivalencia semántica.
-     *
-     * Se recomienda usarla bajo acción explícita del usuario (botón “usar CVP como RAP”),
-     * no automática.
+     * CVP ≈ RAP (solo equivalencia semántica).
      */
-    fun rapFromCvp(cvp_mmHg: Double): Double = cvp_mmHg
+    fun rapFromCvp(cvp_mmHg: Double): Double {
+        if (!cvp_mmHg.isFinite()) return Double.NaN
+        return cvp_mmHg
+    }
 
     /**
-     * Pulmonary Artery Mean Pressure “de una vez”:
-     * - Si tienes mPAP medido, úsalo.
-     * - Si no, y tienes PASP+PADP, estima.
-     *
+     * mPAP: si medido, úsalo; si no, estima con PASP+PADP.
      * Devuelve Pair(valor, wasEstimated)
      */
     fun mpapMeasuredOrEstimated(
@@ -276,40 +303,33 @@ object HemodynamicsFormulas {
         pasp_mmHg: Double?,
         padp_mmHg: Double?
     ): Pair<Double?, Boolean> {
-        if (mpapMeasured_mmHg != null) return mpapMeasured_mmHg to false
+        if (mpapMeasured_mmHg != null) {
+            return mpapMeasured_mmHg.takeIf { it.isFinite() } to false
+        }
         if (pasp_mmHg != null && padp_mmHg != null) {
-            return meanPulmonaryArteryPressureFromSystolicDiastolic(pasp_mmHg, padp_mmHg) to true
+            val est = meanPulmonaryArteryPressureFromSystolicDiastolic(pasp_mmHg, padp_mmHg)
+            return est.takeIf { it.isFinite() } to true
         }
         return null to false
     }
+
     // -------------------------------------------------------------------------
-    // ✅ NUEVO: Termodilución (TD)
+    // Termodilución
     // -------------------------------------------------------------------------
 
     /**
-     * Termodilución práctica para tu UI:
-     * - El usuario introduce 1–3 corridas (L/min) y se calcula el promedio.
-     *
-     * Reglas:
-     * - Requiere al menos 1 valor > 0
+     * Promedio de corridas de termodilución (L/min).
+     * Fail-clean: si no hay valores válidos, devuelve NaN (no excepción).
      */
     fun thermodilutionAverageCardiacOutputLMin(runs_LMin: List<Double>): Double {
         val valid = runs_LMin.filter { it.isFinite() && it > 0.0 }
-        require(valid.isNotEmpty()) { "At least one thermodilution run must be > 0" }
+        if (valid.isEmpty()) return Double.NaN
         return valid.average()
     }
 
     /**
-     * Stewart–Hamilton (conceptual/avanzado):
-     *
-     * CO = (V_i * (T_b - T_i) * K) / ∫ΔT(t) dt
-     *
-     * - V_i: volumen de inyectado (mL)
-     * - (T_b - T_i): diferencia de temperatura (°C)
-     * - K: constante (densidad/calor específico, etc.) depende del sistema/monitor
-     * - integralDegreeCSeconds: área bajo la curva de termodilución (°C·s)
-     *
-     * Nota: tu UI actual NO captura el integral; por ahora usa el promedio.
+     * Stewart–Hamilton (conceptual/avanzado)
+     * Fail-clean: si inputs inválidos, devuelve NaN (no excepción).
      */
     fun stewartHamiltonThermodilutionCardiacOutputLMin(
         injectateVolumeMl: Double,
@@ -317,16 +337,16 @@ object HemodynamicsFormulas {
         k: Double,
         integralDegreeCSeconds: Double
     ): Double {
-        require(injectateVolumeMl > 0.0) { "Injectate volume must be > 0" }
-        require(deltaTempC > 0.0) { "Delta temperature must be > 0" }
-        require(k > 0.0) { "K must be > 0" }
-        require(integralDegreeCSeconds > 0.0) { "Integral must be > 0" }
+        if (!injectateVolumeMl.isFinite() || !deltaTempC.isFinite() || !k.isFinite() || !integralDegreeCSeconds.isFinite()) {
+            return Double.NaN
+        }
+        if (injectateVolumeMl <= 0.0 || deltaTempC <= 0.0 || k <= 0.0 || integralDegreeCSeconds <= 0.0) {
+            return Double.NaN
+        }
 
         // Resultado en mL/s -> convertir a L/min:
         // (mL/s) * (60 s/min) / (1000 mL/L) = * 0.06
         val coMlPerSec = (injectateVolumeMl * deltaTempC * k) / integralDegreeCSeconds
         return coMlPerSec * 0.06
     }
-
-
 }

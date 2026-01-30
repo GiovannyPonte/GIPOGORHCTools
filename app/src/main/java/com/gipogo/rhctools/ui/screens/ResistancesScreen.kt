@@ -337,8 +337,8 @@ fun ResistancesScreen(
 
     // Guardar en ReportStore
     LaunchedEffect(state.svrWu, state.svrDynes) {
-        val wu = state.svrWu ?: return@LaunchedEffect
-        val dyn = state.svrDynes ?: return@LaunchedEffect
+        val wu = state.svrWu?.takeIf { it.isFinite() } ?: return@LaunchedEffect
+        val dyn = state.svrDynes?.takeIf { it.isFinite() } ?: return@LaunchedEffect
 
         ReportStore.upsert(
             CalcEntry(

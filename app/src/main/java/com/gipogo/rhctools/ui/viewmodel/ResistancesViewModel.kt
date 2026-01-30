@@ -1,17 +1,15 @@
 package com.gipogo.rhctools.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
+import com.gipogo.rhctools.domain.HemodynamicsFormulas
 import com.gipogo.rhctools.util.Parse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-
-
 class ResistancesViewModel : ViewModel() {
 
     enum class OutputUnits { WOOD_UNITS, DYNES }
-
     enum class ErrorCode { MISSING_INPUTS, CO_NONPOSITIVE }
 
     data class State(
@@ -46,36 +44,29 @@ class ResistancesViewModel : ViewModel() {
         val co = Parse.toDoubleOrNull(_state.value.co)
 
         if (map == null || cvp == null || co == null) {
-            _state.update {
-                it.copy(
-                    error = ErrorCode.MISSING_INPUTS,
-                    svrWu = null,
-                    svrDynes = null
-                )
-            }
+            _state.update { it.copy(error = ErrorCode.MISSING_INPUTS, svrWu = null, svrDynes = null) }
             return
         }
-        if (co <= 0) {
-            _state.update {
-                it.copy(
-                    error = ErrorCode.CO_NONPOSITIVE,
-                    svrWu = null,
-                    svrDynes = null
-                )
-            }
+        if (co <= 0.0) {
+            _state.update { it.copy(error = ErrorCode.CO_NONPOSITIVE, svrWu = null, svrDynes = null) }
             return
         }
 
-        // SVR (Wood Units) = (MAP - CVP) / CO
-        val wu = (map - cvp) / co
-        val dynes = wu * 80.0
+        // ✅ Single source of truth: dominio
+        val res = HemodynamicsFormulas.systemicVascularResistance(
+            map_mmHg = map,
+            rap_mmHg = cvp, // CVP ≈ RAP (lo que ya usa tu UI)
+            cardiacOutput_LMin = co
+        )
 
-        _state.update {
-            it.copy(
-                svrWu = wu,
-                svrDynes = dynes,
-                error = null
-            )
+        // ✅ A.2/A.3: bloquear no finitos
+        val wu = res.woodUnits
+        val dyn = res.dynesSecCm5
+        if (!wu.isFinite() || !dyn.isFinite()) {
+            _state.update { it.copy(error = ErrorCode.CO_NONPOSITIVE, svrWu = null, svrDynes = null) }
+            return
         }
+
+        _state.update { it.copy(svrWu = wu, svrDynes = dyn, error = null) }
     }
 }

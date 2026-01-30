@@ -55,10 +55,9 @@ import com.gipogo.rhctools.ui.validation.PapiValidation
 import com.gipogo.rhctools.ui.validation.Severity
 import com.gipogo.rhctools.ui.viewmodel.PapiViewModel
 import com.gipogo.rhctools.util.Format
+import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
-
 
 private enum class PapiHelpTopic { PASP, PADP, RAP, GLOBAL }
 
@@ -75,7 +74,7 @@ fun PapiScreen(
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
 
-    // ✅ IMPORTANTE: hacerlo reactivo para que al venir de SVR aparezca el botón
+    // ✅ reactivo para que al venir de SVR aparezca el botón
     val entries by ReportStore.entries.collectAsState()
 
     // CVP disponible (mmHg) si SVR lo guardó con SharedKeys.CVP_MMHG
@@ -84,13 +83,20 @@ fun PapiScreen(
     }
 
     var submitted by rememberSaveable { mutableStateOf(false) }
-    var showInfoDialog by remember { mutableStateOf(false) }
-    var helpTopic by remember { mutableStateOf<PapiHelpTopic?>(null) }
-    var scrollToResultRequested by remember { mutableStateOf(false) }
+    var showInfoDialog by rememberSaveable { mutableStateOf(false) }
+    var helpTopic by rememberSaveable { mutableStateOf<PapiHelpTopic?>(null) }
+    var scrollToResultRequested by rememberSaveable { mutableStateOf(false) }
 
     val paspVal = NumericParsing.parseDouble(state.pasp)
     val padpVal = NumericParsing.parseDouble(state.padp)
     val rapVal = NumericParsing.parseDouble(state.rap)
+
+    // ✅ PAPP local (NO depende del ViewModel)
+    val pappLocal: Double? = remember(paspVal, padpVal) {
+        if (paspVal != null && padpVal != null && paspVal.isFinite() && padpVal.isFinite()) {
+            HemodynamicsFormulas.pulmonaryArteryPulsePressure(paspVal, padpVal).takeIf { it.isFinite() }
+        } else null
+    }
 
     val paspRule = PapiValidation.paspRule.copy(required = submitted)
     val padpRule = PapiValidation.padpRule.copy(required = submitted)
@@ -214,14 +220,14 @@ fun PapiScreen(
                 }
             ) { Text(stringResource(R.string.common_btn_calculate)) }
 
-            state.papi?.let { papi ->
+            state.papi?.takeIf { it.isFinite() }?.let { papi ->
                 GipogoResultsHeroCard(
                     eyebrow = stringResource(R.string.common_result),
                     mainValue = Format.d(papi, 2),
                     mainUnit = stringResource(R.string.common_unit_none),
 
                     leftLabel = stringResource(R.string.papi_hero_left_label),
-                    leftValue = state.papp?.let { Format.d(it, 1) } ?: stringResource(R.string.common_value_na),
+                    leftValue = pappLocal?.let { Format.d(it, 1) } ?: stringResource(R.string.common_value_na),
                     leftUnit = stringResource(R.string.common_unit_mmhg),
 
                     rightLabel = stringResource(R.string.papi_hero_right_label),
@@ -276,9 +282,10 @@ fun PapiScreen(
         )
     }
 
-    // ✅ Persistir en ReportStore — CAMBIO: PAPi con KEY para BD
-    LaunchedEffect(state.papi, state.papp) {
-        val papi = state.papi ?: return@LaunchedEffect
+    // ✅ Persistir en ReportStore — A.2: bloquear no finitos
+    LaunchedEffect(state.papi, pappLocal) {
+        val papi = state.papi?.takeIf { it.isFinite() } ?: return@LaunchedEffect
+        val papp = pappLocal?.takeIf { it.isFinite() }
 
         val outputs = mutableListOf<LineItem>()
 
@@ -290,10 +297,10 @@ fun PapiScreen(
             detail = "Pulmonary Artery Pulsatility Index"
         )
 
-        state.papp?.let { papp ->
+        papp?.let {
             outputs += LineItem(
                 label = "PAPP",
-                value = Format.d(papp, 1),
+                value = Format.d(it, 1),
                 unit = "mmHg",
                 detail = "Pulmonary artery pulse pressure"
             )
