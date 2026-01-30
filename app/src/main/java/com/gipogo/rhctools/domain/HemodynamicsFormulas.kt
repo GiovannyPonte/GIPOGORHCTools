@@ -32,10 +32,23 @@ object HemodynamicsFormulas {
         cvO2_mlPerDl: Double,
         bsa_m2: Double?
     ): FickResult {
+
         val avDiff = caO2_mlPerDl - cvO2_mlPerDl
-        val safeAvDiff = max(avDiff, 0.000001) // evita división por 0
-        val co = vo2_mlMin / (safeAvDiff * 10.0)
-        val ci = bsa_m2?.let { co / it }
+
+        // Fail-fast fisiológico: sin gradiente válido no existe CO por Fick
+        if (avDiff <= 0.0) {
+            return FickResult(
+                cardiacOutputLMin = Double.NaN,
+                cardiacIndexLMinM2 = null,
+                caO2_mlPerDl = caO2_mlPerDl,
+                cvO2_mlPerDl = cvO2_mlPerDl,
+                avDiff_mlPerDl = avDiff
+            )
+        }
+
+        val co = vo2_mlMin / (avDiff * 10.0)
+        val ci = bsa_m2?.takeIf { it > 0 }?.let { co / it }
+
         return FickResult(
             cardiacOutputLMin = co,
             cardiacIndexLMinM2 = ci,
@@ -44,6 +57,7 @@ object HemodynamicsFormulas {
             avDiff_mlPerDl = avDiff
         )
     }
+
 
     // PVR (Wood Units) = (mPAP - PCWP)/CO ; dyn = WU*80
     fun pulmonaryVascularResistance(
