@@ -65,6 +65,20 @@ object HemodynamicsFormulas {
         pcwp_mmHg: Double,
         cardiacOutput_LMin: Double
     ): ResistanceResult {
+
+        // Motivo clínico/técnico:
+        // Un gasto cardíaco (CO) <= 0 es no fisiológico o un error de entrada.
+        // Se evita la división por cero/valores engañosos y se devuelve NaN para que la capa
+        // superior (ViewModel/UI) canalice el error y evite mostrar/guardar resultados inválidos.
+        if (cardiacOutput_LMin <= 0.0) {
+            return ResistanceResult(
+                woodUnits = Double.NaN,
+                dynesSecCm5 = Double.NaN
+            )
+        }
+
+        // Fórmula estándar:
+        // PVR (WU) = (mPAP - PCWP) / CO ; conversión a dyn·s·cm⁻⁵ = WU × 80
         val wu = (meanPap_mmHg - pcwp_mmHg) / cardiacOutput_LMin
         return ResistanceResult(woodUnits = wu, dynesSecCm5 = wu * 80.0)
     }
@@ -75,6 +89,20 @@ object HemodynamicsFormulas {
         rap_mmHg: Double,
         cardiacOutput_LMin: Double
     ): ResistanceResult {
+
+        // Motivo clínico/técnico:
+        // Un gasto cardíaco (CO) <= 0 es no fisiológico o un error de entrada.
+        // Se evita la división por cero/valores engañosos y se devuelve NaN para que la capa
+        // superior (ViewModel/UI) canalice el error y evite mostrar/guardar resultados inválidos.
+        if (cardiacOutput_LMin <= 0.0) {
+            return ResistanceResult(
+                woodUnits = Double.NaN,
+                dynesSecCm5 = Double.NaN
+            )
+        }
+
+        // Fórmula estándar:
+        // SVR (WU) = (MAP - RAP) / CO ; conversión a dyn·s·cm⁻⁵ = WU × 80
         val wu = (map_mmHg - rap_mmHg) / cardiacOutput_LMin
         return ResistanceResult(woodUnits = wu, dynesSecCm5 = wu * 80.0)
     }
@@ -86,7 +114,8 @@ object HemodynamicsFormulas {
         bsa_m2: Double?
     ): CpoResult {
         val cpo = (map_mmHg * cardiacOutput_LMin) / 451.0
-        val cpi = bsa_m2?.let { (map_mmHg * (cardiacOutput_LMin / it)) / 451.0 }
+        val cpi = bsa_m2?.takeIf { it > 0 }?.let { (map_mmHg * (cardiacOutput_LMin / it)) / 451.0 }
+
         return CpoResult(cpoWatts = cpo, cpiWattsPerM2 = cpi)
     }
 
@@ -96,8 +125,18 @@ object HemodynamicsFormulas {
         padp_mmHg: Double,
         rap_mmHg: Double
     ): PapiResult {
-        val safeRap = max(rap_mmHg, 0.000001)
-        val value = (pasp_mmHg - padp_mmHg) / safeRap
+
+        // Motivo clínico/técnico:
+        // RAP <= 0 es fisiológicamente implausible o un error de entrada en este contexto.
+        // Se devuelve NaN para que la capa superior (ViewModel/UI) canalice el error y evite
+        // mostrar/guardar un valor artificialmente inflado.
+        if (rap_mmHg <= 0.0) {
+            return PapiResult(papi = Double.NaN)
+        }
+
+        // Fórmula estándar:
+        // PAPi = (PASP - PADP) / RAP
+        val value = (pasp_mmHg - padp_mmHg) / rap_mmHg
         return PapiResult(papi = value)
     }
 
@@ -175,10 +214,12 @@ object HemodynamicsFormulas {
      * Stroke Volume (mL/beat) = CO(L/min) * 1000 / HR(bpm)
      */
     fun strokeVolumeMlBeat(co_LMin: Double, hr_bpm: Double): Double {
-        require(co_LMin >= 0.0) { "Cardiac output must be >= 0" }
-        val safeHr = max(hr_bpm, 0.000001)
-        return (co_LMin * 1000.0) / safeHr
+        // Fail-clean: no inventar resultados si HR o CO no son válidos.
+        if (!co_LMin.isFinite() || co_LMin <= 0.0) return Double.NaN
+        if (!hr_bpm.isFinite() || hr_bpm <= 0.0) return Double.NaN
+        return (co_LMin * 1000.0) / hr_bpm
     }
+
 
     /**
      * Pulmonary Artery Pulse Pressure (PAPP) = PASP - PADP (mmHg)
