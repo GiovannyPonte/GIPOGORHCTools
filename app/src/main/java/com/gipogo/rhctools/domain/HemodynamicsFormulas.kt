@@ -15,13 +15,21 @@ object HemodynamicsFormulas {
     ): Double {
         // Fail-clean: si inputs no son finitos, no “inventar” contenido de O2.
         if (!hb_gDl.isFinite() || !sat_percent.isFinite()) return Double.NaN
-        if (includeDissolved && po2_mmHg != null && !po2_mmHg.isFinite()) return Double.NaN
+
+        // A.6.1: sat_percent se espera en % (0–100). Fuera de rango → fail-clean.
+        if (sat_percent < 0.0 || sat_percent > 100.0) return Double.NaN
+
+        // Si se incluye oxígeno disuelto, PO2 debe ser finita y no negativa.
+        if (includeDissolved) {
+            if (po2_mmHg == null || !po2_mmHg.isFinite() || po2_mmHg < 0.0) return Double.NaN
+        }
 
         val sat = sat_percent / 100.0
         val bound = 1.36 * hb_gDl * sat
-        val dissolved = if (includeDissolved && po2_mmHg != null) 0.0031 * po2_mmHg else 0.0
+        val dissolved = if (includeDissolved) 0.0031 * po2_mmHg!! else 0.0
         return bound + dissolved
     }
+
 
     // VO2 estimado en reposo: ~125 mL/min/m2 * BSA (StatPearls)
     fun estimatedVo2MlMin(bsa_m2: Double, factor_mlMinM2: Double = 125.0): Double {
@@ -100,6 +108,8 @@ object HemodynamicsFormulas {
 
         // Fórmula estándar: PVR (WU) = (mPAP - PCWP) / CO. La conversión a dyn·s·cm⁻⁵ es WU × 80.
         val wu = (meanPap_mmHg - pcwp_mmHg) / cardiacOutput_LMin
+        // A.6.2: Conversión estándar: 1 Wood Unit = 80 dyn·s·cm⁻⁵
+
         return ResistanceResult(woodUnits = wu, dynesSecCm5 = wu * 80.0)
     }
 
@@ -132,7 +142,9 @@ object HemodynamicsFormulas {
         if (!map_mmHg.isFinite() || !cardiacOutput_LMin.isFinite()) {
             return CpoResult(cpoWatts = Double.NaN, cpiWattsPerM2 = null)
         }
+        // A.6.2: CPO(W) = (MAP[mmHg] * CO[L/min]) / 451  (constante de conversión a Watts)
         val cpo = (map_mmHg * cardiacOutput_LMin) / 451.0
+
         val cpi = bsa_m2
             ?.takeIf { it.isFinite() && it > 0.0 }
             ?.let { (map_mmHg * (cardiacOutput_LMin / it)) / 451.0 }
