@@ -142,7 +142,7 @@ object HemodynamicsFormulas {
         if (!map_mmHg.isFinite() || !cardiacOutput_LMin.isFinite()) {
             return CpoResult(cpoWatts = Double.NaN, cpiWattsPerM2 = null)
         }
-        // A.6.2: CPO(W) = (MAP[mmHg] * CO[L/min]) / 451  (constante de conversión a Watts)
+// A.6.2: CPO(W) = (MAP[mmHg] * CO[L/min]) / 451  (constante de conversión a Watts)
         val cpo = (map_mmHg * cardiacOutput_LMin) / 451.0
 
         val cpi = bsa_m2
@@ -211,6 +211,7 @@ object HemodynamicsFormulas {
         val gradient = mpap_mmHg - pawp_mmHg
 
         val tprWu = mpap_mmHg / cardiacOutput_LMin
+        // A.6.2: Conversión estándar: 1 Wood Unit = 80 dyn·s·cm⁻⁵
         val tprDyn = tprWu * 80.0
 
         return if (gradient <= 0.0) {
