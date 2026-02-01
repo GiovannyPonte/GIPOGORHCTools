@@ -207,7 +207,13 @@ fun PapiScreen(
                         vm.setRAP(Format.d(rap, 0))
                     }
                 ) {
-                    Text("Usar CVP (${Format.d(cvpFromStore, 0)} mmHg) como RAP")
+                    Text(
+                        stringResource(
+                            R.string.papi_use_cvp_as_rap,
+                            Format.d(cvpFromStore, 0).toInt()
+                        )
+                    )
+
                 }
             }
 

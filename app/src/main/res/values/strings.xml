@@ -1080,4 +1080,7 @@
     <string name="forrester_traj_profile_iii">Frío y seco</string>
     <string name="forrester_traj_profile_iv">Frío y húmedo</string>
 
+
+    <string name="papi_use_cvp_as_rap">Usar CVP (%1$d mmHg) como RAP</string>
+
 </resources>

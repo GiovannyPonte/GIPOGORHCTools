@@ -992,4 +992,6 @@
     <string name="forrester_traj_profile_iii">Cold and dry</string>
     <string name="forrester_traj_profile_iv">Cold and wet</string>
 
+    <string name="papi_use_cvp_as_rap">Use CVP (%1$d mmHg) as RAP</string>
+
 </resources>
