@@ -362,4 +362,82 @@ object CalcEntryWriters {
             )
         )
     }
+    fun upsertFickNormal(
+        timestampMillis: Long,
+        title: String,
+
+        // Inputs (strings UI)
+        saO2Text: String,
+        svO2Text: String,
+        hbText: String,
+        hrText: String,
+
+        // Auditables (valores ya calculados/normalizados)
+        vo2MlMin: Double?,
+        vo2Mode: String?, // "MEASURED" | "ESTIMATED" (o null)
+        bsaM2: Double?,
+
+        // Outputs
+        coLMin: Double,
+        ciLMinM2: Double?,
+        svMlBeat: Double?
+    ) {
+        val co = coLMin.takeIf { it.isFinite() && it > 0.0 } ?: return
+        val ci = ciLMinM2?.takeIf { it.isFinite() && it > 0.0 }
+        val sv = svMlBeat?.takeIf { it.isFinite() && it > 0.0 }
+
+        val inputs = listOf(
+            LineItem(key = SharedKeys.SAO2_PERCENT, label = "SaO₂", value = saO2Text, unit = "%", detail = "Arterial oxygen saturation"),
+            LineItem(key = SharedKeys.SVO2_PERCENT, label = "SvO₂", value = svO2Text, unit = "%", detail = "Mixed venous oxygen saturation"),
+            LineItem(key = SharedKeys.HB_GDL, label = "Hb", value = hbText, unit = "g/dL", detail = "Hemoglobin"),
+            LineItem(key = SharedKeys.HR_BPM, label = "HR", value = hrText, unit = "bpm", detail = "Heart rate"),
+
+            LineItem(
+                key = SharedKeys.BSA_M2,
+                label = "BSA",
+                value = bsaM2?.takeIf { it.isFinite() && it > 0.0 }?.let { com.gipogo.rhctools.util.Format.d(it, 2) } ?: "",
+                unit = "m²",
+                detail = "Body Surface Area"
+            ),
+            LineItem(
+                key = SharedKeys.VO2_MLMIN,
+                label = "VO₂",
+                value = vo2MlMin?.takeIf { it.isFinite() && it > 0.0 }?.let { com.gipogo.rhctools.util.Format.d(it, 0) } ?: "",
+                unit = "mL/min",
+                detail = "Oxygen consumption used"
+            ),
+            LineItem(
+                key = SharedKeys.VO2_MODE,
+                label = "VO₂ mode",
+                value = vo2Mode?.takeIf { it.isNotBlank() } ?: "",
+                unit = null,
+                detail = null
+            ),
+            LineItem(
+                key = SharedKeys.CO_METHOD,
+                label = "CO method",
+                value = "FICK",
+                unit = null,
+                detail = null
+            )
+        )
+
+        val outputs = listOf(
+            LineItem(key = SharedKeys.CO_LMIN, label = "CO", value = com.gipogo.rhctools.util.Format.d(co, 2), unit = "L/min", detail = "Cardiac Output"),
+            LineItem(key = SharedKeys.CI_LMIN_M2, label = "CI", value = ci?.let { com.gipogo.rhctools.util.Format.d(it, 2) } ?: "", unit = "L/min/m²", detail = "Cardiac Index"),
+            LineItem(label = "SV", value = sv?.let { com.gipogo.rhctools.util.Format.d(it, 0) } ?: "", unit = "mL", detail = "Stroke Volume")
+        )
+
+        ReportStore.upsert(
+            CalcEntry(
+                type = CalcType.FICK,
+                timestampMillis = timestampMillis,
+                title = title,
+                inputs = inputs,
+                outputs = outputs,
+                notes = emptyList()
+            )
+        )
+    }
+
 }
