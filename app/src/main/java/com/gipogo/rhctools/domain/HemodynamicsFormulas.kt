@@ -362,4 +362,47 @@ object HemodynamicsFormulas {
         val coMlPerSec = (injectateVolumeMl * deltaTempC * k) / integralDegreeCSeconds
         return coMlPerSec * 0.06
     }
+
+    data class ThermodilutionDerivedResult(
+        val cardiacOutputLMin: Double,
+        val cardiacIndexLMinM2: Double?,   // null si BSA inválida/ausente
+        val strokeVolumeMlBeat: Double?    // null si HR inválida/ausente
+    )
+
+    /**
+     * Termodilución (TD): calcula promedio de corridas + derivados (CI, SV).
+     *
+     * Reglas (fail-clean):
+     * - Requiere al menos 1 corrida finita y > 0.
+     * - BSA opcional: si no es finita o <= 0 -> CI = null.
+     * - HR opcional: si no es finita o <= 0 -> SV = null.
+     * - Si algo no es válido, devuelve NaN en CO (para canalizar error arriba).
+     */
+    fun thermodilutionDerived(
+        runs_LMin: List<Double>,
+        bsa_m2: Double?,
+        hr_bpm: Double?
+    ): ThermodilutionDerivedResult {
+        val co = thermodilutionAverageCardiacOutputLMin(runs_LMin)
+        if (!co.isFinite() || co <= 0.0) {
+            return ThermodilutionDerivedResult(
+                cardiacOutputLMin = Double.NaN,
+                cardiacIndexLMinM2 = null,
+                strokeVolumeMlBeat = null
+            )
+        }
+
+        val bsa = bsa_m2?.takeIf { it.isFinite() && it > 0.0 }
+        val ci = bsa?.let { (co / it).takeIf { v -> v.isFinite() && v > 0.0 } }
+
+        val hr = hr_bpm?.takeIf { it.isFinite() && it > 0.0 }
+        val sv = hr?.let { strokeVolumeMlBeat(co, it).takeIf { v -> v.isFinite() && v > 0.0 } }
+
+        return ThermodilutionDerivedResult(
+            cardiacOutputLMin = co,
+            cardiacIndexLMinM2 = ci,
+            strokeVolumeMlBeat = sv
+        )
+    }
+
 }

@@ -337,44 +337,55 @@ fun CpoScreen(
     LaunchedEffect(state.result) {
         val r = state.result ?: return@LaunchedEffect
 
-        val mapRaw2 = NumericParsing.parseDouble(state.map) ?: return@LaunchedEffect
-        val coRaw2 = NumericParsing.parseDouble(state.co) ?: return@LaunchedEffect
-        val bsaRaw2 = NumericParsing.parseDouble(state.bsa)
-
-        val mapMmHg2 = if (state.mapUnit == CpoViewModel.MapUnit.MMHG) mapRaw2 else mapRaw2 * 7.50062
-        val coLMin2 = if (state.coUnit == CpoViewModel.CoUnit.L_MIN) coRaw2 else coRaw2 * 60.0
+        // A.4.1 — gate clínico-técnico
+        val cpo = r.cpoWatts.takeIf { it.isFinite() } ?: return@LaunchedEffect
+        val cpi = r.cpiWattsPerM2?.takeIf { it.isFinite() }
 
         ReportStore.upsert(
             CalcEntry(
                 type = CalcType.CPO,
                 timestampMillis = System.currentTimeMillis(),
-                title = context.getString(R.string.cpo_screen_title),
+                title = context.getString(R.string.cpo_report_title),
                 inputs = listOf(
-                    LineItem(key = SharedKeys.MAP_MMHG, label = "MAP", value = Format.d(mapMmHg2, 0), unit = "mmHg", detail = "Mean Arterial Pressure"),
-                    LineItem(key = SharedKeys.CO_LMIN, label = "CO", value = Format.d(coLMin2, 2), unit = "L/min", detail = "Cardiac Output"),
-                    LineItem(key = SharedKeys.BSA_M2, label = "BSA", value = bsaRaw2?.let { Format.d(it, 2) } ?: "", unit = "m²", detail = "Body Surface Area")
-                ),
-                outputs = listOf(
                     LineItem(
-                        key = SharedKeys.CPO_W,
-                        label = "CPO",
-                        value = Format.d(r.cpoWatts, 2),
-                        unit = "W",
-                        detail = "Cardiac Power Output"
+                        "MAP",
+                        state.map,
+                        if (state.mapUnit == CpoViewModel.MapUnit.KPA) "kPa" else "mmHg",
+                        "Mean Arterial Pressure"
                     ),
                     LineItem(
-                        key = SharedKeys.CPI_W_M2,
-                        label = "CPI",
-                        value = r.cpiWattsPerM2?.let { Format.d(it, 2) } ?: "",
-                        unit = "W/m²",
-                        detail = "Cardiac Power Index"
+                        "CO",
+                        state.co,
+                        if (state.coUnit == CpoViewModel.CoUnit.L_SEC) "L/s" else "L/min",
+                        "Cardiac Output"
+                    ),
+                    LineItem(
+                        "BSA",
+                        state.bsa,
+                        "m²",
+                        "Body Surface Area"
                     )
+                ),
+                outputs = listOfNotNull(
+                    LineItem(
+                        "CPO",
+                        Format.d(cpo, 2),
+                        "W",
+                        "Cardiac Power Output"
+                    ),
+                    cpi?.let {
+                        LineItem(
+                            "CPI",
+                            Format.d(it, 2),
+                            "W/m²",
+                            "Cardiac Power Index"
+                        )
+                    }
                 )
-
             )
         )
-        WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
+
 
     helpTopic?.let { topic ->
         when (topic) {

@@ -164,8 +164,7 @@ class FickViewModel : ViewModel() {
             HeightUnit.M -> value * 100.0
         }
 
-    private fun bsaMosteller(heightCm: Double, weightKg: Double): Double =
-        sqrt((heightCm * weightKg) / 3600.0)
+
 
     fun toggleWeightUnit() = _state.update { s ->
         val current = Parse.toDoubleOrNull(s.weight)
@@ -232,7 +231,7 @@ class FickViewModel : ViewModel() {
             }
         }
 
-        val bsa = bsaMosteller(hCm, wKg)
+        val bsa = HemodynamicsFormulas.bsaMosteller(hCm, wKg)
 
         val ca = HemodynamicsFormulas.oxygenContentMlPerDl(
             hb_gDl = hb_gDl,

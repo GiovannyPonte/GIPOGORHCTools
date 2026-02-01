@@ -9,6 +9,22 @@ import androidx.room.Update
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * RhcStudyDao
+ *
+ * Punto de escritura principal para RhcStudyDataEntity (snapshot 1:1 por studyId).
+ *
+ * Regla de auditoría crítica (B.4):
+ * - SQLite permite guardar NaN/Infinity en columnas REAL.
+ * - Eso contamina reportes/PDF y rompe trazabilidad clínica.
+ *
+ * => Este DAO actúa como "último firewall":
+ *    antes de INSERT/UPDATE se sanitizan todos los Double?:
+ *    si no es finito (NaN/Inf) -> null.
+ *
+ * Nota: Este guard rail NO reemplaza la validación del dominio/UI,
+ * solo evita que datos inválidos queden persistidos.
+ */
 @Dao
 interface RhcStudyDao {
 
@@ -39,18 +55,22 @@ interface RhcStudyDao {
      * - Si no existe snapshot para el studyId: insert.
      * - Si existe: update manteniendo el mismo 'id' (PK) y el mismo createdAtMillis original.
      *
-     * Esto es lo que necesitas para que el autosave pueda guardar múltiples veces sin romper.
+     * Guard rail adicional:
+     * - Sanitiza Double? no finitos (NaN/Inf) -> null antes de persistir.
      */
     @Transaction
     suspend fun upsertByStudyId(data: RhcStudyDataEntity) {
-        val existing = getByStudyId(data.studyId)
+        // B.4: último firewall: evitar NaN/Inf persistidos
+        val sanitized = data.sanitizedForDb()
+
+        val existing = getByStudyId(sanitized.studyId)
         if (existing == null) {
-            insert(data)
+            insert(sanitized)
         } else {
             // Mantén PK e instante de creación original.
             // (updatedAtMillis puede cambiar en cada guardado)
             update(
-                data.copy(
+                sanitized.copy(
                     id = existing.id,
                     createdAtMillis = existing.createdAtMillis
                 )
@@ -78,4 +98,58 @@ interface RhcStudyDao {
         """
     )
     fun listStudiesWithRhcDataByPatient(patientId: String): Flow<List<StudyWithRhcData>>
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers internos (DAO-level)                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Devuelve null si el Double? no es finito (NaN/Inf).
+ * Esto evita que SQLite persista valores inválidos en columnas REAL.
+ */
+private fun Double?.finiteOrNull(): Double? = this?.takeIf { it.isFinite() }
+
+/**
+ * Sanitiza RhcStudyDataEntity para persistencia:
+ * - Todos los campos Double? pasan por finiteOrNull()
+ * - Strings/Longs/IDs se preservan tal cual
+ *
+ * Nota: NO cambia semántica clínica; solo evita persistir basura numérica.
+ */
+private fun RhcStudyDataEntity.sanitizedForDb(): RhcStudyDataEntity {
+    return this.copy(
+        // Anthropometrics
+        weightKg = weightKg.finiteOrNull(),
+        heightCm = heightCm.finiteOrNull(),
+        bsaM2 = bsaM2.finiteOrNull(),
+
+        // Fick inputs
+        saO2Percent = saO2Percent.finiteOrNull(),
+        svO2Percent = svO2Percent.finiteOrNull(),
+        hemoglobinGdl = hemoglobinGdl.finiteOrNull(),
+        heartRateBpm = heartRateBpm.finiteOrNull(),
+        vo2MlMin = vo2MlMin.finiteOrNull(),
+
+        // Pressures
+        mapMmHg = mapMmHg.finiteOrNull(),
+        rapMmHg = rapMmHg.finiteOrNull(),
+        paspMmHg = paspMmHg.finiteOrNull(),
+        padpMmHg = padpMmHg.finiteOrNull(),
+        mpapMmHg = mpapMmHg.finiteOrNull(),
+        pawpMmHg = pawpMmHg.finiteOrNull(),
+
+        // Flows
+        cardiacOutputLMin = cardiacOutputLMin.finiteOrNull(),
+        cardiacIndexLMinM2 = cardiacIndexLMinM2.finiteOrNull(),
+
+        // Derived
+        svrWood = svrWood.finiteOrNull(),
+        svrDyn = svrDyn.finiteOrNull(),
+        pvrWood = pvrWood.finiteOrNull(),
+        pvrDyn = pvrDyn.finiteOrNull(),
+        papi = papi.finiteOrNull(),
+        cardiacPowerW = cardiacPowerW.finiteOrNull(),
+        cardiacPowerIndexWm2 = cardiacPowerIndexWm2.finiteOrNull()
+    )
 }
