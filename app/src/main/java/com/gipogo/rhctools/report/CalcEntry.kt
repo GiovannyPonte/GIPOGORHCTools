@@ -49,6 +49,13 @@ object SharedKeys {
     /** CO method: "FICK" | "TD" */
     const val CO_METHOD = "CO_METHOD"
 
+    /** Weight (kg) */
+    const val WEIGHT_KG = "WEIGHT_KG"
+
+    /** Height (cm) */
+    const val HEIGHT_CM = "HEIGHT_CM"
+
+
     // =========================================================
     // FICK – INPUTS (auditoría completa)
     // =========================================================

@@ -146,6 +146,11 @@ object WorkshopRhcAutosave {
             val weightKg = prefill.weightKg
             val heightCm = prefill.heightCm
 
+            // Fallback opcional desde ReportStore (si algún día publicas estas keys)
+            val weightKgFromKeys = readD(SharedKeys.WEIGHT_KG)?.takeIf { it.isFinite() && it > 0.0 }
+            val heightCmFromKeys = readD(SharedKeys.HEIGHT_CM)?.takeIf { it.isFinite() && it > 0.0 }
+
+
             // --------------------------
             // Core flows
             // --------------------------
@@ -171,11 +176,10 @@ object WorkshopRhcAutosave {
             // --------------------------
             // Pressures (mmHg)
             // --------------------------
-            val mapMmHg = readD(SharedKeys.MAP_MMHG)
+            val mapMmHg = readD(SharedKeys.MAP_MMHG)?.takeIf { it.isFinite() }
 
-            // RAP preferente; si no existe, fallback a CVP
-            val rapMmHg = readD(SharedKeys.RAP_MMHG)
-                ?: readD(SharedKeys.CVP_MMHG)
+            val rapMmHg = (readD(SharedKeys.RAP_MMHG) ?: readD(SharedKeys.CVP_MMHG))
+                ?.takeIf { it.isFinite() }
 
             val paspMmHg = readD(SharedKeys.PASP_MMHG)
             val padpMmHg = readD(SharedKeys.PADP_MMHG)
@@ -213,8 +217,8 @@ object WorkshopRhcAutosave {
                 studyId = studyId!!,
 
                 // Anthropometrics
-                weightKg = weightKg,
-                heightCm = heightCm,
+                weightKg = weightKg ?: weightKgFromKeys,
+                heightCm = heightCm ?: heightCmFromKeys,
                 bsaM2 = bsaM2,
 
                 // Fick inputs
