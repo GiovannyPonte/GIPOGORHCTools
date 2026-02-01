@@ -349,54 +349,16 @@ fun CpoScreen(
         val coCanon = coLMin?.takeIf { it.isFinite() && it > 0.0 }
         val bsaCanon = bsaRaw?.takeIf { it.isFinite() && it > 0.0 }
 
-        ReportStore.upsert(
-            CalcEntry(
-                type = CalcType.CPO,
-                timestampMillis = System.currentTimeMillis(),
-                title = context.getString(R.string.cpo_report_title),
-                inputs = listOf(
-                    LineItem(
-                        key = SharedKeys.MAP_MMHG,
-                        label = "MAP",
-                        value = mapCanon?.let { Format.d(it, 0) } ?: "",
-                        unit = "mmHg",
-                        detail = "Mean Arterial Pressure"
-                    ),
-                    LineItem(
-                        key = SharedKeys.CO_LMIN,
-                        label = "CO",
-                        value = coCanon?.let { Format.d(it, 2) } ?: "",
-                        unit = "L/min",
-                        detail = "Cardiac Output"
-                    ),
-                    LineItem(
-                        key = SharedKeys.BSA_M2,
-                        label = "BSA",
-                        value = bsaCanon?.let { Format.d(it, 2) } ?: "",
-                        unit = "m²",
-                        detail = "Body Surface Area"
-                    )
-                ),
-                outputs = listOfNotNull(
-                    LineItem(
-                        key = SharedKeys.CPO_W,
-                        label = "CPO",
-                        value = Format.d(cpo, 2),
-                        unit = "W",
-                        detail = "Cardiac Power Output"
-                    ),
-                    cpi?.let {
-                        LineItem(
-                            key = SharedKeys.CPI_W_M2,
-                            label = "CPI",
-                            value = Format.d(it, 2),
-                            unit = "W/m²",
-                            detail = "Cardiac Power Index"
-                        )
-                    }
-                )
-            )
+        com.gipogo.rhctools.report.CalcEntryWriters.upsertCpo(
+            timestampMillis = System.currentTimeMillis(),
+            title = context.getString(R.string.cpo_report_title),
+            mapMmHg = mapCanon,
+            coLMin = coCanon,
+            bsaM2 = bsaCanon,
+            cpoW = cpo,
+            cpiWm2 = cpi
         )
+
 
         // Mantener coherencia con el resto de pantallas que flushean autosave tras persistir
         WorkshopRhcAutosave.flushNow(context, coroutineScope)
