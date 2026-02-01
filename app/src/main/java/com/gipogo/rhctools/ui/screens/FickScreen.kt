@@ -503,47 +503,74 @@ fun FickScreen(
                         CoMethodUi.THERMODILUTION -> {
                             tdError = null
                             try {
-                                val rawCo = HemodynamicsFormulas.thermodilutionAverageCardiacOutputLMin(tdRuns)
+                                // BSA opcional (si hay peso+talla). Si no es válida, se pasa null (fail-clean en dominio).
+                                val rawBsa = if (weightKg != null && heightCm != null) {
+                                    HemodynamicsFormulas.bsaMosteller(heightCm, weightKg)
+                                } else null
+                                val bsa = rawBsa?.takeIf { it.isFinite() && it > 0.0 }
 
-                                // ✅ FIX A.1.3: no permitir NaN/Inf ni CO <= 0
-                                val co = rawCo.takeIf { it.isFinite() && it > 0.0 }
+                                // ✅ Single source of truth: dominio calcula CO/CI/SV
+                                val td = HemodynamicsFormulas.thermodilutionDerived(
+                                    runs_LMin = tdRuns,
+                                    bsa_m2 = bsa,
+                                    hr_bpm = hrVal
+                                )
+
+                                // Gate: no permitir NaN/Inf ni CO <= 0
+                                val co = td.cardiacOutputLMin.takeIf { it.isFinite() && it > 0.0 }
                                 if (co == null) {
                                     tdError = strCommonError
                                     tdCo = null; tdCi = null; tdSv = null
                                     return@Button
                                 }
 
-                                val rawBsa = if (weightKg != null && heightCm != null) {
-                                    HemodynamicsFormulas.bsaMosteller(heightCm, weightKg)
-                                } else null
-                                val bsa = rawBsa?.takeIf { it.isFinite() && it > 0.0 }
-
-                                val ci = bsa?.let { (co / it).takeIf { v -> v.isFinite() && v > 0.0 } }
-
-                                val sv = hrVal?.let { hr ->
-                                    if (hr.isFinite() && hr > 0.0) {
-                                        HemodynamicsFormulas.strokeVolumeMlBeat(co, hr).takeIf { it.isFinite() && it > 0.0 }
-                                    } else null
-                                }
+                                val ci = td.cardiacIndexLMinM2?.takeIf { it.isFinite() && it > 0.0 }
+                                val sv = td.strokeVolumeMlBeat?.takeIf { it.isFinite() && it > 0.0 }
 
                                 tdCo = co
                                 tdCi = ci
                                 tdSv = sv
 
-                                // ✅ Persistencia: solo con valores finitos
+                                // Persistencia: solo valores finitos (DB ya sanitiza, pero aquí evitamos contaminar reportes)
                                 ReportStore.upsert(
                                     CalcEntry(
                                         type = CalcType.FICK, // si luego quieres, creas CalcType.TD
                                         timestampMillis = System.currentTimeMillis(),
                                         title = strTdReportTitle,
                                         inputs = listOf(
-                                            LineItem(label = strTdRun1, value = td1Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
-                                            LineItem(label = strTdRun2, value = td2Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
-                                            LineItem(label = strTdRun3, value = td3Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "", unit = strUnitLMin, detail = ""),
+                                            LineItem(
+                                                label = strTdRun1,
+                                                value = td1Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "",
+                                                unit = strUnitLMin,
+                                                detail = ""
+                                            ),
+                                            LineItem(
+                                                label = strTdRun2,
+                                                value = td2Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "",
+                                                unit = strUnitLMin,
+                                                detail = ""
+                                            ),
+                                            LineItem(
+                                                label = strTdRun3,
+                                                value = td3Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "",
+                                                unit = strUnitLMin,
+                                                detail = ""
+                                            ),
 
-                                            LineItem(key = SharedKeys.CO_LMIN, label = strBadgeCo, value = Format.d(co, 2), unit = strUnitLMin, detail = ""),
-                                            LineItem(key = SharedKeys.BSA_M2, label = strLabelBsa, value = bsa?.let { Format.d(it, 2) } ?: "", unit = strUnitM2, detail = ""),
-
+                                            LineItem(
+                                                key = SharedKeys.CO_LMIN,
+                                                label = strBadgeCo,
+                                                value = Format.d(co, 2),
+                                                unit = strUnitLMin,
+                                                detail = ""
+                                            ),
+                                            LineItem(
+                                                key = SharedKeys.BSA_M2,
+                                                label = strLabelBsa,
+                                                value = bsa?.let { Format.d(it, 2) } ?: "",
+                                                unit = strUnitM2,
+                                                detail = ""
+                                            ),
                                             LineItem(
                                                 key = SharedKeys.CI_LMIN_M2,
                                                 label = strCiLabel,
@@ -551,7 +578,6 @@ fun FickScreen(
                                                 unit = strUnitLMinM2,
                                                 detail = ""
                                             ),
-
                                             LineItem(
                                                 key = SharedKeys.CO_METHOD,
                                                 label = "CO method",
@@ -592,6 +618,7 @@ fun FickScreen(
                                 tdCo = null; tdCi = null; tdSv = null
                             }
                         }
+
                     }
 
                     coroutineScope.launch {

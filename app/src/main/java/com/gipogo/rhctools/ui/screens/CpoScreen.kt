@@ -333,13 +333,21 @@ fun CpoScreen(
         }
     }
 
-    // ✅ Persistir CPO: outputs con KEYS para BD
+    // ✅ Persistir CPO: canónico + KEYS (no duplicar fórmulas, solo normalizar unidades)
     LaunchedEffect(state.result) {
         val r = state.result ?: return@LaunchedEffect
 
         // A.4.1 — gate clínico-técnico
         val cpo = r.cpoWatts.takeIf { it.isFinite() } ?: return@LaunchedEffect
         val cpi = r.cpiWattsPerM2?.takeIf { it.isFinite() }
+
+        // Guardar inputs en unidades canónicas:
+        // - MAP: mmHg
+        // - CO: L/min
+        // - BSA: m²
+        val mapCanon = mapMmHg?.takeIf { it.isFinite() && it > 0.0 }
+        val coCanon = coLMin?.takeIf { it.isFinite() && it > 0.0 }
+        val bsaCanon = bsaRaw?.takeIf { it.isFinite() && it > 0.0 }
 
         ReportStore.upsert(
             CalcEntry(
@@ -348,43 +356,52 @@ fun CpoScreen(
                 title = context.getString(R.string.cpo_report_title),
                 inputs = listOf(
                     LineItem(
-                        "MAP",
-                        state.map,
-                        if (state.mapUnit == CpoViewModel.MapUnit.KPA) "kPa" else "mmHg",
-                        "Mean Arterial Pressure"
+                        key = SharedKeys.MAP_MMHG,
+                        label = "MAP",
+                        value = mapCanon?.let { Format.d(it, 0) } ?: "",
+                        unit = "mmHg",
+                        detail = "Mean Arterial Pressure"
                     ),
                     LineItem(
-                        "CO",
-                        state.co,
-                        if (state.coUnit == CpoViewModel.CoUnit.L_SEC) "L/s" else "L/min",
-                        "Cardiac Output"
+                        key = SharedKeys.CO_LMIN,
+                        label = "CO",
+                        value = coCanon?.let { Format.d(it, 2) } ?: "",
+                        unit = "L/min",
+                        detail = "Cardiac Output"
                     ),
                     LineItem(
-                        "BSA",
-                        state.bsa,
-                        "m²",
-                        "Body Surface Area"
+                        key = SharedKeys.BSA_M2,
+                        label = "BSA",
+                        value = bsaCanon?.let { Format.d(it, 2) } ?: "",
+                        unit = "m²",
+                        detail = "Body Surface Area"
                     )
                 ),
                 outputs = listOfNotNull(
                     LineItem(
-                        "CPO",
-                        Format.d(cpo, 2),
-                        "W",
-                        "Cardiac Power Output"
+                        key = SharedKeys.CPO_W,
+                        label = "CPO",
+                        value = Format.d(cpo, 2),
+                        unit = "W",
+                        detail = "Cardiac Power Output"
                     ),
                     cpi?.let {
                         LineItem(
-                            "CPI",
-                            Format.d(it, 2),
-                            "W/m²",
-                            "Cardiac Power Index"
+                            key = SharedKeys.CPI_W_M2,
+                            label = "CPI",
+                            value = Format.d(it, 2),
+                            unit = "W/m²",
+                            detail = "Cardiac Power Index"
                         )
                     }
                 )
             )
         )
+
+        // Mantener coherencia con el resto de pantallas que flushean autosave tras persistir
+        WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
+
 
 
     helpTopic?.let { topic ->
