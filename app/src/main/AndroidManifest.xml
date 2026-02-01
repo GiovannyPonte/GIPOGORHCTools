@@ -22,7 +22,7 @@
         </provider>
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.gipogo.rhctools.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.GIPOGORHCTools">
