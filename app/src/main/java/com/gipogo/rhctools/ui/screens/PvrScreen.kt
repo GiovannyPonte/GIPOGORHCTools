@@ -34,11 +34,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.domain.HemodynamicsFormulas
-import com.gipogo.rhctools.report.CalcEntry
-import com.gipogo.rhctools.report.CalcType
-import com.gipogo.rhctools.report.LineItem
+import com.gipogo.rhctools.report.CalcEntryWriters
 import com.gipogo.rhctools.report.ReportStore
 import com.gipogo.rhctools.report.SharedKeys
 import com.gipogo.rhctools.ui.components.CalcNavigatorBar
@@ -58,10 +57,8 @@ import com.gipogo.rhctools.ui.validation.PvrValidation
 import com.gipogo.rhctools.ui.validation.Severity
 import com.gipogo.rhctools.ui.viewmodel.PvrViewModel
 import com.gipogo.rhctools.util.Format
-import kotlinx.coroutines.delay
-import androidx.compose.runtime.rememberCoroutineScope
 import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
-
+import kotlinx.coroutines.delay
 
 private enum class PvrHelpTopic { MPAP, PAWP, CO, UNITS }
 
@@ -388,62 +385,31 @@ fun PvrScreen(
         }
     }
 
-    // ✅ Guardar en ReportStore si hay al menos un resultado (PVR o TPR)
+    // ✅ Persistencia centralizada: PVR (+TPR opcional)
     LaunchedEffect(state.pvrWu, state.pvrDynes, state.tprWu, state.tprDynes) {
         val pvrWu2 = state.pvrWu
         val pvrDyn2 = state.pvrDynes
         val tprWu2 = state.tprWu
         val tprDyn2 = state.tprDynes
 
+        // Misma regla que tenías: guardar si hay PVR o TPR
         if (pvrWu2 == null && tprWu2 == null) return@LaunchedEffect
 
-        val outputs = mutableListOf<LineItem>()
+        val outputUnits = if (state.outputUnits == PvrViewModel.OutputUnits.WOOD_UNITS) "WOOD" else "DYN"
 
-        // ✅ PVR con KEYS (auditable en BD)
-        if (pvrWu2 != null && pvrDyn2 != null) {
-            outputs += LineItem(
-                key = SharedKeys.PVR_WOOD,
-                label = "PVR",
-                value = Format.d(pvrWu2, 2),
-                unit = "WU",
-                detail = "Pulmonary Vascular Resistance (Wood Units)"
-            )
-            outputs += LineItem(
-                key = SharedKeys.PVR_DYN,
-                label = "PVR",
-                value = Format.d(pvrDyn2, 0),
-                unit = "dyn·s·cm⁻⁵",
-                detail = "Pulmonary Vascular Resistance (CGS)"
-            )
-            outputs += LineItem(
-                key = SharedKeys.PVR_UNITS,
-                label = "PVR units",
-                value = if (state.outputUnits == PvrViewModel.OutputUnits.WOOD_UNITS) "WOOD" else "DYN",
-                unit = null,
-                detail = null
-            )
-        }
-
-        // TPR (sin keys; no existe columna en BD)
-        if (tprWu2 != null && tprDyn2 != null) {
-            outputs += LineItem(label = "TPR", value = Format.d(tprWu2, 2), unit = "WU", detail = "Total Pulmonary Resistance (Wood Units)")
-            outputs += LineItem(label = "TPR", value = Format.d(tprDyn2, 0), unit = "dyn·s·cm⁻⁵", detail = "Total Pulmonary Resistance (CGS)")
-        }
-
-        ReportStore.upsert(
-            CalcEntry(
-                type = CalcType.PVR,
-                timestampMillis = System.currentTimeMillis(),
-                title = context.getString(R.string.pvr_report_title),
-                inputs = listOf(
-                    LineItem(key = SharedKeys.MPAP_MMHG, label = "mPAP", value = state.mpap, unit = "mmHg", detail = "Mean Pulmonary Artery Pressure"),
-                    LineItem(key = SharedKeys.PAWP_MMHG, label = "PAWP", value = state.pawp, unit = "mmHg", detail = "Pulmonary Artery Wedge Pressure"),
-                    LineItem(key = SharedKeys.CO_LMIN, label = "CO", value = state.co, unit = "L/min", detail = "Cardiac Output (Qp in absence of shunt)")
-                ),
-                outputs = outputs,
-                notes = emptyList()
-            )
+        CalcEntryWriters.upsertPvr(
+            timestampMillis = System.currentTimeMillis(),
+            title = context.getString(R.string.pvr_report_title),
+            mpapText = state.mpap,
+            pawpText = state.pawp,
+            coText = state.co,
+            outputUnits = outputUnits,
+            pvrWu = pvrWu2,
+            pvrDyn = pvrDyn2,
+            tprWu = tprWu2,
+            tprDyn = tprDyn2
         )
+
         WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
 
