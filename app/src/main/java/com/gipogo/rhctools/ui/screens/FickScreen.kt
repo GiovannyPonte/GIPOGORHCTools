@@ -36,11 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.domain.HemodynamicsFormulas
-import com.gipogo.rhctools.report.CalcEntry
-import com.gipogo.rhctools.report.CalcType
-import com.gipogo.rhctools.report.LineItem
-import com.gipogo.rhctools.report.ReportStore
-import com.gipogo.rhctools.report.SharedKeys
+import com.gipogo.rhctools.report.CalcEntryWriters
 import com.gipogo.rhctools.ui.components.CalcNavigatorBar
 import com.gipogo.rhctools.ui.components.GipogoCalcTopBar
 import com.gipogo.rhctools.ui.components.GipogoFieldHint
@@ -184,7 +180,7 @@ fun FickScreen(
     val td2Val = NumericParsing.parseDouble(td2)
     val td3Val = NumericParsing.parseDouble(td3)
 
-    // ✅ FIX A.1.3: TD runs deben ser finitos y > 0
+    // ✅ TD runs deben ser finitos y > 0
     val tdRuns = listOfNotNull(td1Val, td2Val, td3Val).filter { it.isFinite() && it > 0.0 }
     val tdHasError = submitted && tdRuns.isEmpty()
 
@@ -289,20 +285,7 @@ fun FickScreen(
     val hrPlaceholder = "60–100"
 
     val strTdReportTitle = stringResource(R.string.td_report_title)
-    val strTdRun1 = stringResource(R.string.td_run_1)
-    val strTdRun2 = stringResource(R.string.td_run_2_optional)
-    val strTdRun3 = stringResource(R.string.td_run_3_optional)
     val strTdNeedRun = stringResource(R.string.td_error_need_one_run)
-
-    val strUnitLMin = stringResource(R.string.common_unit_lmin)
-    val strUnitM2 = stringResource(R.string.common_unit_m2)
-    val strUnitLMinM2 = stringResource(R.string.common_unit_lmin_m2)
-    val strUnitMl = stringResource(R.string.common_unit_ml)
-
-    val strBadgeCo = stringResource(R.string.home_badge_co)
-    val strLabelBsa = stringResource(R.string.common_label_bsa)
-    val strCiLabel = stringResource(R.string.fick_result_ci_label)
-    val strSvLabel = stringResource(R.string.fick_result_sv_label)
     val strCommonError = stringResource(R.string.common_error)
 
     Scaffold(
@@ -531,84 +514,17 @@ fun FickScreen(
                                 tdCi = ci
                                 tdSv = sv
 
-                                // Persistencia: solo valores finitos (DB ya sanitiza, pero aquí evitamos contaminar reportes)
-                                ReportStore.upsert(
-                                    CalcEntry(
-                                        type = CalcType.FICK, // si luego quieres, creas CalcType.TD
-                                        timestampMillis = System.currentTimeMillis(),
-                                        title = strTdReportTitle,
-                                        inputs = listOf(
-                                            LineItem(
-                                                label = strTdRun1,
-                                                value = td1Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "",
-                                                unit = strUnitLMin,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                label = strTdRun2,
-                                                value = td2Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "",
-                                                unit = strUnitLMin,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                label = strTdRun3,
-                                                value = td3Val?.takeIf { it.isFinite() }?.let { Format.d(it, 2) } ?: "",
-                                                unit = strUnitLMin,
-                                                detail = ""
-                                            ),
-
-                                            LineItem(
-                                                key = SharedKeys.CO_LMIN,
-                                                label = strBadgeCo,
-                                                value = Format.d(co, 2),
-                                                unit = strUnitLMin,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                key = SharedKeys.BSA_M2,
-                                                label = strLabelBsa,
-                                                value = bsa?.let { Format.d(it, 2) } ?: "",
-                                                unit = strUnitM2,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                key = SharedKeys.CI_LMIN_M2,
-                                                label = strCiLabel,
-                                                value = ci?.let { Format.d(it, 2) } ?: "",
-                                                unit = strUnitLMinM2,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                key = SharedKeys.CO_METHOD,
-                                                label = "CO method",
-                                                value = "TD",
-                                                unit = null,
-                                                detail = null
-                                            )
-                                        ),
-                                        outputs = listOf(
-                                            LineItem(
-                                                key = SharedKeys.CO_LMIN,
-                                                label = strBadgeCo,
-                                                value = Format.d(co, 2),
-                                                unit = strUnitLMin,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                key = SharedKeys.CI_LMIN_M2,
-                                                label = strCiLabel,
-                                                value = ci?.let { Format.d(it, 2) } ?: "",
-                                                unit = strUnitLMinM2,
-                                                detail = ""
-                                            ),
-                                            LineItem(
-                                                label = strSvLabel,
-                                                value = sv?.let { Format.d(it, 0) } ?: "",
-                                                unit = strUnitMl,
-                                                detail = ""
-                                            )
-                                        )
-                                    )
+                                // ✅ Persistencia centralizada (C.3)
+                                CalcEntryWriters.upsertThermodilutionInFick(
+                                    timestampMillis = System.currentTimeMillis(),
+                                    title = strTdReportTitle,
+                                    tdRun1_LMin = td1Val,
+                                    tdRun2_LMin = td2Val,
+                                    tdRun3_LMin = td3Val,
+                                    coLMin = co,
+                                    bsaM2 = bsa,
+                                    ciLMinM2 = ci,
+                                    svMlBeat = sv
                                 )
 
                                 WorkshopRhcAutosave.setCoMethod("TD")
@@ -618,7 +534,6 @@ fun FickScreen(
                                 tdCo = null; tdCi = null; tdSv = null
                             }
                         }
-
                     }
 
                     coroutineScope.launch {
@@ -634,7 +549,7 @@ fun FickScreen(
                 Text(text = it, color = MaterialTheme.colorScheme.error)
             }
 
-            // ✅ FIX A.1.3: No render si CO/CI no son finitos
+            // ✅ No render si CO/CI no son finitos
             val coFinite = state.cardiacOutputLMin?.takeIf { it.isFinite() }
             val ciFinite = state.cardiacIndexLMinM2?.takeIf { it.isFinite() }
             val svFinite = state.strokeVolumeMlBeat?.takeIf { it.isFinite() }
@@ -668,7 +583,7 @@ fun FickScreen(
                     Text(text = it, color = MaterialTheme.colorScheme.error)
                 }
 
-                // ✅ FIX A.1.3: No render si TD CO no es finito
+                // ✅ No render si TD CO no es finito
                 val co = tdCo?.takeIf { it.isFinite() }
                 val ci = tdCi?.takeIf { it.isFinite() }
                 val sv = tdSv?.takeIf { it.isFinite() }

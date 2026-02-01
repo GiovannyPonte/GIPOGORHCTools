@@ -34,9 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.domain.HemodynamicsFormulas
-import com.gipogo.rhctools.report.CalcEntry
-import com.gipogo.rhctools.report.CalcType
-import com.gipogo.rhctools.report.LineItem
+import com.gipogo.rhctools.report.CalcEntryWriters
 import com.gipogo.rhctools.report.ReportStore
 import com.gipogo.rhctools.report.SharedKeys
 import com.gipogo.rhctools.ui.components.CalcNavigatorBar
@@ -213,7 +211,6 @@ fun PapiScreen(
                             Format.d(cvpFromStore, 0).toInt()
                         )
                     )
-
                 }
             }
 
@@ -250,7 +247,6 @@ fun PapiScreen(
             }
 
             CalcNavigatorBar(onPrev = onPrevCalc, onNext = onNextCalc)
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -288,61 +284,20 @@ fun PapiScreen(
         )
     }
 
-    // ✅ Persistir en ReportStore — A.2: bloquear no finitos
+    // ✅ Persistencia centralizada (C.3.4): PAPi (+PAPP opcional)
     LaunchedEffect(state.papi, pappLocal) {
         val papi = state.papi?.takeIf { it.isFinite() } ?: return@LaunchedEffect
-        val papp = pappLocal?.takeIf { it.isFinite() }
 
-        val outputs = mutableListOf<LineItem>()
-
-        outputs += LineItem(
-            key = SharedKeys.PAPI,
-            label = "PAPi",
-            value = Format.d(papi, 2),
-            unit = "",
-            detail = "Pulmonary Artery Pulsatility Index"
+        CalcEntryWriters.upsertPapi(
+            timestampMillis = System.currentTimeMillis(),
+            title = context.getString(R.string.papi_report_title),
+            paspText = state.pasp,
+            padpText = state.padp,
+            rapText = state.rap,
+            papi = papi,
+            pappMmHg = pappLocal
         )
 
-        papp?.let {
-            outputs += LineItem(
-                label = "PAPP",
-                value = Format.d(it, 1),
-                unit = "mmHg",
-                detail = "Pulmonary artery pulse pressure"
-            )
-        }
-
-        ReportStore.upsert(
-            CalcEntry(
-                type = CalcType.PAPI,
-                timestampMillis = System.currentTimeMillis(),
-                title = context.getString(R.string.papi_report_title),
-                inputs = listOf(
-                    LineItem(
-                        key = SharedKeys.PASP_MMHG,
-                        label = "PASP",
-                        value = state.pasp,
-                        unit = "mmHg",
-                        detail = "PA systolic pressure"
-                    ),
-                    LineItem(
-                        key = SharedKeys.PADP_MMHG,
-                        label = "PADP",
-                        value = state.padp,
-                        unit = "mmHg",
-                        detail = "PA diastolic pressure"
-                    ),
-                    LineItem(
-                        key = SharedKeys.RAP_MMHG,
-                        label = "RAP",
-                        value = state.rap,
-                        unit = "mmHg",
-                        detail = "Right atrial pressure"
-                    )
-                ),
-                outputs = outputs
-            )
-        )
         WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
 }

@@ -27,15 +27,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.gipogo.rhctools.R
-import com.gipogo.rhctools.report.CalcEntry
-import com.gipogo.rhctools.report.CalcType
-import com.gipogo.rhctools.report.LineItem
+import com.gipogo.rhctools.report.CalcEntryWriters
 import com.gipogo.rhctools.report.ReportStore
 import com.gipogo.rhctools.report.SharedKeys
 import com.gipogo.rhctools.ui.components.CalcNavigatorBar
@@ -47,6 +46,7 @@ import com.gipogo.rhctools.ui.components.GipogoSingleInputCard
 import com.gipogo.rhctools.ui.components.GipogoSurfaceCard
 import com.gipogo.rhctools.ui.components.InterpretationGaugeCardGeneric
 import com.gipogo.rhctools.ui.components.calcSwipeNavigation
+import com.gipogo.rhctools.ui.interpretation.SvrInterpretation
 import com.gipogo.rhctools.ui.validation.NumericParsing
 import com.gipogo.rhctools.ui.validation.NumericValidators
 import com.gipogo.rhctools.ui.validation.Severity
@@ -54,11 +54,8 @@ import com.gipogo.rhctools.ui.validation.SvrField
 import com.gipogo.rhctools.ui.validation.SvrValidation
 import com.gipogo.rhctools.ui.viewmodel.ResistancesViewModel
 import com.gipogo.rhctools.util.Format
-import kotlinx.coroutines.delay
-import com.gipogo.rhctools.ui.interpretation.SvrInterpretation
 import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
-import androidx.compose.runtime.rememberCoroutineScope
-
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -317,7 +314,6 @@ fun ResistancesScreen(
             }
 
             CalcNavigatorBar(onPrev = onPrevCalc, onNext = onNextCalc)
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -335,66 +331,24 @@ fun ResistancesScreen(
         )
     }
 
-    // Guardar en ReportStore
+    // ✅ Persistencia centralizada (C.3.4): SVR
     LaunchedEffect(state.svrWu, state.svrDynes) {
         val wu = state.svrWu?.takeIf { it.isFinite() } ?: return@LaunchedEffect
         val dyn = state.svrDynes?.takeIf { it.isFinite() } ?: return@LaunchedEffect
 
-        ReportStore.upsert(
-            CalcEntry(
-                type = CalcType.SVR,
-                timestampMillis = System.currentTimeMillis(),
-                title = context.getString(R.string.svr_report_title),
-                inputs = listOf(
-                    LineItem(
-                        key = SharedKeys.MAP_MMHG,
-                        label = "MAP",
-                        value = state.map,
-                        unit = "mmHg",
-                        detail = "Mean Arterial Pressure"
-                    ),
-                    LineItem(
-                        key = SharedKeys.CVP_MMHG,
-                        label = "CVP",
-                        value = state.cvp,
-                        unit = "mmHg",
-                        detail = "Central Venous Pressure"
-                    ),
-                    LineItem(
-                        key = SharedKeys.CO_LMIN,
-                        label = "CO",
-                        value = state.co,
-                        unit = "L/min",
-                        detail = "Cardiac Output"
-                    )
-                ),
-                outputs = listOf(
-                    LineItem(
-                        key = SharedKeys.SVR_WOOD,
-                        label = "SVR",
-                        value = Format.d(wu, 2),
-                        unit = "WU",
-                        detail = "Wood Units"
-                    ),
-                    LineItem(
-                        key = SharedKeys.SVR_DYN,
-                        label = "SVR",
-                        value = Format.d(dyn, 0),
-                        unit = "dyn·s·cm⁻⁵",
-                        detail = "CGS units"
-                    ),
-                    LineItem(
-                        key = SharedKeys.SVR_UNITS,
-                        label = "SVR units",
-                        value = if (state.outputUnits == ResistancesViewModel.OutputUnits.WOOD_UNITS) "WOOD" else "DYN",
-                        unit = null,
-                        detail = null
-                    )
-                )
+        val units = if (state.outputUnits == ResistancesViewModel.OutputUnits.WOOD_UNITS) "WOOD" else "DYN"
 
-            )
+        CalcEntryWriters.upsertSvr(
+            timestampMillis = System.currentTimeMillis(),
+            title = context.getString(R.string.svr_report_title),
+            mapText = state.map,
+            cvpText = state.cvp,
+            coText = state.co,
+            svrWu = wu,
+            svrDyn = dyn,
+            svrUnits = units
         )
-        WorkshopRhcAutosave.flushNow(context, coroutineScope)
 
+        WorkshopRhcAutosave.flushNow(context, coroutineScope)
     }
 }
