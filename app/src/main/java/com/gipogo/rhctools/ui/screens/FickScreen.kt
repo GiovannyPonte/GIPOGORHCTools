@@ -480,27 +480,28 @@ fun FickScreen(
                         CoMethodUi.FICK -> {
                             vm.calculate()
 
+                            // ✅ IMPORTANTE: leer el estado NUEVO directamente del VM, no el snapshot "state"
+                            val s = vm.state.value
+
                             // Emitir Fick normal a ReportStore (para autosave + auditoría)
-                            val co = state.cardiacOutputLMin?.takeIf { it.isFinite() && it > 0.0 }
-                            val bsa = state.bsa?.takeIf { it.isFinite() && it > 0.0 }
+                            val co = s.cardiacOutputLMin?.takeIf { it.isFinite() && it > 0.0 }
+                            val bsa = s.bsa?.takeIf { it.isFinite() && it > 0.0 }
 
-                            // vo2: ya lo tienes en estado del VM
-                            val vo2 = state.vo2UsedMlMin?.takeIf { it.isFinite() && it > 0.0 }
-                            val vo2Mode = if (state.vo2FactorUsedMlMinM2 == null) "MEASURED" else "ESTIMATED"
+                            val vo2 = s.vo2UsedMlMin?.takeIf { it.isFinite() && it > 0.0 }
+                            val vo2Mode = if (s.vo2FactorUsedMlMinM2 == null) "MEASURED" else "ESTIMATED"
 
-                            // CI/SV: ya en estado; SV opcional
-                            val ci = state.cardiacIndexLMinM2?.takeIf { it.isFinite() && it > 0.0 }
-                            val sv = state.strokeVolumeMlBeat?.takeIf { it.isFinite() && it > 0.0 }
+                            val ci = s.cardiacIndexLMinM2?.takeIf { it.isFinite() && it > 0.0 }
+                            val sv = s.strokeVolumeMlBeat?.takeIf { it.isFinite() && it > 0.0 }
 
                             if (co != null) {
                                 com.gipogo.rhctools.report.CalcEntryWriters.upsertFickNormal(
                                     timestampMillis = System.currentTimeMillis(),
                                     title = context.getString(R.string.fick_screen_title),
 
-                                    saO2Text = state.saO2,
-                                    svO2Text = state.svO2,
-                                    hbText = state.hb,      // en UI puede estar g/L; si quieres canónico, lo ajustamos luego
-                                    hrText = state.heartRate,
+                                    saO2Text = s.saO2,
+                                    svO2Text = s.svO2,
+                                    hbText = s.hb,
+                                    hrText = s.heartRate,
 
                                     vo2MlMin = vo2,
                                     vo2Mode = vo2Mode,
@@ -515,6 +516,7 @@ fun FickScreen(
                             WorkshopRhcAutosave.setCoMethod("FICK")
                             WorkshopRhcAutosave.flushNow(context, coroutineScope)
                         }
+
 
 
                         CoMethodUi.THERMODILUTION -> {
