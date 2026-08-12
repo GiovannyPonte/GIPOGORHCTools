@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -67,7 +67,13 @@ fun PatientsScreen(
         PatientsDbErrorScreen(
             diagnostic = dbResult.diagnostic,
             onBack = onBack,
-            onRetry = { dbRetryNonce++ }
+            onRetry = { dbRetryNonce++ },
+            onDeleteAndStartFresh = {
+                runCatching {
+                    DbProvider.permanentlyDeleteUnreadableDatabaseAndStartFresh(appCtx)
+                    dbRetryNonce++
+                }
+            }
         )
         return
     }
@@ -223,7 +229,8 @@ fun PatientsScreen(
 private fun PatientsDbErrorScreen(
     diagnostic: DatabaseErrorDiagnostic,
     onBack: (() -> Unit)?,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onDeleteAndStartFresh: () -> Result<Unit>
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -249,7 +256,8 @@ private fun PatientsDbErrorScreen(
             diagnostic = diagnostic,
             modifier = Modifier.padding(padding).fillMaxSize(),
             onRetry = onRetry,
-            onBack = onBack
+            onBack = onBack,
+            onDeleteAndStartFresh = onDeleteAndStartFresh
         )
     }
 }
@@ -459,7 +467,7 @@ private fun PatientCard(
                     )
                     Spacer(Modifier.width(6.dp))
                     Icon(
-                        imageVector = Icons.Outlined.ArrowForwardIos,
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

@@ -142,7 +142,17 @@ fun HomeCalculatorScreen(
                     dbError = null
                     dbReady = false
                 },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onDeleteAndStartFresh = {
+                    runCatching {
+                        val fresh = DbProvider.permanentlyDeleteUnreadableDatabaseAndStartFresh(
+                            context.applicationContext
+                        )
+                        dbInstance = fresh.db
+                        dbError = null
+                        dbReady = true
+                    }
+                }
             )
         }
 

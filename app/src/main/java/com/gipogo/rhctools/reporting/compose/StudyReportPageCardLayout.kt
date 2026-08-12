@@ -167,7 +167,7 @@ private fun HeaderCard(
                 style = MaterialTheme.typography.labelSmall
             )
 
-            Divider(color = Color.White.copy(alpha = 0.18f))
+            HorizontalDivider(color = Color.White.copy(alpha = 0.18f))
 
             val createdAt = ReportFormat.formatDateTime(ctx, createdAtMillis)
             val studyAt = ReportFormat.formatDateTime(ctx, studyAtMillis)

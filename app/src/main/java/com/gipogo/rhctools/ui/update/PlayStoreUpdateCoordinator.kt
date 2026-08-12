@@ -2,6 +2,7 @@ package com.gipogo.rhctools.ui.update
 
 import android.content.IntentSender.SendIntentException
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.annotation.StringRes
@@ -60,11 +61,17 @@ class PlayStoreUpdateCoordinator(
         pendingDailyCheck = coroutineScope.launch {
             val todayEpochDay = LocalDate.now(ZoneId.systemDefault()).toEpochDay()
             val lastCheckEpochDay = preferences.playStoreUpdateLastCheckEpochDay.first()
-            if (lastCheckEpochDay == todayEpochDay) return@launch
-
-            preferences.setPlayStoreUpdateLastCheckEpochDay(todayEpochDay)
-            requestAvailableUpdate()
+            if (!AppUpdatePolicy.isDailyCheckDue(lastCheckEpochDay, todayEpochDay)) return@launch
+            requestAvailableUpdate(showResult = false) {
+                coroutineScope.launch {
+                    preferences.setPlayStoreUpdateLastCheckEpochDay(todayEpochDay)
+                }
+            }
         }
+    }
+
+    fun checkForUpdatesNow(showResult: Boolean = true) {
+        requestAvailableUpdate(showResult = showResult)
     }
 
     fun onResume() {
@@ -81,28 +88,46 @@ class PlayStoreUpdateCoordinator(
             }
     }
 
-    private fun requestAvailableUpdate() {
+    private fun requestAvailableUpdate(
+        showResult: Boolean,
+        onSuccessfulResponse: () -> Unit = {},
+    ) {
         appUpdateManager.appUpdateInfo
             .addOnSuccessListener(activity) { info ->
+                onSuccessfulResponse()
                 if (info.installStatus() == InstallStatus.DOWNLOADED) {
                     showDownloadedPrompt()
                     return@addOnSuccessListener
                 }
 
-                if (info.updateAvailability() != UpdateAvailability.UPDATE_AVAILABLE) return@addOnSuccessListener
+                if (info.updateAvailability() != UpdateAvailability.UPDATE_AVAILABLE) {
+                    if (showResult) toast(R.string.app_update_up_to_date)
+                    return@addOnSuccessListener
+                }
 
-                val updateType = selectUpdateType(info) ?: return@addOnSuccessListener
+                val updateType = selectUpdateType(info)
+                if (updateType == null) {
+                    if (showResult) toast(R.string.app_update_not_allowed)
+                    return@addOnSuccessListener
+                }
                 startUpdateFlow(info, updateType)
             }
             .addOnFailureListener(activity) { error ->
                 Log.w(TAG, "Play Store update check failed.", error)
+                if (showResult) toast(R.string.app_update_check_failed)
             }
     }
 
-    private fun selectUpdateType(info: AppUpdateInfo): Int? = when {
-        info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE) -> AppUpdateType.FLEXIBLE
-        info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE) -> AppUpdateType.IMMEDIATE
-        else -> null
+    private fun selectUpdateType(info: AppUpdateInfo): Int? = AppUpdatePolicy.selectMode(
+        updateAvailable = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE,
+        flexibleAllowed = info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE),
+        immediateAllowed = info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE),
+        priority = info.updatePriority(),
+    )?.let { mode ->
+        when (mode) {
+            AppUpdateMode.FLEXIBLE -> AppUpdateType.FLEXIBLE
+            AppUpdateMode.IMMEDIATE -> AppUpdateType.IMMEDIATE
+        }
     }
 
     private fun startUpdateFlow(
@@ -151,6 +176,10 @@ class PlayStoreUpdateCoordinator(
     }
 
     private fun text(@StringRes resId: Int): String = activity.getString(resId)
+
+    private fun toast(@StringRes resId: Int) {
+        Toast.makeText(activity, text(resId), Toast.LENGTH_LONG).show()
+    }
 
     private companion object {
         private const val TAG = "PlayStoreUpdate"

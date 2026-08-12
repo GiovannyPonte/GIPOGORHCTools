@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.gipogo.rhctools.core.result.DataResult
 import com.gipogo.rhctools.data.db.dao.PatientDao
 import com.gipogo.rhctools.data.patients.PatientsRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -27,6 +29,7 @@ data class PatientsUiState(
     val items: List<PatientRowUi> = emptyList()
 )
 
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class PatientsViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = PatientsRepository.get(app)
 

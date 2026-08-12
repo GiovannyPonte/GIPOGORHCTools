@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -30,10 +31,13 @@ fun DatabaseErrorDetails(
     diagnostic: DatabaseErrorDiagnostic,
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null,
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onDeleteAndStartFresh: (() -> Result<Unit>)? = null
 ) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
+    var confirmFreshStart by remember { mutableStateOf(false) }
+    var freshStartError by remember { mutableStateOf<String?>(null) }
     val summaryRes = when {
         diagnostic.code.startsWith("DB-CORRUPT") -> R.string.db_error_corrupt
         diagnostic.code.startsWith("DB-LOCKED") -> R.string.db_error_locked
@@ -83,5 +87,46 @@ fun DatabaseErrorDetails(
         ) {
             Text(stringResource(if (copied) R.string.error_details_copied else R.string.error_copy_details))
         }
+        if (diagnostic.code == "DB-ENC-KEY-01" && onDeleteAndStartFresh != null) {
+            TextButton(onClick = { confirmFreshStart = true }) {
+                Text(
+                    stringResource(R.string.db_delete_unreadable_action),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Text(
+                stringResource(R.string.db_delete_unreadable_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        freshStartError?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
+
+    if (confirmFreshStart) {
+        AlertDialog(
+            onDismissRequest = { confirmFreshStart = false },
+            title = { Text(stringResource(R.string.db_delete_unreadable_title)) },
+            text = { Text(stringResource(R.string.db_delete_unreadable_confirmation)) },
+            confirmButton = {
+                Button(onClick = {
+                    val result = onDeleteAndStartFresh?.invoke() ?: return@Button
+                    if (result.isSuccess) {
+                        confirmFreshStart = false
+                    } else {
+                        freshStartError = result.exceptionOrNull()?.message
+                            ?: "DB-RECOVERY-START-01"
+                        confirmFreshStart = false
+                    }
+                }) { Text(stringResource(R.string.db_delete_unreadable_confirm)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { confirmFreshStart = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 }

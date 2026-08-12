@@ -76,6 +76,28 @@ object DbProvider {
         DbKeyStore.clear(appContext)
     }
 
+    /**
+     * Irreversibly deletes an unreadable database after explicit user consent,
+     * rotates its key and verifies that a new empty encrypted database opens.
+     * This method is never called by normal open/retry flows.
+     */
+    fun permanentlyDeleteUnreadableDatabaseAndStartFresh(context: Context): DbOpenResult.Success {
+        val appContext = context.applicationContext
+        AppDatabase.clearInstance()
+        deleteDatabaseFiles(appContext, "gipogo_rhc_tools.db")
+        WorkshopRecoveryStore.clear(appContext)
+        DbKeyStore.clear(appContext)
+
+        val result = getResult(appContext)
+        if (result is DbOpenResult.Failure) {
+            throw IllegalStateException(
+                "DB-RESET-CREATE-01: la base anterior se eliminó, pero no se pudo crear la nueva",
+                result.error
+            )
+        }
+        return result as DbOpenResult.Success
+    }
+
     private fun deleteDatabaseFiles(context: Context, dbName: String) {
         context.deleteDatabase(dbName)
         val base = context.getDatabasePath(dbName).absolutePath
@@ -86,5 +108,11 @@ object DbProvider {
         File("$base-wal").delete()
         File("$base-shm").delete()
         File("$base-journal").delete()
+        val remaining = listOf("", "-wal", "-shm", "-journal", ".bak_plain", ".enc_tmp")
+            .map { File(base + it) }
+            .filter(File::exists)
+        check(remaining.isEmpty()) {
+            "DB-RESET-DELETE-01: Android no permitió eliminar ${remaining.joinToString { it.name }}"
+        }
     }
 }

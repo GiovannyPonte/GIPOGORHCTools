@@ -591,6 +591,11 @@
     <string name="db_error_storage_permission">Android denied access to the app’s private storage. Restart the device and copy the diagnostics if it persists.</string>
     <string name="db_error_storage_io">Android could not read or write local storage. Check available space and device storage health.</string>
     <string name="db_error_downgrade">The database was created by a newer app version. Install that version or later; do not uninstall or clear app data.</string>
+    <string name="db_delete_unreadable_action">Delete the unreadable database and create a new one</string>
+    <string name="db_delete_unreadable_hint">This will permanently delete every patient and study in the previous database.</string>
+    <string name="db_delete_unreadable_title">Permanently delete the database</string>
+    <string name="db_delete_unreadable_confirmation">The previous database cannot be decrypted. If you continue, all its patients and studies will be permanently deleted and an empty database will be created. This action cannot be undone.</string>
+    <string name="db_delete_unreadable_confirm">Delete and create new</string>
     <string name="error_reference">Reference: %1$s</string>
     <string name="error_technical_detail">Technical detail</string>
     <string name="error_copy_details">Copy diagnostics</string>
@@ -1058,6 +1063,12 @@
     <string name="app_update_downloaded_body">The new version was downloaded from Google Play. Restart the app to finish installing it.</string>
     <string name="app_update_downloaded_confirm">Restart now</string>
     <string name="app_update_downloaded_later">Later</string>
+    <string name="settings_updates_title">Updates</string>
+    <string name="settings_updates_description">Check whether a newer version is available on Google Play.</string>
+    <string name="settings_check_updates">Check for updates</string>
+    <string name="app_update_up_to_date">The app is up to date.</string>
+    <string name="app_update_not_allowed">Google Play found an update, but it cannot be installed on this device yet.</string>
+    <string name="app_update_check_failed">Google Play could not be reached. Check the connection and make sure the app was installed from the Play Store.</string>
 
     <string name="study_input_pa_systolic">Pulmonary artery systolic pressure (PASP)</string>
     <string name="study_input_pa_diastolic">Pulmonary artery diastolic pressure (PADP)</string>
