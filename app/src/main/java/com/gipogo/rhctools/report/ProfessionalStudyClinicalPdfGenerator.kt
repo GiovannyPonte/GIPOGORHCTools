@@ -64,11 +64,11 @@ internal object StudyClinicalPdfGenerator {
 
         fun render() {
             startPage()
-            identity()
-            summary()
-            findings()
-            quickRead()
             if (format == StudyClinicalPdfFormat.COMPLETE) {
+                identity()
+                summary()
+                findings()
+                quickRead()
                 newPage()
                 sectionTitle("Datos hemodinamicos")
                 metricTable("Presiones", model.pressureRows)
@@ -77,11 +77,14 @@ internal object StudyClinicalPdfGenerator {
                 traceability()
                 newPage()
                 charts()
+                newPage()
+                forresterChart(compact = false)
                 interpretation()
                 comparison()
                 notesAndLimitations()
+                signature()
             } else {
-                notesAndLimitations(compact = true)
+                compactReport()
             }
             finishPage()
         }
@@ -125,12 +128,58 @@ internal object StudyClinicalPdfGenerator {
             sectionTitle("Identificacion")
             val rows = listOf(
                 "Paciente" to model.patientDisplayName,
+                "Codigo interno" to model.patientInternalCode.orEmpty().ifBlank { "No registrado" },
+                "Sexo" to model.patientSex.orEmpty().ifBlank { "No registrado" },
+                "Nacimiento / edad" to model.patientBirthDateAndAge.orEmpty().ifBlank { "No registrado" },
+                "Peso / talla" to physicalSummary(),
                 "ID del estudio" to model.studyId,
                 "Tipo" to model.studyType,
                 "Fecha del informe" to date.format(Date(model.reportAtMillis))
             )
             twoColumnRows(rows)
         }
+
+        private fun compactReport() {
+            val identityRows = listOf(
+                "Paciente" to model.patientDisplayName,
+                "Codigo" to model.patientInternalCode.orEmpty().ifBlank { "No registrado" },
+                "Sexo / edad" to listOfNotNull(model.patientSex, model.patientBirthDateAndAge).joinToString(" | ").ifBlank { "No registrado" },
+                "Peso / talla" to physicalSummary(),
+                "Fecha del estudio" to date.format(Date(model.studyAtMillis)),
+                "ID" to model.studyId
+            )
+            sectionTitle("Identificacion del paciente y estudio")
+            twoColumnRows(identityRows)
+            findings()
+
+            val chartTop = y
+            val chartWidth = 245f
+            forresterChartAt(MARGIN, chartTop, chartWidth, 218f, compact = true)
+            val textLeft = MARGIN + chartWidth + 18f
+            canvas.drawText("Lectura clinica", textLeft, chartTop, section)
+            canvas.drawLine(textLeft, chartTop + 8f, PAGE_W - MARGIN, chartTop + 8f, Paint(rule).apply { color = blue; strokeWidth = 1.1f })
+            var yy = chartTop + 27f
+            model.quickReadRows.take(5).forEach { row ->
+                canvas.drawText(row.label, textLeft, yy, small)
+                yy += 12f
+                val value = ellipsize(row.value, bodyBold, PAGE_W - MARGIN - textLeft)
+                canvas.drawText(value, textLeft, yy, bodyBold)
+                yy += 20f
+            }
+            canvas.drawText("Nota del cateterismo", textLeft, yy, section)
+            yy += 15f
+            val note = model.studyNote ?: "Sin nota adicional registrada."
+            wrap(note, body, PAGE_W - MARGIN - textLeft).take(5).forEach {
+                canvas.drawText(it, textLeft, yy, body); yy += 13f
+            }
+            y = max(chartTop + 228f, yy + 5f)
+            signature(compact = true)
+        }
+
+        private fun physicalSummary(): String = listOfNotNull(
+            model.patientWeightKg?.let { "${number(it)} kg" },
+            model.patientHeightCm?.let { "${number(it)} cm" }
+        ).joinToString(" | ").ifBlank { "No registrado" }
 
         private fun summary() {
             sectionTitle("Resumen ejecutivo")
@@ -211,6 +260,59 @@ internal object StudyClinicalPdfGenerator {
             paragraph("Las referencias son puntos de orientacion, no sustituyen la interpretacion clinica. Las escalas no deben compararse entre paneles.", small)
         }
 
+        private fun forresterChart(compact: Boolean) {
+            val data = model.forrester ?: return
+            if (data.currentCi == null || data.currentPcwp == null) return
+            sectionTitle("Clasificacion de Forrester")
+            forresterChartAt(MARGIN, y, PAGE_W - 2 * MARGIN, if (compact) 210f else 245f, compact)
+            y += if (compact) 220f else 255f
+        }
+
+        private fun forresterChartAt(left: Float, top: Float, width: Float, height: Float, compact: Boolean) {
+            val data = model.forrester
+            if (data?.currentCi == null || data.currentPcwp == null) {
+                canvas.drawText("Forrester no disponible: faltan CI o PCWP.", left, top + 20f, body)
+                return
+            }
+            val plotLeft = left + 34f
+            val plotTop = top + 20f
+            val plotRight = left + width - 12f
+            val plotBottom = top + height - 34f
+            val xMax = 40.0
+            val yMax = 5.0
+            fun px(pcwp: Double) = plotLeft + (pcwp.coerceIn(0.0, xMax) / xMax * (plotRight - plotLeft)).toFloat()
+            fun py(ci: Double) = plotBottom - (ci.coerceIn(0.0, yMax) / yMax * (plotBottom - plotTop)).toFloat()
+            val xThreshold = px(18.0)
+            val yThreshold = py(2.2)
+            val quadrant = arrayOf(
+                RectF(plotLeft, plotTop, xThreshold, yThreshold) to Color.rgb(239, 246, 241),
+                RectF(xThreshold, plotTop, plotRight, yThreshold) to Color.rgb(249, 242, 226),
+                RectF(plotLeft, yThreshold, xThreshold, plotBottom) to Color.rgb(239, 243, 248),
+                RectF(xThreshold, yThreshold, plotRight, plotBottom) to Color.rgb(249, 235, 235)
+            )
+            quadrant.forEach { (rect, color) -> canvas.drawRect(rect, Paint().apply { this.color = color }) }
+            canvas.drawRect(RectF(plotLeft, plotTop, plotRight, plotBottom), Paint(rule).apply { style = Paint.Style.STROKE })
+            canvas.drawLine(xThreshold, plotTop, xThreshold, plotBottom, Paint(rule).apply { color = grey; strokeWidth = 1.2f })
+            canvas.drawLine(plotLeft, yThreshold, plotRight, yThreshold, Paint(rule).apply { color = grey; strokeWidth = 1.2f })
+            canvas.drawText("I: tibio-seco", plotLeft + 5f, plotTop + 13f, tiny)
+            canvas.drawText("II: tibio-humedo", xThreshold + 5f, plotTop + 13f, tiny)
+            canvas.drawText("III: frio-seco", plotLeft + 5f, yThreshold + 14f, tiny)
+            canvas.drawText("IV: frio-humedo", xThreshold + 5f, yThreshold + 14f, tiny)
+            val cx = px(data.currentPcwp); val cy = py(data.currentCi)
+            if (data.previousPcwp != null && data.previousCi != null) {
+                val ox = px(data.previousPcwp); val oy = py(data.previousCi)
+                canvas.drawLine(ox, oy, cx, cy, Paint(rule).apply { color = previous; strokeWidth = 1.8f })
+                canvas.drawCircle(ox, oy, 3.5f, Paint().apply { color = previous })
+            }
+            canvas.drawCircle(cx, cy, if (compact) 4.5f else 5.5f, Paint().apply { color = blue })
+            canvas.drawCircle(cx, cy, if (compact) 2f else 2.5f, Paint().apply { color = Color.WHITE })
+            canvas.drawText("Actual", cx + 7f, cy - 4f, small)
+            canvas.drawText("PCWP (mmHg)", plotRight - small.measureText("PCWP (mmHg)"), plotBottom + 17f, small)
+            canvas.drawText("CI (L/min/m2)", plotLeft, plotTop - 7f, small)
+            canvas.drawText("18", xThreshold - tiny.measureText("18") / 2f, plotBottom + 10f, tiny)
+            canvas.drawText("2.2", plotLeft - 18f, yThreshold + 3f, tiny)
+        }
+
         private fun chartGroup(heading: String, points: List<StudyClinicalChartPoint>) {
             val visible = points.filter { it.current != null || it.previous != null }
             if (visible.isEmpty()) return
@@ -278,16 +380,33 @@ internal object StudyClinicalPdfGenerator {
         }
 
         private fun notesAndLimitations(compact: Boolean = false) {
+            model.patientNote?.let {
+                sectionTitle("Antecedente o nota del paciente")
+                paragraph(it, body, continuationHeading = "Nota del paciente (continuacion)")
+            }
             model.studyNote?.let {
-                sectionTitle("Nota clinica")
+                sectionTitle("Nota del cateterismo derecho")
                 paragraph(
                     if (compact && it.length > 300) it.take(297) + "..." else it,
                     body,
-                    continuationHeading = "Nota clinica (continuacion)"
+                    continuationHeading = "Nota del cateterismo derecho (continuacion)"
                 )
             }
             sectionTitle("Limitaciones y control de calidad")
             bullets(model.limitations.ifEmpty { listOf(context.getString(R.string.study_pdf_no_major_limitations)) })
+        }
+
+        private fun signature(compact: Boolean = false) {
+            val needed = if (compact) 92f else 120f
+            room(needed)
+            y += if (compact) 12f else 25f
+            canvas.drawLine(MARGIN, y + 35f, MARGIN + 220f, y + 35f, rule)
+            canvas.drawLine(PAGE_W - MARGIN - 190f, y + 35f, PAGE_W - MARGIN, y + 35f, rule)
+            canvas.drawText("Nombre del medico", MARGIN, y + 49f, small)
+            canvas.drawText("Firma", PAGE_W - MARGIN - 190f, y + 49f, small)
+            canvas.drawText("Cedula profesional: ____________________", MARGIN, y + 68f, small)
+            canvas.drawText("Fecha: ____________________", PAGE_W - MARGIN - 190f, y + 68f, small)
+            y += needed
         }
 
         private fun bullets(items: List<String>) {

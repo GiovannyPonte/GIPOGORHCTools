@@ -12,6 +12,7 @@ import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.DbProvider
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
+import com.gipogo.rhctools.domain.BirthDateCodec
 import com.gipogo.rhctools.reporting.model.displayPvr
 import com.gipogo.rhctools.reporting.model.displaySelectedCo
 import com.gipogo.rhctools.reporting.model.displaySvr
@@ -22,6 +23,8 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.time.LocalDate
+import java.time.Period
 import kotlin.math.max
 
 enum class StudyClinicalPdfFormat {
@@ -102,6 +105,12 @@ object StudyClinicalPdfExport {
         val document = StudyClinicalPdfDocumentBuilder.build(
             context = context,
             patientDisplayName = patientDisplayName,
+            patientInternalCode = patient?.internalCode,
+            patientSex = patient?.sex,
+            patientBirthDateMillis = patient?.birthDateMillis,
+            patientWeightKg = patient?.weightKg,
+            patientHeightCm = patient?.heightCm,
+            patientNote = patient?.notes,
             selected = selected,
             previous = previous
         )
@@ -160,7 +169,21 @@ internal data class StudyClinicalPdfDocument(
     val studyNote: String?,
     val limitations: List<String>,
     val pressureChart: List<StudyClinicalChartPoint> = emptyList(),
-    val performanceChart: List<StudyClinicalChartPoint> = emptyList()
+    val performanceChart: List<StudyClinicalChartPoint> = emptyList(),
+    val patientInternalCode: String? = null,
+    val patientSex: String? = null,
+    val patientBirthDateAndAge: String? = null,
+    val patientWeightKg: Double? = null,
+    val patientHeightCm: Double? = null,
+    val patientNote: String? = null,
+    val forrester: StudyClinicalForrester? = null
+)
+
+internal data class StudyClinicalForrester(
+    val currentCi: Double?,
+    val currentPcwp: Double?,
+    val previousCi: Double?,
+    val previousPcwp: Double?
 )
 
 internal data class StudyClinicalChartPoint(
@@ -212,6 +235,12 @@ private object StudyClinicalPdfDocumentBuilder {
     fun build(
         context: Context,
         patientDisplayName: String,
+        patientInternalCode: String?,
+        patientSex: String?,
+        patientBirthDateMillis: Long?,
+        patientWeightKg: Double?,
+        patientHeightCm: Double?,
+        patientNote: String?,
         selected: StudyWithRhcData,
         previous: StudyWithRhcData?
     ): StudyClinicalPdfDocument {
@@ -336,9 +365,29 @@ private object StudyClinicalPdfDocumentBuilder {
                 StudyClinicalChartPoint("CI", "L/min/m2", selectedCo.cardiacIndexLMinM2, previous?.rhc.displaySelectedCo().cardiacIndexLMinM2, 5.0, 2.2),
                 StudyClinicalChartPoint("PVR", "WU", pvrWood, previous?.rhc?.pvrWood, 8.0, 2.0),
                 StudyClinicalChartPoint("CPO", "W", rhc?.cardiacPowerW, previous?.rhc?.cardiacPowerW, 2.0, 0.8)
+            ),
+            patientInternalCode = patientInternalCode?.trim()?.takeIf { it.isNotBlank() },
+            patientSex = patientSex?.trim()?.takeIf { it.isNotBlank() },
+            patientBirthDateAndAge = patientBirthDateMillis?.let(::formatBirthDateAndAge),
+            patientWeightKg = patientWeightKg,
+            patientHeightCm = patientHeightCm,
+            patientNote = patientNote?.trim()?.takeIf { it.isNotBlank() },
+            forrester = StudyClinicalForrester(
+                currentCi = selectedCo.cardiacIndexLMinM2,
+                currentPcwp = rhc?.pawpMmHg,
+                previousCi = previous?.rhc.displaySelectedCo().cardiacIndexLMinM2,
+                previousPcwp = previous?.rhc?.pawpMmHg
             )
         )
     }
+
+    private fun formatBirthDateAndAge(storageMillis: Long): String? = runCatching {
+        val birthDate = BirthDateCodec.fromStorageMillis(storageMillis)
+        val age = Period.between(birthDate, LocalDate.now()).years.coerceAtLeast(0)
+        "%04d-%02d-%02d (%d años)".format(
+            Locale.getDefault(), birthDate.year, birthDate.monthValue, birthDate.dayOfMonth, age
+        )
+    }.getOrNull()
 
     private fun buildQuickRead(
         context: Context,
