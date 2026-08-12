@@ -578,6 +578,17 @@
     <string name="patient_overview_no_data">No hemodynamic data is available for the latest study.</string>
     <string name="patient_error_invalid_id">Invalid patient ID.</string>
     <string name="patient_error_generic">Unable to load data.</string>
+    <string name="db_error_key">The protected database key could not be accessed. Your data was not deleted.</string>
+    <string name="db_error_encryption">Local encryption setup or verification failed. Your data was not deleted.</string>
+    <string name="db_error_schema">The stored database structure is incompatible with this version. A data migration is required.</string>
+    <string name="db_error_sql">The database engine rejected the open or query operation.</string>
+    <string name="db_error_storage">Local storage is unavailable or could not be written.</string>
+    <string name="db_error_native">The encryption component could not be loaded on this device.</string>
+    <string name="db_error_open">The local database could not be opened. Your data was not deleted.</string>
+    <string name="error_reference">Reference: %1$s</string>
+    <string name="error_technical_detail">Technical detail</string>
+    <string name="error_copy_details">Copy diagnostics</string>
+    <string name="error_details_copied">Diagnostics copied</string>
 
     <string name="rhc_label_pcwp_short">PCWP</string>
     <string name="rhc_label_ci_short">CI</string>

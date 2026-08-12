@@ -1,6 +1,7 @@
 package com.gipogo.rhctools.data.db
 
 import android.content.Context
+import android.util.Log
 import com.gipogo.rhctools.data.security.DbKeyStore
 import com.gipogo.rhctools.workshop.persistence.WorkshopRecoveryStore
 import java.io.File
@@ -16,9 +17,14 @@ import java.io.File
  */
 object DbProvider {
 
+    private const val TAG = "DbProvider"
+
     sealed class DbOpenResult {
         data class Success(val db: AppDatabase) : DbOpenResult()
-        data class Failure(val error: Throwable) : DbOpenResult()
+        data class Failure(
+            val error: Throwable,
+            val diagnostic: DatabaseErrorDiagnostic = DatabaseErrorDiagnostics.from(error)
+        ) : DbOpenResult()
     }
 
     /**
@@ -29,7 +35,9 @@ object DbProvider {
         return try {
             DbOpenResult.Success(AppDatabase.getInstance(context))
         } catch (t: Throwable) {
-            DbOpenResult.Failure(t)
+            val failure = DbOpenResult.Failure(t)
+            Log.e(TAG, "Database open failed [${failure.diagnostic.code}] ${failure.diagnostic.technicalDetail}", t)
+            failure
         }
     }
 

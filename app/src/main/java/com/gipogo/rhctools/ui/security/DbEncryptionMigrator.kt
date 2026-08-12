@@ -23,6 +23,8 @@ object DbEncryptionMigrator {
         migratePlaintextDatabase(dbFile, passphraseText)
     }
 
+    fun isPlaintextDatabase(file: File): Boolean = hasSqliteHeader(file)
+
     private fun recoverInterruptedMigration(dbFile: File, passphraseText: String): Boolean {
         val temp = encryptedTemp(dbFile)
         val backup = plaintextBackup(dbFile)
