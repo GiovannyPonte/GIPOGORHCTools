@@ -98,7 +98,7 @@ internal object StudyClinicalPdfGenerator {
             page = pdf.startPage(PdfDocument.PageInfo.Builder(PAGE_W, PAGE_H, pageNo).create())
             canvas.drawRect(0f, 0f, PAGE_W.toFloat(), 5f, Paint().apply { color = navy })
             canvas.drawText(if (format == StudyClinicalPdfFormat.COMPLETE) "Informe hemodinamico - cateterismo derecho" else "Resumen hemodinamico", MARGIN, 34f, title)
-            canvas.drawText("${model.patientDisplayName} | ${date.format(Date(model.studyAtMillis))}", MARGIN, 53f, small)
+            canvas.drawText("${model.studyType} | ${date.format(Date(model.studyAtMillis))}", MARGIN, 53f, small)
             canvas.drawLine(MARGIN, 68f, PAGE_W - MARGIN, 68f, rule)
             y = TOP
         }
@@ -145,8 +145,8 @@ internal object StudyClinicalPdfGenerator {
             val chartTop = y + 17f
             val trajectoryTitle = when {
                 model.trendStudies.size <= 1 -> "Estudio hemodinamico basal"
-                compactStudies.size < model.trendStudies.size -> "Trayectoria longitudinal - ${model.trendStudies.size} estudios (${compactStudies.size} puntos visibles)"
-                else -> "Trayectoria longitudinal - ${model.trendStudies.size} estudios"
+                compactStudies.size < model.trendStudies.size -> "Trayectoria longitudinal (${compactStudies.size} puntos representativos)"
+                else -> "Trayectoria longitudinal"
             }
             canvas.drawText(trajectoryTitle, MARGIN, y, section)
             canvas.drawLine(MARGIN, y + 8f, PAGE_W - MARGIN, y + 8f, Paint(rule).apply { color = blue; strokeWidth = 1.1f })
@@ -204,13 +204,20 @@ internal object StudyClinicalPdfGenerator {
             val code = model.patientInternalCode.orEmpty().ifBlank { "Sin codigo" }
             val demographics = listOfNotNull(model.patientSex, model.patientBirthDateAndAge)
                 .joinToString(" | ").ifBlank { "Datos demograficos no registrados" }
-            canvas.drawText(ellipsize(model.patientDisplayName, bodyBold, 330f), MARGIN, y, bodyBold)
-            val count = "${studies.size.coerceAtLeast(1)} estudios | $firstDate - $lastDate"
-            canvas.drawText(count, PAGE_W - MARGIN - small.measureText(count), y, small)
-            y += 16f
+            val displayName = model.patientDisplayName
+                .replace(Regex("\\s*\\((FICTICI[OA])(?:\\s*-\\s*\\d+\\s*ESTUDIOS)?\\)", RegexOption.IGNORE_CASE), "")
+                .trim()
+            val isSynthetic = model.patientDisplayName.contains("FICTICI", ignoreCase = true)
+            val patientPaint = paint(12f, navy, true)
+            canvas.drawText(ellipsize(displayName, patientPaint, 380f), MARGIN, y, patientPaint)
+            if (isSynthetic) {
+                val badge = "CASO FICTICIO"
+                canvas.drawText(badge, PAGE_W - MARGIN - small.measureText(badge), y, small)
+            }
+            y += 17f
             canvas.drawText(ellipsize("$code | $demographics | ${physicalSummary()}", small, PAGE_W - 2 * MARGIN), MARGIN, y, small)
             y += 14f
-            val studyLine = "Ultimo estudio: $lastDate | ID: ${model.studyId} | Informe: ${date.format(Date(model.reportAtMillis))}"
+            val studyLine = "Serie: ${studies.size.coerceAtLeast(1)} estudios | $firstDate - $lastDate | Ultimo ID: ${model.studyId}"
             canvas.drawText(ellipsize(studyLine, small, PAGE_W - 2 * MARGIN), MARGIN, y, small)
             y += 10f
             canvas.drawLine(MARGIN, y, PAGE_W - MARGIN, y, rule)
