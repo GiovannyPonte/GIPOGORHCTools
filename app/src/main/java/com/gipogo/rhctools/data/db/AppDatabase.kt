@@ -124,7 +124,9 @@ abstract class AppDatabase : RoomDatabase() {
         private fun mayReplaceUnusableKeyMaterial(dbFile: File): Boolean {
             val temp = File(dbFile.parentFile, dbFile.name + ".enc_tmp")
             val backup = File(dbFile.parentFile, dbFile.name + ".bak_plain")
-            val protectedArtifactExists = listOf(dbFile, temp, backup).any { file ->
+            val invalidEncrypted = File(dbFile.parentFile, dbFile.name + ".invalid_encrypted")
+            val invalidTemp = File(dbFile.parentFile, dbFile.name + ".enc_tmp.invalid_encrypted")
+            val protectedArtifactExists = listOf(dbFile, temp, backup, invalidEncrypted, invalidTemp).any { file ->
                 file.exists() && file.length() > 0L && !DbEncryptionMigrator.isPlaintextDatabase(file)
             }
             return !protectedArtifactExists

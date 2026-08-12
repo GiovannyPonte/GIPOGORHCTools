@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.DbProvider
+import com.gipogo.rhctools.ui.components.DatabaseErrorDetails
 import com.gipogo.rhctools.reporting.export.LongitudinalComposePdfExporter
 import kotlinx.coroutines.CancellationException
 import java.io.File
@@ -28,17 +29,11 @@ fun ReportRenderRoute(
     val appCtx = context.applicationContext
     val dbResult = remember(appCtx) { DbProvider.getResult(appCtx) }
     if (dbResult is DbProvider.DbOpenResult.Failure) {
-        Column(
+        DatabaseErrorDetails(
+            diagnostic = dbResult.diagnostic,
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.patient_error_generic),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
+            onBack = onBack
+        )
         return
     }
     val db = (dbResult as DbProvider.DbOpenResult.Success).db

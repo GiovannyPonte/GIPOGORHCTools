@@ -42,23 +42,45 @@ object DbEncryptionMigrator {
                     deletePlaintextOrThrow(backup)
                     return true
                 }
-                deleteFileOrThrow(temp, "temporal cifrado inválido")
             }
 
-            if (backup.exists() && !backup.renameTo(dbFile)) {
+            if (backup.exists()) {
+                if (!hasSqliteHeader(backup)) {
+                    throw DbEncryptionException(
+                        DbEncryptionFailure.RECOVERY_FAILED,
+                        "La copia de seguridad disponible no es una base SQLite verificable"
+                    )
+                }
+                if (temp.exists()) archiveInvalidMainOrThrow(temp)
+                if (!backup.renameTo(dbFile)) {
+                    throw DbEncryptionException(
+                        DbEncryptionFailure.RECOVERY_FAILED,
+                        "No se pudo restaurar la copia SQLite de seguridad"
+                    )
+                }
+                return false
+            }
+            if (temp.exists()) {
                 throw DbEncryptionException(
                     DbEncryptionFailure.RECOVERY_FAILED,
-                    "No se pudo restaurar la copia de seguridad de la base"
+                    "Existe un temporal cifrado no verificable; se conservó para diagnóstico"
                 )
             }
             return false
         }
 
         if (!hasSqliteHeader(dbFile)) {
+            val mainIsValid = runCatching { verifyEncrypted(dbFile, passphraseText) }.isSuccess
+            if (mainIsValid) {
+                deletePlaintextOrThrow(backup)
+                deleteFileOrThrow(temp, "temporal de migración")
+                return true
+            }
+
+            // Si el principal existe pero no abre, no podemos distinguir de
+            // forma segura entre corrupción y una llave incorrecta. Nunca lo
+            // sustituimos por una copia que podría ser más antigua.
             verifyEncrypted(dbFile, passphraseText)
-            deletePlaintextOrThrow(backup)
-            deleteFileOrThrow(temp, "temporal de migración")
-            return true
         }
 
         // The original plaintext database is authoritative before replacement.
@@ -150,7 +172,17 @@ object DbEncryptionMigrator {
 
     private fun verifyEncrypted(file: File, passphraseText: String) {
         try {
-            val db = SQLiteDatabase.openOrCreateDatabase(file, passphraseText, null, null, null)
+            if (!file.exists() || file.length() == 0L) {
+                throw IllegalStateException("El archivo cifrado no existe o está vacío")
+            }
+            val db = SQLiteDatabase.openDatabase(
+                file.absolutePath,
+                passphraseText,
+                null,
+                SQLiteDatabase.OPEN_READONLY,
+                null,
+                null
+            )
             try {
                 db.rawQuery("SELECT count(*) FROM sqlite_master;", null).use { cursor ->
                     if (!cursor.moveToFirst()) error("No se pudo leer el esquema")
@@ -234,6 +266,22 @@ object DbEncryptionMigrator {
                     "No se pudo limpiar un archivo auxiliar de la base"
                 )
             }
+        }
+    }
+
+    private fun archiveInvalidMainOrThrow(file: File) {
+        val archived = File(file.parentFile, file.name + ".invalid_encrypted")
+        if (archived.exists()) {
+            throw DbEncryptionException(
+                DbEncryptionFailure.RECOVERY_FAILED,
+                "Ya existe un archivo cifrado inválido conservado; se detuvo la recuperación para no sobrescribir evidencia"
+            )
+        }
+        if (!file.renameTo(archived)) {
+            throw DbEncryptionException(
+                DbEncryptionFailure.RECOVERY_FAILED,
+                "No se pudo conservar el archivo cifrado inválido antes de recuperar la copia"
+            )
         }
     }
 

@@ -25,18 +25,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.DbProvider
-import com.gipogo.rhctools.data.db.DatabaseErrorCategory
 import com.gipogo.rhctools.data.db.DatabaseErrorDiagnostic
+import com.gipogo.rhctools.ui.components.DatabaseErrorDetails
 import com.gipogo.rhctools.data.db.entities.PatientEntity
 import com.gipogo.rhctools.domain.BirthDateCodec
 import com.gipogo.rhctools.ui.viewmodel.PatientsDatePreset
@@ -227,20 +225,6 @@ private fun PatientsDbErrorScreen(
     onBack: (() -> Unit)?,
     onRetry: () -> Unit
 ) {
-    val clipboard = LocalClipboardManager.current
-    var copied by remember { mutableStateOf(false) }
-    val summaryRes = when (diagnostic.category) {
-        DatabaseErrorCategory.KEY -> R.string.db_error_key
-        DatabaseErrorCategory.ENCRYPTION -> R.string.db_error_encryption
-        DatabaseErrorCategory.SCHEMA -> R.string.db_error_schema
-        DatabaseErrorCategory.SQL -> R.string.db_error_sql
-        DatabaseErrorCategory.STORAGE -> R.string.db_error_storage
-        DatabaseErrorCategory.NATIVE_COMPONENT -> R.string.db_error_native
-        DatabaseErrorCategory.OPEN -> R.string.db_error_open
-    }
-    val codeLabel = stringResource(R.string.error_reference, diagnostic.code)
-    val technicalLabel = stringResource(R.string.error_technical_detail)
-    val diagnosticText = "$codeLabel\n${stringResource(summaryRes)}\n$technicalLabel: ${diagnostic.technicalDetail}"
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -261,57 +245,12 @@ private fun PatientsDbErrorScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(ScreenPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.common_error),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = stringResource(summaryRes),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = codeLabel,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = technicalLabel,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = diagnostic.technicalDetail,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("database_error_technical_detail")
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onRetry) {
-                    Text(stringResource(R.string.common_retry))
-                }
-                if (onBack != null) {
-                    OutlinedButton(onClick = onBack) {
-                        Text(stringResource(R.string.common_cancel))
-                    }
-                }
-            }
-            TextButton(
-                onClick = {
-                    clipboard.setText(AnnotatedString(diagnosticText))
-                    copied = true
-                },
-                modifier = Modifier.testTag("database_error_copy_button")
-            ) {
-                Text(stringResource(if (copied) R.string.error_details_copied else R.string.error_copy_details))
-            }
-        }
+        DatabaseErrorDetails(
+            diagnostic = diagnostic,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+            onRetry = onRetry,
+            onBack = onBack
+        )
     }
 }
 

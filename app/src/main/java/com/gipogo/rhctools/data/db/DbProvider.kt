@@ -81,6 +81,8 @@ object DbProvider {
         val base = context.getDatabasePath(dbName).absolutePath
         File("$base.bak_plain").delete()
         File("$base.enc_tmp").delete()
+        File("$base.invalid_encrypted").delete()
+        File("$base.enc_tmp.invalid_encrypted").delete()
         File("$base-wal").delete()
         File("$base-shm").delete()
         File("$base-journal").delete()

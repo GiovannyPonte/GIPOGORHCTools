@@ -585,6 +585,12 @@
     <string name="db_error_storage">Local storage is unavailable or could not be written.</string>
     <string name="db_error_native">The encryption component could not be loaded on this device.</string>
     <string name="db_error_open">The local database could not be opened. Your data was not deleted.</string>
+    <string name="db_error_corrupt">The local database appears damaged. It was preserved unchanged; copy the diagnostics before attempting recovery.</string>
+    <string name="db_error_locked">The database is in use or temporarily locked. Close other app instances and try again.</string>
+    <string name="db_error_storage_full">There is not enough space to open or upgrade the database. Free storage and try again; your data was not deleted.</string>
+    <string name="db_error_storage_permission">Android denied access to the app’s private storage. Restart the device and copy the diagnostics if it persists.</string>
+    <string name="db_error_storage_io">Android could not read or write local storage. Check available space and device storage health.</string>
+    <string name="db_error_downgrade">The database was created by a newer app version. Install that version or later; do not uninstall or clear app data.</string>
     <string name="error_reference">Reference: %1$s</string>
     <string name="error_technical_detail">Technical detail</string>
     <string name="error_copy_details">Copy diagnostics</string>

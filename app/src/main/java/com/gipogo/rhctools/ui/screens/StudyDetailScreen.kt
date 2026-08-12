@@ -48,7 +48,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -61,6 +64,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.DbProvider
+import com.gipogo.rhctools.ui.components.DatabaseErrorDetails
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
 import com.gipogo.rhctools.data.studies.StudiesRepository
@@ -117,11 +121,17 @@ private fun StudyDetailRouteContent(
     onExportStudyPdf: (patientId: String, studyId: String) -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val dbResult = remember(context.applicationContext) {
+    var dbRetryNonce by rememberSaveable { mutableStateOf(0) }
+    val dbResult = remember(context.applicationContext, dbRetryNonce) {
         DbProvider.getResult(context.applicationContext)
     }
     if (dbResult is DbProvider.DbOpenResult.Failure) {
         StudyDetailDbErrorScreen(
+            diagnostic = dbResult.diagnostic,
+            onRetry = {
+                com.gipogo.rhctools.data.db.AppDatabase.clearInstance()
+                dbRetryNonce++
+            },
             onBack = onBack
         )
         return
@@ -165,6 +175,8 @@ private fun StudyDetailRouteContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StudyDetailDbErrorScreen(
+    diagnostic: com.gipogo.rhctools.data.db.DatabaseErrorDiagnostic,
+    onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -181,25 +193,12 @@ private fun StudyDetailDbErrorScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.common_error),
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-            )
-            Text(
-                text = stringResource(R.string.patient_error_generic),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Button(onClick = onBack) {
-                Text(text = stringResource(R.string.common_cancel))
-            }
-        }
+        DatabaseErrorDetails(
+            diagnostic = diagnostic,
+            modifier = Modifier.padding(padding),
+            onRetry = onRetry,
+            onBack = onBack
+        )
     }
 }
 

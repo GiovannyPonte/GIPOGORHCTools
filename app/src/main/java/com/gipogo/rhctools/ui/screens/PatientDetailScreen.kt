@@ -86,6 +86,8 @@ import kotlin.math.max
 import kotlin.math.min
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gipogo.rhctools.data.db.DbProvider
+import com.gipogo.rhctools.data.db.AppDatabase
+import com.gipogo.rhctools.ui.components.DatabaseErrorDetails
 import com.gipogo.rhctools.ui.viewmodel.InlineMetricUi
 import com.gipogo.rhctools.ui.viewmodel.LatestStudySummaryUi
 import com.gipogo.rhctools.ui.viewmodel.PatientDetailEvent
@@ -171,12 +173,16 @@ private fun PatientDetailRouteContent(
     val context = androidx.compose.ui.platform.LocalContext.current
     val resources = LocalResources.current
     val appCtx = context.applicationContext
-    val dbResult = remember(appCtx) { DbProvider.getResult(appCtx) }
+    var dbRetryNonce by rememberSaveable { mutableStateOf(0) }
+    val dbResult = remember(appCtx, dbRetryNonce) { DbProvider.getResult(appCtx) }
     if (dbResult is DbProvider.DbOpenResult.Failure) {
-        ErrorBlock(
-            messageRes = R.string.common_error,
-            debug = null,
-            onRetry = onBack
+        DatabaseErrorDetails(
+            diagnostic = dbResult.diagnostic,
+            onRetry = {
+                AppDatabase.clearInstance()
+                dbRetryNonce++
+            },
+            onBack = onBack
         )
         return
     }
