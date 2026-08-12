@@ -248,29 +248,92 @@ internal object StudyClinicalPdfGenerator {
 
         private fun charts() {
             sectionTitle("Visualizacion hemodinamica")
-            canvas.drawRect(MARGIN, y - 7f, MARGIN + 10f, y + 1f, Paint().apply { color = blue })
-            canvas.drawText("Actual", MARGIN + 15f, y, small)
-            canvas.drawRect(MARGIN + 67f, y - 7f, MARGIN + 77f, y + 1f, Paint().apply { color = previous })
-            canvas.drawText("Previo", MARGIN + 82f, y, small)
-            canvas.drawLine(MARGIN + 132f, y - 3f, MARGIN + 147f, y - 3f, Paint(rule).apply { color = alert; strokeWidth = 1.3f })
-            canvas.drawText("Referencia", MARGIN + 152f, y, small)
-            y += 20f
-            chartGroup("Presiones (cada panel conserva su escala)", model.pressureChart)
-            chartGroup("Rendimiento (unidades independientes)", model.performanceChart)
-            paragraph("Las referencias son puntos de orientacion, no sustituyen la interpretacion clinica. Las escalas no deben compararse entre paneles.", small)
+            if (model.trendStudies.size > 1) {
+                trendChartGroup("Presiones - hasta 5 estudios", listOf(
+                    TrendSpec("RAP", "mmHg", 25.0, 8.0) { it.rap },
+                    TrendSpec("mPAP", "mmHg", 60.0, 20.0) { it.mpap },
+                    TrendSpec("PCWP", "mmHg", 35.0, 15.0) { it.pcwp }
+                ))
+                trendChartGroup("Rendimiento - hasta 5 estudios", listOf(
+                    TrendSpec("CI", "L/min/m2", 5.0, 2.2) { it.ci },
+                    TrendSpec("PVR", "WU", 8.0, 2.0) { it.pvr },
+                    TrendSpec("CPO", "W", 2.0, 0.8) { it.cpo }
+                ))
+            } else {
+                chartGroup("Presiones", model.pressureChart)
+                chartGroup("Rendimiento", model.performanceChart)
+            }
+            paragraph("Cada panel conserva su propia escala. Las fechas avanzan de izquierda a derecha; la linea roja es la referencia orientativa.", small)
+        }
+
+        private data class TrendSpec(
+            val label: String,
+            val unit: String,
+            val max: Double,
+            val reference: Double,
+            val value: (StudyClinicalTrendStudy) -> Double?
+        )
+
+        private fun trendChartGroup(heading: String, specs: List<TrendSpec>) {
+            room(190f)
+            canvas.drawText(heading, MARGIN, y, bodyBold)
+            y += 16f
+            val gap = 12f
+            val width = (PAGE_W - 2 * MARGIN - gap * 2) / 3f
+            specs.forEachIndexed { index, spec ->
+                drawTrendChart(MARGIN + index * (width + gap), y, width, 135f, spec)
+            }
+            y += 163f
+        }
+
+        private fun drawTrendChart(left: Float, top: Float, width: Float, height: Float, spec: TrendSpec) {
+            val right = left + width
+            val bottom = top + height
+            canvas.drawRect(RectF(left, top, right, bottom), Paint(rule).apply { style = Paint.Style.STROKE })
+            val x0 = left + 27f; val x1 = right - 10f; val y0 = top + 16f; val y1 = bottom - 32f
+            canvas.drawLine(x0, y0, x0, y1, rule); canvas.drawLine(x0, y1, x1, y1, rule)
+            val refY = y1 - (spec.reference / spec.max * (y1 - y0)).toFloat()
+            canvas.drawLine(x0, refY, x1, refY, Paint(rule).apply { color = alert; strokeWidth = 1.2f })
+            val points = model.trendStudies.mapIndexedNotNull { index, study ->
+                spec.value(study)?.let { value ->
+                    val fraction = if (model.trendStudies.size == 1) 0.5f else index.toFloat() / (model.trendStudies.size - 1)
+                    Triple(x0 + fraction * (x1 - x0), y1 - (value / spec.max).coerceIn(0.0, 1.0).toFloat() * (y1 - y0), value)
+                }
+            }
+            points.zipWithNext().forEach { (a, b) -> canvas.drawLine(a.first, a.second, b.first, b.second, Paint(rule).apply { color = blue; strokeWidth = 1.8f }) }
+            points.forEachIndexed { index, point ->
+                canvas.drawCircle(point.first, point.second, 3.4f, Paint().apply { color = blue })
+                canvas.drawText("${index + 1}", point.first - tiny.measureText("${index + 1}") / 2f, point.second - 5f, tiny)
+            }
+            model.trendStudies.forEachIndexed { index, study ->
+                val fraction = if (model.trendStudies.size == 1) 0.5f else index.toFloat() / (model.trendStudies.size - 1)
+                val x = x0 + fraction * (x1 - x0)
+                val label = study.dateLabel.take(5)
+                canvas.drawText(label, x - tiny.measureText(label) / 2f, y1 + 12f, tiny)
+            }
+            val caption = "${spec.label} (${spec.unit})"
+            canvas.drawText(caption, left + (width - small.measureText(caption)) / 2f, bottom - 7f, small)
         }
 
         private fun forresterChart(compact: Boolean) {
             val data = model.forrester ?: return
             if (data.currentCi == null || data.currentPcwp == null) return
             sectionTitle("Clasificacion de Forrester")
-            forresterChartAt(MARGIN, y, PAGE_W - 2 * MARGIN, if (compact) 210f else 245f, compact)
-            y += if (compact) 220f else 255f
+            forresterChartAt(MARGIN, y, PAGE_W - 2 * MARGIN, if (compact) 210f else 210f, compact)
+            y += 220f
         }
 
         private fun forresterChartAt(left: Float, top: Float, width: Float, height: Float, compact: Boolean) {
             val data = model.forrester
-            if (data?.currentCi == null || data.currentPcwp == null) {
+            val trajectory = model.trendStudies.mapNotNull { study ->
+                if (study.ci != null && study.pcwp != null) study.pcwp to study.ci else null
+            }.ifEmpty {
+                listOfNotNull(
+                    if (data?.previousPcwp != null && data.previousCi != null) data.previousPcwp to data.previousCi else null,
+                    if (data?.currentPcwp != null && data.currentCi != null) data.currentPcwp to data.currentCi else null
+                )
+            }
+            if (trajectory.isEmpty()) {
                 canvas.drawText("Forrester no disponible: faltan CI o PCWP.", left, top + 20f, body)
                 return
             }
@@ -298,15 +361,17 @@ internal object StudyClinicalPdfGenerator {
             canvas.drawText("II: tibio-humedo", xThreshold + 5f, plotTop + 13f, tiny)
             canvas.drawText("III: frio-seco", plotLeft + 5f, yThreshold + 14f, tiny)
             canvas.drawText("IV: frio-humedo", xThreshold + 5f, yThreshold + 14f, tiny)
-            val cx = px(data.currentPcwp); val cy = py(data.currentCi)
-            if (data.previousPcwp != null && data.previousCi != null) {
-                val ox = px(data.previousPcwp); val oy = py(data.previousCi)
-                canvas.drawLine(ox, oy, cx, cy, Paint(rule).apply { color = previous; strokeWidth = 1.8f })
-                canvas.drawCircle(ox, oy, 3.5f, Paint().apply { color = previous })
+            val plotted = trajectory.map { (pcwp, ci) -> px(pcwp) to py(ci) }
+            plotted.zipWithNext().forEach { (a, b) -> canvas.drawLine(a.first, a.second, b.first, b.second, Paint(rule).apply { color = previous; strokeWidth = 1.8f }) }
+            plotted.dropLast(1).forEachIndexed { index, point ->
+                canvas.drawCircle(point.first, point.second, 3.5f, Paint().apply { color = previous })
+                canvas.drawText("${index + 1}", point.first + 4f, point.second - 3f, tiny)
             }
+            val current = plotted.last()
+            val cx = current.first; val cy = current.second
             canvas.drawCircle(cx, cy, if (compact) 4.5f else 5.5f, Paint().apply { color = blue })
             canvas.drawCircle(cx, cy, if (compact) 2f else 2.5f, Paint().apply { color = Color.WHITE })
-            canvas.drawText("Actual", cx + 7f, cy - 4f, small)
+            canvas.drawText("${plotted.size} Actual", cx + 7f, cy - 4f, small)
             canvas.drawText("PCWP (mmHg)", plotRight - small.measureText("PCWP (mmHg)"), plotBottom + 17f, small)
             canvas.drawText("CI (L/min/m2)", plotLeft, plotTop - 7f, small)
             canvas.drawText("18", xThreshold - tiny.measureText("18") / 2f, plotBottom + 10f, tiny)
@@ -362,6 +427,10 @@ internal object StudyClinicalPdfGenerator {
         }
 
         private fun comparison() {
+            if (model.trendStudies.size > 2) {
+                trendTable()
+                return
+            }
             if (model.comparisonRows.isEmpty()) return
             sectionTitle("Comparacion con estudio previo")
             val xPrev = 360f; val xNow = 430f; val xDelta = PAGE_W - MARGIN
@@ -377,6 +446,37 @@ internal object StudyClinicalPdfGenerator {
                 y += 17f
             }
             y += 5f
+        }
+
+        private fun trendTable() {
+            sectionTitle("Serie de cinco estudios")
+            val labelWidth = 72f
+            val cellWidth = (PAGE_W - 2 * MARGIN - labelWidth) / model.trendStudies.size
+            canvas.drawText("Variable", MARGIN, y, small)
+            model.trendStudies.forEachIndexed { index, study ->
+                val x = MARGIN + labelWidth + index * cellWidth
+                canvas.drawText(study.dateLabel, x + (cellWidth - small.measureText(study.dateLabel)) / 2f, y, small)
+            }
+            y += 14f
+            val rows = listOf(
+                "RAP (mmHg)" to { s: StudyClinicalTrendStudy -> s.rap },
+                "mPAP (mmHg)" to { s: StudyClinicalTrendStudy -> s.mpap },
+                "PCWP (mmHg)" to { s: StudyClinicalTrendStudy -> s.pcwp },
+                "CI" to { s: StudyClinicalTrendStudy -> s.ci },
+                "PVR (WU)" to { s: StudyClinicalTrendStudy -> s.pvr },
+                "CPO (W)" to { s: StudyClinicalTrendStudy -> s.cpo }
+            )
+            rows.forEachIndexed { rowIndex, (label, selector) ->
+                if (rowIndex % 2 == 0) canvas.drawRect(MARGIN, y - 10f, PAGE_W - MARGIN, y + 5f, Paint().apply { color = light })
+                canvas.drawText(label, MARGIN + 4f, y, body)
+                model.trendStudies.forEachIndexed { index, study ->
+                    val value = selector(study)?.let(::number) ?: "-"
+                    val x = MARGIN + labelWidth + index * cellWidth
+                    canvas.drawText(value, x + (cellWidth - bodyBold.measureText(value)) / 2f, y, bodyBold)
+                }
+                y += 14f
+            }
+            y += 6f
         }
 
         private fun notesAndLimitations(compact: Boolean = false) {
@@ -397,15 +497,14 @@ internal object StudyClinicalPdfGenerator {
         }
 
         private fun signature(compact: Boolean = false) {
-            val needed = if (compact) 74f else 88f
-            room(needed)
-            y += if (compact) 12f else 25f
-            val lineLeft = MARGIN + 90f
-            val lineRight = PAGE_W - MARGIN - 90f
-            canvas.drawLine(lineLeft, y + 30f, lineRight, y + 30f, rule)
+            val signatureY = PAGE_H - 92f
+            if (y > signatureY - 12f) newPage()
+            val lineLeft = MARGIN
+            val lineRight = MARGIN + 245f
+            canvas.drawLine(lineLeft, signatureY, lineRight, signatureY, rule)
             val label = "Nombre y firma del medico"
-            canvas.drawText(label, (PAGE_W - small.measureText(label)) / 2f, y + 45f, small)
-            y += needed
+            canvas.drawText(label, lineLeft, signatureY + 15f, small)
+            y = max(y, signatureY + 20f)
         }
 
         private fun bullets(items: List<String>) {

@@ -96,6 +96,7 @@ object StudyClinicalPdfExport {
 
         val selected = studies[selectedIndex]
         val previous = studies.take(selectedIndex).lastOrNull()
+        val history = studies.take(selectedIndex + 1).takeLast(5)
 
         val patient = runCatching { patientDao.getById(patientId) }.getOrNull()
         val patientDisplayName = patient?.displayName?.takeIf { it.isNotBlank() }
@@ -112,7 +113,8 @@ object StudyClinicalPdfExport {
             patientHeightCm = patient?.heightCm,
             patientNote = patient?.notes,
             selected = selected,
-            previous = previous
+            previous = previous,
+            history = history
         )
 
         val outDir = File(context.cacheDir, "pdf_reports").apply { mkdirs() }
@@ -176,7 +178,8 @@ internal data class StudyClinicalPdfDocument(
     val patientWeightKg: Double? = null,
     val patientHeightCm: Double? = null,
     val patientNote: String? = null,
-    val forrester: StudyClinicalForrester? = null
+    val forrester: StudyClinicalForrester? = null,
+    val trendStudies: List<StudyClinicalTrendStudy> = emptyList()
 )
 
 internal data class StudyClinicalForrester(
@@ -184,6 +187,16 @@ internal data class StudyClinicalForrester(
     val currentPcwp: Double?,
     val previousCi: Double?,
     val previousPcwp: Double?
+)
+
+internal data class StudyClinicalTrendStudy(
+    val dateLabel: String,
+    val rap: Double?,
+    val mpap: Double?,
+    val pcwp: Double?,
+    val ci: Double?,
+    val pvr: Double?,
+    val cpo: Double?
 )
 
 internal data class StudyClinicalChartPoint(
@@ -242,7 +255,8 @@ private object StudyClinicalPdfDocumentBuilder {
         patientHeightCm: Double?,
         patientNote: String?,
         selected: StudyWithRhcData,
-        previous: StudyWithRhcData?
+        previous: StudyWithRhcData?,
+        history: List<StudyWithRhcData>
     ): StudyClinicalPdfDocument {
         val rhc = selected.rhc
         val selectedCo = rhc.displaySelectedCo()
@@ -377,7 +391,19 @@ private object StudyClinicalPdfDocumentBuilder {
                 currentPcwp = rhc?.pawpMmHg,
                 previousCi = previous?.rhc.displaySelectedCo().cardiacIndexLMinM2,
                 previousPcwp = previous?.rhc?.pawpMmHg
-            )
+            ),
+            trendStudies = history.map { study ->
+                val co = study.rhc.displaySelectedCo()
+                StudyClinicalTrendStudy(
+                    dateLabel = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(study.study.startedAtMillis)),
+                    rap = study.rhc?.rapMmHg,
+                    mpap = study.rhc?.mpapMmHg,
+                    pcwp = study.rhc?.pawpMmHg,
+                    ci = co.cardiacIndexLMinM2,
+                    pvr = study.rhc?.pvrWood,
+                    cpo = study.rhc?.cardiacPowerW
+                )
+            }
         )
     }
 
