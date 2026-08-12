@@ -99,7 +99,10 @@ object StudyClinicalPdfExport {
 
         val selected = studies[selectedIndex]
         val previous = studies.take(selectedIndex).lastOrNull()
-        val history = studies.take(selectedIndex + 1).takeLast(10)
+        // The longitudinal record has no arbitrary clinical maximum. The compact
+        // renderer decides how to summarize dense series without discarding the
+        // complete history from the document model.
+        val history = studies.take(selectedIndex + 1)
 
         val patient = runCatching { patientDao.getById(patientId) }.getOrNull()
         val unitSystem = AppPreferences(context.applicationContext).unitSystem.first()

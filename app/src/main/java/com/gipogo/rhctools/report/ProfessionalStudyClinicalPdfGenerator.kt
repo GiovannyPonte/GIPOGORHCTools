@@ -141,8 +141,14 @@ internal object StudyClinicalPdfGenerator {
             compactIdentity()
             compactCurrentStrip()
 
+            val compactStudies = compactTrendStudies()
             val chartTop = y + 17f
-            canvas.drawText("Trayectoria de hasta ${model.trendStudies.size} estudios", MARGIN, y, section)
+            val trajectoryTitle = when {
+                model.trendStudies.size <= 1 -> "Estudio hemodinamico basal"
+                compactStudies.size < model.trendStudies.size -> "Trayectoria longitudinal - ${model.trendStudies.size} estudios (${compactStudies.size} puntos visibles)"
+                else -> "Trayectoria longitudinal - ${model.trendStudies.size} estudios"
+            }
+            canvas.drawText(trajectoryTitle, MARGIN, y, section)
             canvas.drawLine(MARGIN, y + 8f, PAGE_W - MARGIN, y + 8f, Paint(rule).apply { color = blue; strokeWidth = 1.1f })
             val gap = 16f
             val leftWidth = 274f
@@ -257,9 +263,24 @@ internal object StudyClinicalPdfGenerator {
             val value: (StudyClinicalTrendStudy) -> Double?
         )
 
+        /**
+         * Keeps every point in short series. Dense histories are sampled only for
+         * the one-page visualization; the first and latest study are mandatory.
+         * The complete PDF still receives and prints the entire history.
+         */
+        private fun compactTrendStudies(maxPoints: Int = 12): List<Pair<Int, StudyClinicalTrendStudy>> {
+            val studies = model.trendStudies
+            if (studies.size <= maxPoints) return studies.mapIndexed { index, study -> index to study }
+            val indices = (0 until maxPoints).map { slot ->
+                ((slot.toDouble() * studies.lastIndex) / (maxPoints - 1)).toInt()
+            }.distinct()
+            return indices.map { index -> index to studies[index] }
+        }
+
         private fun compactTrendPanel(left: Float, top: Float, width: Float, height: Float, titleText: String, series: List<CompactTrend>) {
+            val compactStudies = compactTrendStudies()
             val available = series.mapNotNull { spec ->
-                val points = model.trendStudies.mapIndexedNotNull { index, study ->
+                val points = compactStudies.mapNotNull { (index, study) ->
                     spec.value(study)?.let { index to (it / spec.reference * 100.0) }
                 }
                 if (points.isEmpty()) null else spec to points
@@ -322,7 +343,14 @@ internal object StudyClinicalPdfGenerator {
                 MatrixRow("PAPi", "", 1) { it.papi }, MatrixRow("TPG", "mmHg", 0) { it.tpg },
                 MatrixRow("DPG", "mmHg", 0) { it.dpg }
             )
-            drawStudyMatrix(rows, rowHeight = 16f, compact = false)
+            model.trendStudies.chunked(5).forEachIndexed { groupIndex, studies ->
+                if (groupIndex > 0) {
+                    newPage()
+                    sectionTitle("Matriz integral - continuacion")
+                }
+                val offset = groupIndex * 5
+                drawStudyMatrix(rows, studies, offset, rowHeight = 16f)
+            }
             y += 12f
             sectionTitle("Metodo y nota por estudio")
             model.trendStudies.forEachIndexed { index, study ->
@@ -336,19 +364,27 @@ internal object StudyClinicalPdfGenerator {
             }
         }
 
-        private fun drawStudyMatrix(rows: List<MatrixRow>, rowHeight: Float, compact: Boolean) {
-            val studies = model.trendStudies
+        private fun drawStudyMatrix(
+            rows: List<MatrixRow>,
+            studies: List<StudyClinicalTrendStudy>,
+            studyOffset: Int,
+            rowHeight: Float
+        ) {
             if (studies.isEmpty()) return
-            val labelWidth = if (compact) 78f else 92f
+            val labelWidth = 92f
             val tableWidth = PAGE_W - 2 * MARGIN
             val cellWidth = (tableWidth - labelWidth) / studies.size
-            val headerHeight = if (compact) 29f else 28f
-            val currentLeft = MARGIN + labelWidth + (studies.lastIndex * cellWidth)
-            canvas.drawRect(currentLeft, y - 5f, currentLeft + cellWidth, y + headerHeight + rows.size * rowHeight, Paint().apply { color = Color.rgb(235, 244, 248) })
+            val headerHeight = 28f
+            val includesLatest = studyOffset + studies.size == model.trendStudies.size
+            if (includesLatest) {
+                val currentLeft = MARGIN + labelWidth + (studies.lastIndex * cellWidth)
+                canvas.drawRect(currentLeft, y - 5f, currentLeft + cellWidth, y + headerHeight + rows.size * rowHeight, Paint().apply { color = Color.rgb(235, 244, 248) })
+            }
             canvas.drawText("Variable", MARGIN + 4f, y + 9f, small)
             studies.forEachIndexed { index, study ->
                 val x = MARGIN + labelWidth + index * cellWidth
-                val indexText = if (index == studies.lastIndex) "${index + 1} actual" else "${index + 1}"
+                val absoluteIndex = studyOffset + index
+                val indexText = if (absoluteIndex == model.trendStudies.lastIndex) "${absoluteIndex + 1} actual" else "${absoluteIndex + 1}"
                 canvas.drawText(indexText, x + (cellWidth - tiny.measureText(indexText)) / 2f, y + 7f, tiny)
                 canvas.drawText(study.dateLabel, x + (cellWidth - tiny.measureText(study.dateLabel)) / 2f, y + 17f, tiny)
             }
@@ -356,19 +392,23 @@ internal object StudyClinicalPdfGenerator {
             rows.forEachIndexed { rowIndex, row ->
                 if (rowIndex % 2 == 0) canvas.drawRect(MARGIN, y - 9f, PAGE_W - MARGIN, y + rowHeight - 9f, Paint().apply { color = Color.argb(150, 245, 247, 248) })
                 canvas.drawText(row.label, MARGIN + 4f, y, body)
-                if (!compact && row.unit.isNotBlank()) canvas.drawText(row.unit, MARGIN + 34f, y, tiny)
+                if (row.unit.isNotBlank()) canvas.drawText(row.unit, MARGIN + 34f, y, tiny)
                 studies.forEachIndexed { index, study ->
                     val raw = row.value(study)
                     val decimals = if (row.cellUnit?.invoke(study)?.contains("dyn", ignoreCase = true) == true) 0 else row.decimals
                     val text = raw?.let { value -> "% .${decimals}f".format(Locale.US, value).trim() } ?: "-"
-                    val p = if (index == studies.lastIndex) bodyBold else body
+                    val p = if (studyOffset + index == model.trendStudies.lastIndex) bodyBold else body
                     val x = MARGIN + labelWidth + index * cellWidth
                     val unit = row.cellUnit?.invoke(study)
-                    canvas.drawText(text, x + (cellWidth - p.measureText(text)) / 2f, if (unit == null) y else y - 2f, p)
-                    if (unit != null && raw != null) {
-                        val shortUnit = if (unit.contains("dyn", ignoreCase = true)) "dyn" else unit
-                        canvas.drawText(shortUnit, x + (cellWidth - tiny.measureText(shortUnit)) / 2f, y + 7f, tiny)
+                    val shortUnit = when {
+                        unit == null || raw == null -> null
+                        unit.contains("dyn", ignoreCase = true) -> "dyn"
+                        unit.contains("wood", ignoreCase = true) || unit.equals("WU", ignoreCase = true) -> "WU"
+                        else -> unit
                     }
+                    val displayText = listOfNotNull(text, shortUnit).joinToString(" ")
+                    val valuePaint = if (shortUnit == null) p else if (studyOffset + index == model.trendStudies.lastIndex) Paint(tiny).apply { typeface = Typeface.DEFAULT_BOLD } else tiny
+                    canvas.drawText(displayText, x + (cellWidth - valuePaint.measureText(displayText)) / 2f, y, valuePaint)
                 }
                 y += rowHeight
             }
@@ -528,7 +568,8 @@ internal object StudyClinicalPdfGenerator {
 
         private fun forresterChartAt(left: Float, top: Float, width: Float, height: Float, compact: Boolean) {
             val data = model.forrester
-            val trajectory = model.trendStudies.mapNotNull { study ->
+            val sourceStudies = if (compact) compactTrendStudies().map { it.second } else model.trendStudies
+            val trajectory = sourceStudies.mapNotNull { study ->
                 if (study.ci != null && study.pcwp != null) study.pcwp to study.ci else null
             }.ifEmpty {
                 listOfNotNull(
@@ -576,7 +617,8 @@ internal object StudyClinicalPdfGenerator {
             val cx = current.first; val cy = current.second
             canvas.drawCircle(cx, cy, if (compact) 4.5f else 5.5f, Paint().apply { color = blue })
             canvas.drawCircle(cx, cy, if (compact) 2f else 2.5f, Paint().apply { color = Color.WHITE })
-            canvas.drawText("${plotted.size} Actual", cx + 7f, cy - 4f, small)
+            val currentLabelIndex = if (compact && model.trendStudies.isNotEmpty()) model.trendStudies.size else plotted.size
+            canvas.drawText("$currentLabelIndex Actual", cx + 7f, cy - 4f, small)
             canvas.drawText("PCWP (mmHg)", plotRight - small.measureText("PCWP (mmHg)"), plotBottom + 17f, small)
             canvas.drawText("CI (L/min/m2)", plotLeft, plotTop - 7f, small)
             canvas.drawText("18", xThreshold - tiny.measureText("18") / 2f, plotBottom + 10f, tiny)
