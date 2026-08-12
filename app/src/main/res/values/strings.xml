@@ -328,7 +328,7 @@
     <string name="pdf_btn_save">Guardar</string>
     <string name="pdf_btn_share">Compartir</string>
     <string name="pdf_btn_open_other">Abrir en otra app</string>
-    <string name="pdf_error_render" formatted="false">No se pudo renderizar el PDF: %1$s</string>
+    <string name="pdf_error_render">No se pudo mostrar el PDF.</string>
     <string name="pdf_error_open_file">No se pudo abrir el archivo.</string>
     <string name="pdf_generating_preview">Generando vista previa…</string>
     <string name="pdf_page">Página %1$d</string>
@@ -548,6 +548,7 @@
     <string name="patient_last_update_today">Hoy</string>
 
     <string name="patient_action_new_study">Nuevo estudio</string>
+    <string name="patient_error_create_study">No se pudo crear el estudio. Inténtalo de nuevo.</string>
     <string name="patient_action_export">Exportar</string>
 
     <string name="patient_overview_latest_summary">Resumen del último estudio</string>
@@ -670,6 +671,7 @@
     <string name="study_detail_section_outputs_subtitle">Cálculos derivados de la hemodinamia invasiva.</string>
     <string name="study_detail_section_note">Nota clínica (opcional)</string>
     <string name="study_detail_note_placeholder"> Agregue una nota breve aquí (opcional). Manténgala concisa y objetiva. </string>
+    <string name="study_detail_note_empty">No hay nota clínica registrada para este estudio.</string>
     <string name="study_detail_section_actions">Acciones</string>
     <string name="study_action_export_pdf">Exportar PDF</string>
     <string name="study_action_duplicate">Duplicar estudio</string>
@@ -1083,4 +1085,117 @@
 
     <string name="papi_use_cvp_as_rap">Usar CVP (%1$d mmHg) como RAP</string>
 
+    <!-- ===================== -->
+    <!-- Play Store updates    -->
+    <!-- ===================== -->
+    <string name="app_update_downloaded_title">Actualización lista</string>
+    <string name="app_update_downloaded_body">La nueva versión se descargó desde Google Play. Reinicia la app para completar la instalación.</string>
+    <string name="app_update_downloaded_confirm">Reiniciar ahora</string>
+    <string name="app_update_downloaded_later">Más tarde</string>
+
+    <string name="study_input_pa_systolic">Presión sistólica de arteria pulmonar (PASP)</string>
+    <string name="study_input_pa_diastolic">Presión diastólica de arteria pulmonar (PADP)</string>
+    <string name="study_input_map">Presión arterial media (MAP)</string>
+
+    <string name="study_pdf_picker_title">Formato del reporte</string>
+    <string name="study_pdf_picker_body">Elija el tipo de PDF para este estudio.</string>
+    <string name="study_pdf_picker_hint">Completo: mejor para expediente y revisión clínica. Compacto: mejor para consulta rápida.</string>
+
+    <string name="study_pdf_compact_title">Reporte RHC compacto</string>
+    <string name="study_pdf_complete_title">Reporte RHC completo</string>
+
+    <string name="study_pdf_section_identity">Identificación</string>
+    <string name="study_pdf_section_summary">Resumen ejecutivo</string>
+    <string name="study_pdf_section_key_metrics">Hallazgos clave</string>
+    <string name="study_pdf_quick_read_title">Lectura rápida</string>
+    <string name="study_pdf_section_traceability">Trazabilidad y método</string>
+    <string name="study_pdf_section_pressures">Presiones</string>
+    <string name="study_pdf_section_flow">Flujo y oxigenación</string>
+    <string name="study_pdf_section_resistance">Resistencias y rendimiento</string>
+    <string name="study_pdf_section_interpretation">Interpretación clínica</string>
+    <string name="study_pdf_section_comparison">Comparación con estudio previo</string>
+    <string name="study_pdf_section_note">Nota clínica</string>
+    <string name="study_pdf_section_limitations">Limitaciones y faltantes</string>
+
+    <string name="study_pdf_field_patient">Paciente</string>
+    <string name="study_pdf_field_study_id">ID de estudio</string>
+    <string name="study_pdf_field_study_type">Tipo de estudio</string>
+    <string name="study_pdf_field_study_date">Fecha del estudio</string>
+    <string name="study_pdf_field_report_date">Fecha del reporte</string>
+    <string name="study_pdf_field_co_method">Método de CO</string>
+    <string name="study_pdf_field_previous_study">Estudio previo</string>
+    <string name="study_pdf_field_note_status">Nota clínica</string>
+    <string name="study_pdf_field_vo2_used">VO₂ usado</string>
+    <string name="study_pdf_field_vo2_mode">Modo de VO₂</string>
+
+    <string name="study_pdf_note_present">Documentada</string>
+    <string name="study_pdf_note_absent">No documentada</string>
+    <string name="study_pdf_no_previous_study">Sin estudio previo comparable</string>
+
+    <string name="study_pdf_quick_right_filling">Llenado derecho</string>
+    <string name="study_pdf_quick_left_filling">Llenado izquierdo</string>
+    <string name="study_pdf_quick_flow">Flujo</string>
+    <string name="study_pdf_quick_pulmonary_vascular">Componente vascular pulmonar</string>
+    <string name="study_pdf_quick_pattern">Patrón hemodinámico</string>
+
+    <string name="study_pdf_status_normal">Normal</string>
+    <string name="study_pdf_status_elevated">Elevado</string>
+    <string name="study_pdf_status_low">Bajo</string>
+    <string name="study_pdf_status_high">Alto</string>
+    <string name="study_pdf_status_preserved">Preservado</string>
+    <string name="study_pdf_status_unavailable">No documentado</string>
+
+    <string name="study_pdf_pattern_no_ph">Sin patrón hemodinámico claro de hipertensión pulmonar</string>
+    <string name="study_pdf_pattern_precapillary">Compatible con patrón precapilar</string>
+    <string name="study_pdf_pattern_isolated_postcapillary">Compatible con patrón poscapilar aislado</string>
+    <string name="study_pdf_pattern_combined_post_pre">Compatible con patrón pos y precapilar combinado</string>
+
+    <string name="study_pdf_forrester_profile_line">Perfil de Forrester sugerido: %1$s.</string>
+    <string name="study_pdf_vo2_mode_line">Modo de VO₂ registrado: %1$s.</string>
+    <string name="study_pdf_missing_data_line">Datos faltantes relevantes: %1$s.</string>
+    <string name="study_pdf_no_major_limitations">No se detectan faltantes críticos entre las variables principales disponibles.</string>
+
+    <string name="study_pdf_header_previous">Previo</string>
+    <string name="study_pdf_header_current">Actual</string>
+    <string name="study_pdf_header_delta">Delta</string>
+
+    <string name="study_pdf_unit_ml_min">mL/min</string>
+    <string name="study_pdf_footer_disclaimer">Reporte generado desde GIPOGORHCTools. Verificar contexto clínico y calidad de medición.</string>
+
+    <string name="workshop_save_failed">No se pudo guardar el estudio. Tu trabajo permanece en pantalla; revisa el almacenamiento e inténtalo nuevamente.</string>
+    <string name="workshop_discard_failed">No se pudo descartar el estudio. No se eliminó información; inténtalo nuevamente.</string>
+    <string name="workshop_session_invalid">La sesión del estudio está incompleta. Regresa al paciente y abre nuevamente el estudio.</string>
+    <string name="pdf_generation_failed">No se pudo preparar el PDF. Verifica el espacio disponible e inténtalo nuevamente.</string>
+    <string name="pdf_external_app_unavailable">No hay una aplicación disponible para realizar esta acción.</string>
+    <string name="common_menu">Abrir menú</string>
+    <string name="common_search">Buscar</string>
+    <string name="common_add_patient">Agregar paciente</string>
+    <string name="common_close_search">Cerrar búsqueda</string>
+    <string name="common_patient_options">Opciones del paciente</string>
+    <string name="db_error_title">No se puede abrir la información local</string>
+    <string name="db_error_body">Para proteger tus datos, la aplicación no continuará hasta recuperar el acceso seguro. No se borró ninguna información.</string>
+    <string name="db_error_support_code">Código de soporte: %1$s</string>
+    <string name="db_opening_title">Abriendo almacenamiento seguro…</string>
+    <string name="db_opening_body">Espera un momento.</string>
+    <string name="common_profile">Perfil</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_language_title">Idioma</string>
+    <string name="settings_language_description">Use el idioma del sistema o seleccione el idioma de la aplicación y sus reportes.</string>
+    <string name="settings_language_system">Sistema</string>
+    <string name="settings_language_spanish">Español</string>
+    <string name="settings_language_english">English</string>
+    <string name="forrester_classification_title">Clasificación de Forrester</string>
+    <string name="forrester_quadrant_i">I tibio-seco</string>
+    <string name="forrester_quadrant_ii">II tibio-húmedo</string>
+    <string name="forrester_quadrant_iii">III frío-seco</string>
+    <string name="forrester_quadrant_iv">IV frío-húmedo</string>
+    <string name="forrester_current_status">Estado actual</string>
+    <string name="forrester_profile_i">Perfil I: normal (tibio-seco)</string>
+    <string name="forrester_profile_ii">Perfil II: congestión (tibio-húmedo)</string>
+    <string name="forrester_profile_iii">Perfil III: hipoperfusión sin congestión (frío-seco)</string>
+    <string name="forrester_profile_iv">Perfil IV: choque con congestión (frío-húmedo)</string>
+    <string name="forrester_suggestion_i">Perfil hemodinámico estable. Revalorar en contexto clínico.</string>
+    <string name="forrester_suggestion_ii">Congestión predominante. Considerar estrategia de descongestión según el escenario.</string>
+    <string name="forrester_suggestion_iii">Hipoperfusión sin congestión. Considerar optimización de precarga o inotropía según la causa.</string>
+    <string name="forrester_suggestion_iv">Choque con congestión. Manejo urgente guiado por perfusión, presión y congestión.</string>
 </resources>

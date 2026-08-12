@@ -7,4 +7,3 @@ object Parse {
         return clean.toDoubleOrNull()
     }
 }
-

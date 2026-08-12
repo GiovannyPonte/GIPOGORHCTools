@@ -7,9 +7,11 @@ import com.gipogo.rhctools.data.db.dao.RhcStudyDao
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
 import com.gipogo.rhctools.reporting.model.*
+import com.gipogo.rhctools.reporting.model.displayPvr
+import com.gipogo.rhctools.reporting.model.displaySelectedCo
+import com.gipogo.rhctools.reporting.model.displaySvr
 import kotlinx.coroutines.flow.first
 import java.text.NumberFormat
-import java.util.Locale
 
 object LongitudinalReportBuilder {
 
@@ -73,23 +75,20 @@ object LongitudinalReportBuilder {
             return nf.format(v)
         }
 
-        fun upper(s: String?): String? = s?.trim()?.uppercase(Locale.getDefault())
-
         fun pickPvrValue(rhc: RhcStudyDataEntity?): Pair<Double?, Int?> {
-            val units = upper(rhc?.pvrUnits)
-            return if (units == "DYN") rhc?.pvrDyn to R.string.common_unit_dynes
-            else rhc?.pvrWood to R.string.common_unit_wu_short
+            val display = rhc.displayPvr()
+            return display.value to display.unitRes
         }
 
         fun pickSvrValue(rhc: RhcStudyDataEntity?): Pair<Double?, Int?> {
-            val units = upper(rhc?.svrUnits)
-            return if (units == "DYN") rhc?.svrDyn to R.string.common_unit_dynes
-            else rhc?.svrWood to R.string.common_unit_wu
+            val display = rhc.displaySvr()
+            return display.value to display.unitRes
         }
 
         // ---- Páginas por estudio (1 por estudio) ----
         ordered.forEachIndexed { idx, sw ->
             val rhc = sw.rhc
+            val selectedCo = rhc.displaySelectedCo()
 
             val (pvrValue, pvrUnitRes) = pickPvrValue(rhc)
             val (svrValue, svrUnitRes) = pickSvrValue(rhc)
@@ -103,18 +102,31 @@ object LongitudinalReportBuilder {
                     // A) Flujo y desempeño (CI, CO)
                     SectionUi(
                         titleRes = R.string.patient_trends_section_flow_title,
-                        rows = listOf(
-                            RowUi(
-                                labelRes = R.string.rhc_label_ci_short,
-                                valueText = fmtDouble(rhc?.cardiacIndexLMinM2, 1),
-                                unitRes = R.string.common_unit_lmin_m2
-                            ),
-                            RowUi(
-                                labelRes = R.string.fick_result_eyebrow_co,
-                                valueText = fmtDouble(rhc?.cardiacOutputLMin, 2),
-                                unitRes = R.string.common_unit_lmin
+                        rows = buildList {
+                            add(
+                                RowUi(
+                                    labelRes = R.string.rhc_label_ci_short,
+                                    valueText = fmtDouble(selectedCo.cardiacIndexLMinM2, 1),
+                                    unitRes = R.string.common_unit_lmin_m2
+                                )
                             )
-                        )
+                            add(
+                                RowUi(
+                                    labelRes = R.string.fick_result_eyebrow_co,
+                                    valueText = fmtDouble(selectedCo.cardiacOutputLMin, 2),
+                                    unitRes = R.string.common_unit_lmin
+                                )
+                            )
+                            selectedCo.methodLabelRes?.let { methodRes ->
+                                add(
+                                    RowUi(
+                                        labelRes = R.string.co_method_label,
+                                        valueText = context.getString(methodRes),
+                                        unitRes = null
+                                    )
+                                )
+                            }
+                        }
                     ),
 
                     // B) Resistencias (PVR, SVR)
@@ -125,7 +137,7 @@ object LongitudinalReportBuilder {
                                 labelRes = R.string.home_badge_pvr,
                                 valueText = fmtDouble(
                                     pvrValue,
-                                    decimals = if (upper(rhc?.pvrUnits) == "DYN") 0 else 1
+                                    decimals = if (pvrUnitRes == R.string.common_unit_dynes) 0 else 1
                                 ),
                                 unitRes = pvrUnitRes
                             ),
@@ -133,7 +145,7 @@ object LongitudinalReportBuilder {
                                 labelRes = R.string.svr_result_title,
                                 valueText = fmtDouble(
                                     svrValue,
-                                    decimals = if (upper(rhc?.svrUnits) == "DYN") 0 else 1
+                                    decimals = if (svrUnitRes == R.string.common_unit_dynes) 0 else 1
                                 ),
                                 unitRes = svrUnitRes
                             )
@@ -217,29 +229,40 @@ object LongitudinalReportBuilder {
                         titleRes = R.string.patient_trends_section_flow_title,
                         unitRes = null,
                         series = listOf(
-                            buildSeries(R.string.rhc_label_ci_short) { it.cardiacIndexLMinM2 },
+                            buildSeries(R.string.rhc_label_ci_short) { it.displaySelectedCo().cardiacIndexLMinM2 },
                             buildSeries(R.string.home_badge_cpo) { it.cardiacPowerW }
                         )
                     )
                 )
             )
 
-            // Tendencias 3: Resistencia (PVR) — usamos WOOD por consistencia longitudinal
-            pages += TrendsPageUi(
-                pageIndex1Based = 0,
-                pageCount = 0,
-                header = header,
-                titleRes = R.string.patient_trends_section_resistance_title,
-                charts = listOf(
-                    ChartUi(
-                        titleRes = R.string.patient_trends_section_resistance_title,
-                        unitRes = R.string.common_unit_wu_short,
-                        series = listOf(
-                            buildSeries(R.string.home_badge_pvr) { it.pvrWood }
+            val trendPvrUnitSet = ordered
+                .mapNotNull { it.rhc.displayPvr().unitRes }
+                .toSet()
+            val trendPvrUnitRes = trendPvrUnitSet.singleOrNull() ?: R.string.common_unit_wu_short
+            val trendPvrSeries = if (trendPvrUnitSet.size <= 1) {
+                buildSeries(R.string.home_badge_pvr) { it.displayPvr().value }
+            } else {
+                // Fallback conservador: mantener tendencia longitudinal visible en una unidad estable.
+                buildSeries(R.string.home_badge_pvr) { it.pvrWood }
+            }
+
+            if (trendPvrSeries.points.isNotEmpty()) {
+                // Tendencias 3: Resistencia (PVR)
+                pages += TrendsPageUi(
+                    pageIndex1Based = 0,
+                    pageCount = 0,
+                    header = header,
+                    titleRes = R.string.patient_trends_section_resistance_title,
+                    charts = listOf(
+                        ChartUi(
+                            titleRes = R.string.patient_trends_section_resistance_title,
+                            unitRes = trendPvrUnitRes,
+                            series = listOf(trendPvrSeries)
                         )
                     )
                 )
-            )
+            }
         }
 
         // ---- Reindexar páginas (variable) ----

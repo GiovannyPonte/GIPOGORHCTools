@@ -36,4 +36,3 @@ object PvrValidation {
         hardMsg = R.string.val_out_of_hard_range
     )
 }
-

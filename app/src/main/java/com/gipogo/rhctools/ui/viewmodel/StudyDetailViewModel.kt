@@ -19,7 +19,6 @@ sealed class StudyDetailUiState {
         val studyWithRhc: StudyWithRhcData?
     ) : StudyDetailUiState()
 }
-
 class StudyDetailViewModel(
     private val patientId: String,
     private val studyId: String,
@@ -52,4 +51,3 @@ class StudyDetailViewModel(
         }
     }
 }
-

@@ -12,7 +12,13 @@ import java.util.UUID
 object WorkshopStudyFactory {
 
     suspend fun startNewRhcStudy(context: Context, patientId: String): String = withContext(Dispatchers.IO) {
-        val db = DbProvider.get(context.applicationContext)
+        val db = when (val result = DbProvider.getResult(context.applicationContext)) {
+            is DbProvider.DbOpenResult.Success -> result.db
+            is DbProvider.DbOpenResult.Failure -> throw IllegalStateException(
+                result.error.message ?: "Database unavailable",
+                result.error
+            )
+        }
         val studyDao = db.studyDao()
 
         val now = System.currentTimeMillis()
@@ -30,6 +36,18 @@ object WorkshopStudyFactory {
         )
 
         studyDao.insert(study)
+        try {
+            WorkshopRecoveryStore.markActive(
+                context = context.applicationContext,
+                patientId = patientId,
+                studyId = id,
+                startedAtMillis = now
+            )
+        } catch (error: Throwable) {
+            // No dejar un estudio huérfano si no puede garantizarse recuperación.
+            studyDao.deleteById(id)
+            throw error
+        }
         WorkshopSession.startPatientStudy(patientId = patientId, studyId = id)
 
 // limpiar "workspace" del taller para que el nuevo Study arranque vacío

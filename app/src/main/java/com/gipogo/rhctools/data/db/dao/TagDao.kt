@@ -47,8 +47,8 @@ interface TagDao {
     @Query(
         """
         SELECT * FROM patients
-        WHERE (:q IS NULL OR :q = '' 
-            OR internalCode LIKE '%' || :q || '%' 
+        WHERE (:q IS NULL OR :q = ''
+            OR internalCode LIKE '%' || :q || '%'
             OR displayName LIKE '%' || :q || '%'
             OR notes LIKE '%' || :q || '%')
         ORDER BY updatedAtMillis DESC

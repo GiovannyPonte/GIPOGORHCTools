@@ -19,7 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.gipogo.rhctools.R
+import com.gipogo.rhctools.domain.ClinicalUnitNormalizer
 import com.gipogo.rhctools.report.CalcEntry
 import com.gipogo.rhctools.report.CalcType
 import com.gipogo.rhctools.report.LineItem
@@ -68,13 +69,14 @@ fun CpoScreen(
     onPrevCalc: () -> Unit,
     vm: CpoViewModel
 ) {
-    val state by vm.state.collectAsState()
+    val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val reportTitle = stringResource(R.string.cpo_report_title)
 
-    val entries by ReportStore.entries.collectAsState()
-    val resetTick by AppResetBus.tick.collectAsState()
+    val entries by ReportStore.entries.collectAsStateWithLifecycle()
+    val resetTick by AppResetBus.tick.collectAsStateWithLifecycle()
 
     var submitted by rememberSaveable { mutableStateOf(false) }
     var scrollToResultRequested by remember { mutableStateOf(false) }
@@ -134,7 +136,10 @@ fun CpoScreen(
                 if (ok) {
                     val mapForUi = when (state.mapUnit) {
                         CpoViewModel.MapUnit.MMHG -> mapMmHg
-                        CpoViewModel.MapUnit.KPA -> mapMmHg * 0.133322
+                        CpoViewModel.MapUnit.KPA -> ClinicalUnitNormalizer.pressureFromMmHg(
+                            mapMmHg,
+                            ClinicalUnitNormalizer.PressureUnit.KPA
+                        )
                     }
                     vm.setMAP(
                         if (state.mapUnit == CpoViewModel.MapUnit.MMHG) Format.d(mapForUi, 0)
@@ -152,7 +157,10 @@ fun CpoScreen(
                 if (ok) {
                     val coForUi = when (state.coUnit) {
                         CpoViewModel.CoUnit.L_MIN -> coLMin
-                        CpoViewModel.CoUnit.L_SEC -> coLMin / 60.0
+                        CpoViewModel.CoUnit.L_SEC -> ClinicalUnitNormalizer.cardiacOutputFromLMin(
+                            coLMin,
+                            ClinicalUnitNormalizer.CardiacOutputUnit.L_SEC
+                        )
                     }
                     vm.setCO(Format.d(coForUi, 2))
                 }
@@ -175,13 +183,19 @@ fun CpoScreen(
     val coRaw = NumericParsing.parseDouble(state.co)
     val bsaRaw = NumericParsing.parseDouble(state.bsa)
 
-    val mapMmHg = when (state.mapUnit) {
-        CpoViewModel.MapUnit.MMHG -> mapRaw
-        CpoViewModel.MapUnit.KPA -> mapRaw?.let { it * 7.50062 }
+    val mapMmHg = mapRaw?.let {
+        ClinicalUnitNormalizer.pressureToMmHg(
+            it,
+            if (state.mapUnit == CpoViewModel.MapUnit.KPA) ClinicalUnitNormalizer.PressureUnit.KPA
+            else ClinicalUnitNormalizer.PressureUnit.MMHG
+        )
     }
-    val coLMin = when (state.coUnit) {
-        CpoViewModel.CoUnit.L_MIN -> coRaw
-        CpoViewModel.CoUnit.L_SEC -> coRaw?.let { it * 60.0 }
+    val coLMin = coRaw?.let {
+        ClinicalUnitNormalizer.cardiacOutputToLMin(
+            it,
+            if (state.coUnit == CpoViewModel.CoUnit.L_SEC) ClinicalUnitNormalizer.CardiacOutputUnit.L_SEC
+            else ClinicalUnitNormalizer.CardiacOutputUnit.L_MIN
+        )
     }
 
     val mapRule = CpoValidation.mapRule.copy(required = submitted)
@@ -345,13 +359,13 @@ fun CpoScreen(
         // - MAP: mmHg
         // - CO: L/min
         // - BSA: m²
-        val mapCanon = mapMmHg?.takeIf { it.isFinite() && it > 0.0 }
-        val coCanon = coLMin?.takeIf { it.isFinite() && it > 0.0 }
-        val bsaCanon = bsaRaw?.takeIf { it.isFinite() && it > 0.0 }
+        val mapCanon = r.mapMmHg.takeIf { it.isFinite() && it > 0.0 }
+        val coCanon = r.cardiacOutputLMin.takeIf { it.isFinite() && it > 0.0 }
+        val bsaCanon = r.bsaM2
 
         com.gipogo.rhctools.report.CalcEntryWriters.upsertCpo(
             timestampMillis = System.currentTimeMillis(),
-            title = context.getString(R.string.cpo_report_title),
+            title = reportTitle,
             mapMmHg = mapCanon,
             coLMin = coCanon,
             bsaM2 = bsaCanon,

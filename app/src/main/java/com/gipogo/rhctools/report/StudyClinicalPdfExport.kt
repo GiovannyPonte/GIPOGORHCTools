@@ -1,6 +1,8 @@
 package com.gipogo.rhctools.report
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
@@ -77,6 +79,7 @@ object StudyClinicalPdfExport {
         studyId: String,
         format: StudyClinicalPdfFormat
     ): ExportResult {
+        val reportContext = localizedReportContext(context)
         val db = when (val result = DbProvider.getResult(context.applicationContext)) {
             is DbProvider.DbOpenResult.Success -> result.db
             is DbProvider.DbOpenResult.Failure -> throw IllegalStateException(
@@ -111,7 +114,7 @@ object StudyClinicalPdfExport {
             ?: patientId
 
         val document = StudyClinicalPdfDocumentBuilder.build(
-            context = context,
+            context = reportContext,
             patientDisplayName = patientDisplayName,
             patientInternalCode = patient?.internalCode,
             patientSex = patient?.sex,
@@ -138,7 +141,7 @@ object StudyClinicalPdfExport {
         val partial = File(outDir, "${file.name}.part")
         runCatching {
             partial.outputStream().buffered().use { output ->
-                StudyClinicalPdfGenerator.writePdf(context, output, document, format)
+                StudyClinicalPdfGenerator.writePdf(reportContext, output, document, format)
             }
             check(partial.length() > 4L && partial.inputStream().use { input ->
                 ByteArray(4).also(input::read).contentEquals("%PDF".toByteArray())
@@ -157,6 +160,17 @@ object StudyClinicalPdfExport {
         )
 
         return ExportResult(pdfFile = file, pdfUri = uri)
+    }
+
+    // This creates a resource-only context for PDF rendering; it does not change the app locale.
+    @SuppressLint("AppBundleLocaleChanges")
+    private suspend fun localizedReportContext(context: Context): Context {
+        val language = AppPreferences(context.applicationContext).appLanguage.first()
+        val tag = language.languageTag ?: return context
+        val configuration = Configuration(context.resources.configuration).apply {
+            setLocale(Locale.forLanguageTag(tag))
+        }
+        return context.createConfigurationContext(configuration)
     }
 }
 
@@ -412,8 +426,8 @@ private object StudyClinicalPdfDocumentBuilder {
                 StudyClinicalChartPoint("CPO", "W", rhc?.cardiacPowerW, previous?.rhc?.cardiacPowerW, 2.0, 0.8)
             ),
             patientInternalCode = patientInternalCode?.trim()?.takeIf { it.isNotBlank() },
-            patientSex = patientSex?.trim()?.takeIf { it.isNotBlank() },
-            patientBirthDateAndAge = patientBirthDateMillis?.let(::formatBirthDateAndAge),
+            patientSex = localizePatientSex(context, patientSex),
+            patientBirthDateAndAge = patientBirthDateMillis?.let { formatBirthDateAndAge(context, it) },
             patientWeightKg = patientWeightKg,
             patientHeightCm = patientHeightCm,
             patientNote = patientNote?.trim()?.takeIf { it.isNotBlank() },
@@ -434,7 +448,7 @@ private object StudyClinicalPdfDocumentBuilder {
             trendStudies = history.map { study ->
                 val co = study.rhc.displaySelectedCo()
                 StudyClinicalTrendStudy(
-                    dateLabel = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(study.study.startedAtMillis)),
+                    dateLabel = formatShortDate(context, study.study.startedAtMillis),
                     studyId = study.study.id,
                     method = co.methodLabelRes?.let(context::getString),
                     rap = study.rhc?.rapMmHg,
@@ -464,13 +478,35 @@ private object StudyClinicalPdfDocumentBuilder {
         )
     }
 
-    private fun formatBirthDateAndAge(storageMillis: Long): String? = runCatching {
+    private fun formatBirthDateAndAge(context: Context, storageMillis: Long): String? = runCatching {
+        val locale = context.resources.configuration.locales[0]
         val birthDate = BirthDateCodec.fromStorageMillis(storageMillis)
         val age = Period.between(birthDate, LocalDate.now()).years.coerceAtLeast(0)
+        if (locale.language == "en") {
+            return@runCatching "%02d/%02d/%04d (%d years)".format(
+                locale, birthDate.monthValue, birthDate.dayOfMonth, birthDate.year, age
+            )
+        }
         "%02d/%02d/%04d (%d años)".format(
-            Locale.getDefault(), birthDate.dayOfMonth, birthDate.monthValue, birthDate.year, age
+            locale, birthDate.dayOfMonth, birthDate.monthValue, birthDate.year, age
         )
     }.getOrNull()
+
+    private fun formatShortDate(context: Context, millis: Long): String {
+        val locale = context.resources.configuration.locales[0]
+        val pattern = if (locale.language == "en") "MM/dd/yy" else "dd/MM/yy"
+        return SimpleDateFormat(pattern, locale).format(Date(millis))
+    }
+
+    private fun localizePatientSex(context: Context, raw: String?): String? {
+        val value = raw?.trim()?.takeIf(String::isNotBlank) ?: return null
+        val isEnglish = context.resources.configuration.locales[0].language == "en"
+        return when (value.lowercase(Locale.ROOT)) {
+            "m", "male", "masculino", "hombre" -> if (isEnglish) "Male" else "Masculino"
+            "f", "female", "femenino", "mujer" -> if (isEnglish) "Female" else "Femenino"
+            else -> value
+        }
+    }
 
     private fun buildQuickRead(
         context: Context,

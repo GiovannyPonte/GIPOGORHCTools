@@ -7,6 +7,7 @@ sealed class Destinations(val route: String, val label: String) {
         const val NAV_FLAG_SCROLL_TO_EXIT = "nav_flag_scroll_to_exit"
     }
     data object Home : Destinations("home", "Inicio")
+    data object Settings : Destinations("settings", "Ajustes")
 
     // Graph padre de calculadoras
     data object CalcGraph : Destinations("calc_graph", "Calculos")

@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.gipogo.rhctools.R
 
@@ -33,7 +34,10 @@ fun ScreenScaffold(
             CenterAlignedTopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onBackToMenu) {
+                    IconButton(
+                        onClick = onBackToMenu,
+                        modifier = Modifier.testTag("screen_scaffold_back_button")
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
@@ -55,4 +59,3 @@ fun ScreenScaffold(
         }
     }
 }
-

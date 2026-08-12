@@ -1,8 +1,11 @@
 package com.gipogo.rhctools.ui.screens
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -42,12 +45,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,10 +60,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gipogo.rhctools.R
+import com.gipogo.rhctools.data.db.DbProvider
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
 import com.gipogo.rhctools.data.studies.StudiesRepository
+import com.gipogo.rhctools.reporting.model.displayPvr
+import com.gipogo.rhctools.reporting.model.displaySelectedCo
+import com.gipogo.rhctools.reporting.model.displaySvr
 import com.gipogo.rhctools.ui.components.ForresterStudyCard
+import com.gipogo.rhctools.ui.security.ProtectedRouteGate
 import com.gipogo.rhctools.ui.viewmodel.StudyDetailUiState
 import com.gipogo.rhctools.ui.viewmodel.StudyDetailViewModel
 import java.text.DateFormat
@@ -81,8 +91,56 @@ fun StudyDetailRoute(
     onBack: () -> Unit,
     onExportStudyPdf: (patientId: String, studyId: String) -> Unit,
 ) {
+    ProtectedRouteGate(
+        modifier = modifier,
+        onBack = onBack
+    ) {
+        StudyDetailRouteContent(
+            patientId = patientId,
+            patientName = patientName,
+            studyId = studyId,
+            modifier = Modifier,
+            onBack = onBack,
+            onExportStudyPdf = onExportStudyPdf
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StudyDetailRouteContent(
+    patientId: String,
+    patientName: String?,
+    studyId: String,
+    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
+    onExportStudyPdf: (patientId: String, studyId: String) -> Unit,
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val dbResult = remember(context.applicationContext) {
+        DbProvider.getResult(context.applicationContext)
+    }
+    if (dbResult is DbProvider.DbOpenResult.Failure) {
+        StudyDetailDbErrorScreen(
+            onBack = onBack
+        )
+        return
+    }
+    val db = (dbResult as DbProvider.DbOpenResult.Success).db
+    val patientDao = remember(db) { db.patientDao() }
     val repo = remember(context.applicationContext) { StudiesRepository.get(context.applicationContext) }
+    val resolvedPatientName by produceState<String?>(initialValue = patientName, key1 = patientId, key2 = patientName, key3 = db) {
+        if (!patientName.isNullOrBlank()) {
+            value = patientName
+            return@produceState
+        }
+        value = runCatching {
+            val patient = patientDao.getById(patientId)
+            val displayName = patient?.displayName?.takeIf { it.isNotBlank() }
+            val internalCode = patient?.internalCode?.takeIf { it.isNotBlank() }
+            displayName ?: internalCode
+        }.getOrNull()
+    }
 
     val vm: StudyDetailViewModel = viewModel(
         key = "$patientId:$studyId",
@@ -95,13 +153,54 @@ fun StudyDetailRoute(
 
     StudyDetailScreen(
         patientId = patientId,
-        patientName = patientName,
+        patientName = resolvedPatientName,
         studyId = studyId,
         uiState = vm.uiState,
         modifier = modifier,
         onBack = onBack,
         onExportStudyPdf = onExportStudyPdf
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StudyDetailDbErrorScreen(
+    onBack: () -> Unit
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets.safeDrawing,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(text = stringResource(R.string.study_detail_title_rhc)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Outlined.ArrowBack, contentDescription = null)
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.common_error),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Text(
+                text = stringResource(R.string.patient_error_generic),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(onClick = onBack) {
+                Text(text = stringResource(R.string.common_cancel))
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,17 +214,19 @@ private fun StudyDetailScreen(
     onBack: () -> Unit,
     onExportStudyPdf: (patientId: String, studyId: String) -> Unit,
 ) {
-    val state by uiState.collectAsState()
+    val state by uiState.collectAsStateWithLifecycle()
 
     val subtitleName = patientName?.trim().takeIf { !it.isNullOrBlank() } ?: patientId
     val sw: StudyWithRhcData? = (state as? StudyDetailUiState.Content)?.studyWithRhc
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    val copyIdLabel = stringResource(R.string.patient_action_copy_id)
 
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .imePadding(),
+            .imePadding()
+            .testTag("study_detail_screen"),
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             CenterAlignedTopAppBar(
@@ -165,6 +266,7 @@ private fun StudyDetailScreen(
         val startedAt = sw?.study?.startedAtMillis
         val startedAtText = startedAt?.let { formatDateTime(it) }
             ?: stringResource(R.string.common_value_na)
+        val clinicalNote = sw?.study?.notes?.trim().takeIf { !it.isNullOrBlank() }
 
         val inputs = buildInputsFromDb(sw?.rhc)
         val outputs = buildOutputsFromDb(sw?.rhc)
@@ -188,7 +290,7 @@ private fun StudyDetailScreen(
                     onCopyStudyId = {
                         copyToClipboard(
                             context = context,
-                            label = context.getString(R.string.patient_action_copy_id),
+                            label = copyIdLabel,
                             value = studyId
                         )
                     }
@@ -215,7 +317,7 @@ private fun StudyDetailScreen(
 
             item { OutputsCard(outputs = outputs) }
 
-            item { ClinicalNoteCard() }
+            item { ClinicalNoteCard(note = clinicalNote) }
 
             // ✅ NUEVO: Tarjeta Forrester (valores persistidos del estudio)
             item {
@@ -395,7 +497,7 @@ private fun InputOutputRow(
 /* ------------------------- Clinical Note ------------------------- */
 
 @Composable
-private fun ClinicalNoteCard() {
+private fun ClinicalNoteCard(note: String?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = CardShape,
@@ -413,7 +515,7 @@ private fun ClinicalNoteCard() {
             }
 
             Text(
-                text = stringResource(R.string.study_detail_note_placeholder),
+                text = note ?: stringResource(R.string.study_detail_note_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.alpha(0.9f)
@@ -442,7 +544,9 @@ private fun ActionsCard(
 
             Button(
                 onClick = onExportStudyPdf,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("study_detail_export_pdf_button"),
                 shape = PillShape
             ) {
                 Icon(Icons.Outlined.PictureAsPdf, contentDescription = null)
@@ -477,30 +581,31 @@ private data class RowUi(
 @Composable
 private fun buildInputsFromDb(rhc: RhcStudyDataEntity?): List<RowUi> {
     val na = stringResource(R.string.common_value_na)
+    val selectedCo = rhc.displaySelectedCo()
 
     fun v0(x: Double?): String = x?.let { formatNumber(it, 0) } ?: na
     fun v1(x: Double?): String = x?.let { formatNumber(it, 1) } ?: na
 
-    return listOf(
-        RowUi(R.string.study_input_ra, v0(rhc?.rapMmHg), R.string.common_unit_mmhg),
-        RowUi(R.string.pvr_help_mpap_title, v0(rhc?.mpapMmHg), R.string.common_unit_mmhg),
-        RowUi(R.string.study_input_pcwp, v0(rhc?.pawpMmHg), R.string.common_unit_mmhg),
-
-        RowUi(R.string.study_input_co, v1(rhc?.cardiacOutputLMin), R.string.common_unit_lmin),
-        RowUi(R.string.study_input_ci, v1(rhc?.cardiacIndexLMinM2), R.string.common_unit_lmin_m2),
-
-        RowUi(R.string.study_input_hb, v1(rhc?.hemoglobinGdl), R.string.unit_g_dl),
-        RowUi(R.string.study_input_sao2, v0(rhc?.saO2Percent), R.string.unit_percent),
-        RowUi(R.string.study_input_svo2, v0(rhc?.svO2Percent), R.string.unit_percent),
-
-        RowUi(R.string.study_input_weight, v1(rhc?.weightKg), R.string.unit_kg),
-        RowUi(R.string.study_input_height, v0(rhc?.heightCm), R.string.unit_cm),
-    )
+    return buildList {
+        add(RowUi(R.string.study_input_ra, v0(rhc?.rapMmHg), R.string.common_unit_mmhg))
+        add(RowUi(R.string.pvr_help_mpap_title, v0(rhc?.mpapMmHg), R.string.common_unit_mmhg))
+        add(RowUi(R.string.study_input_pcwp, v0(rhc?.pawpMmHg), R.string.common_unit_mmhg))
+        add(RowUi(R.string.study_input_co, v1(selectedCo.cardiacOutputLMin), R.string.common_unit_lmin))
+        add(RowUi(R.string.study_input_ci, v1(selectedCo.cardiacIndexLMinM2), R.string.common_unit_lmin_m2))
+        selectedCo.methodLabelRes?.let { add(RowUi(R.string.co_method_label, stringResource(it), null)) }
+        add(RowUi(R.string.study_input_hb, v1(rhc?.hemoglobinGdl), R.string.unit_g_dl))
+        add(RowUi(R.string.study_input_sao2, v0(rhc?.saO2Percent), R.string.unit_percent))
+        add(RowUi(R.string.study_input_svo2, v0(rhc?.svO2Percent), R.string.unit_percent))
+        add(RowUi(R.string.study_input_weight, v1(rhc?.weightKg), R.string.unit_kg))
+        add(RowUi(R.string.study_input_height, v0(rhc?.heightCm), R.string.unit_cm))
+    }
 }
 
 @Composable
 private fun buildOutputsFromDb(rhc: RhcStudyDataEntity?): List<RowUi> {
     val na = stringResource(R.string.common_value_na)
+    val displayPvr = rhc.displayPvr()
+    val displaySvr = rhc.displaySvr()
 
     fun v1(x: Double?): String = x?.let { formatNumber(it, 1) } ?: na
     fun v2(x: Double?): String = x?.let { formatNumber(it, 2) } ?: na
@@ -508,11 +613,16 @@ private fun buildOutputsFromDb(rhc: RhcStudyDataEntity?): List<RowUi> {
 
     val rows = mutableListOf<RowUi>()
 
-    rows += RowUi(R.string.study_out_svr, v1(rhc?.svrWood), R.string.common_unit_wu_short)
-    rows += RowUi(R.string.study_out_svr, v0(rhc?.svrDyn), R.string.common_unit_dynes)
-
-    rows += RowUi(R.string.study_out_pvr, v1(rhc?.pvrWood), R.string.common_unit_wu_short)
-    rows += RowUi(R.string.study_out_pvr, v0(rhc?.pvrDyn), R.string.common_unit_dynes)
+    rows += RowUi(
+        R.string.study_out_svr,
+        if (displaySvr.unitRes == R.string.common_unit_dynes) v0(displaySvr.value) else v1(displaySvr.value),
+        displaySvr.unitRes
+    )
+    rows += RowUi(
+        R.string.study_out_pvr,
+        if (displayPvr.unitRes == R.string.common_unit_dynes) v0(displayPvr.value) else v1(displayPvr.value),
+        displayPvr.unitRes
+    )
 
     rows += RowUi(R.string.study_out_cpo, v2(rhc?.cardiacPowerW), R.string.common_unit_w)
     rows += RowUi(R.string.study_out_papi, v2(rhc?.papi), R.string.common_unit_none)
@@ -525,7 +635,13 @@ private fun buildOutputsFromDb(rhc: RhcStudyDataEntity?): List<RowUi> {
 private fun copyToClipboard(context: Context, label: String, value: String): Boolean {
     return runCatching {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText(label, value))
+        val clip = ClipData.newPlainText(label, value)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
+        cm.setPrimaryClip(clip)
         true
     }.getOrDefault(false)
 }

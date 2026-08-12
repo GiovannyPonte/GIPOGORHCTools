@@ -1,7 +1,6 @@
 package com.gipogo.rhctools.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,8 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +21,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
@@ -41,22 +45,48 @@ fun DisclaimerScreen(
     val scrollState = rememberScrollState()
     var acceptedCheckbox by remember { mutableStateOf(false) }
 
-    // Altura aproximada de la zona fija inferior (checkbox+botones + padding)
-    // Esto evita que el final del texto quede tapado.
-    val bottomSafePadding = 120.dp
-
-    Box(
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding()
-    ) {
-        // CONTENIDO SCROLLEABLE
+            .imePadding(),
+        contentWindowInsets = WindowInsets.safeDrawing,
+        bottomBar = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                tonalElevation = 3.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("disclaimer_decline_button"),
+                        onClick = onDecline
+                    ) { Text(stringResource(R.string.disclaimer_btn_decline)) }
+
+                    Button(
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("disclaimer_accept_button"),
+                        enabled = acceptedCheckbox,
+                        onClick = onAccept
+                    ) { Text(stringResource(R.string.disclaimer_btn_accept)) }
+                }
+            }
+        }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(top = 16.dp, bottom = bottomSafePadding),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Para que en tablets / pantallas anchas no se vea como “líneas interminables”
@@ -131,32 +161,18 @@ fun DisclaimerScreen(
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
-            }
-        }
-
-        // BARRA INFERIOR FIJA (siempre accesible)
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            tonalElevation = 3.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = acceptedCheckbox,
-                            onCheckedChange = { acceptedCheckbox = it }
+                            onCheckedChange = { acceptedCheckbox = it },
+                            modifier = Modifier.testTag("disclaimer_checkbox")
                         )
                         Text(
                             text = stringResource(R.string.disclaimer_checkbox_text),
@@ -166,21 +182,7 @@ fun DisclaimerScreen(
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        modifier = Modifier.weight(1f),
-                        onClick = onDecline
-                    ) { Text(stringResource(R.string.disclaimer_btn_decline)) }
-
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        enabled = acceptedCheckbox,
-                        onClick = onAccept
-                    ) { Text(stringResource(R.string.disclaimer_btn_accept)) }
-                }
+                Spacer(Modifier.height(8.dp))
             }
         }
     }

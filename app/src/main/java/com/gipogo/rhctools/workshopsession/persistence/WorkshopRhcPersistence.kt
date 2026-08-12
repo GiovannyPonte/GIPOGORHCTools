@@ -96,7 +96,13 @@ object WorkshopRhcPersistence {
 
             _status.value = _status.value.copy(isSaving = true, lastError = null)
 
-            val db = DbProvider.get(appCtx)
+            val db = when (val result = DbProvider.getResult(appCtx)) {
+                is DbProvider.DbOpenResult.Success -> result.db
+                is DbProvider.DbOpenResult.Failure -> throw IllegalStateException(
+                    result.error.message ?: "Database unavailable",
+                    result.error
+                )
+            }
             val rhcDao = db.rhcStudyDao()
 
             val now = System.currentTimeMillis()

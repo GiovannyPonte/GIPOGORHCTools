@@ -6,8 +6,14 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="gipogo_rhc_tools.db" />
+    <exclude domain="database" path="gipogo_rhc_tools.db.bak_plain" />
+    <exclude domain="database" path="gipogo_rhc_tools.db.enc_tmp" />
+    <exclude domain="database" path="gipogo_rhc_tools.db-wal" />
+    <exclude domain="database" path="gipogo_rhc_tools.db-shm" />
+    <exclude domain="sharedpref" path="db_crypto_prefs.xml" />
+    <exclude domain="sharedpref" path="db_key_material_v2.xml" />
+    <exclude domain="sharedpref" path="auth_session_prefs.xml" />
+    <exclude domain="sharedpref" path="workshop_recovery_prefs.xml" />
+    <exclude domain="file" path="datastore/" />
 </full-backup-content>

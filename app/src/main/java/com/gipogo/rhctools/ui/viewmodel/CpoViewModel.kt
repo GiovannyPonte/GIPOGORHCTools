@@ -2,6 +2,7 @@ package com.gipogo.rhctools.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.gipogo.rhctools.domain.HemodynamicsFormulas
+import com.gipogo.rhctools.domain.ClinicalUnitNormalizer
 import com.gipogo.rhctools.util.Parse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +15,10 @@ class CpoViewModel : ViewModel() {
 
     data class Result(
         val cpoWatts: Double,
-        val cpiWattsPerM2: Double?
+        val cpiWattsPerM2: Double?,
+        val mapMmHg: Double,
+        val cardiacOutputLMin: Double,
+        val bsaM2: Double?
     )
 
     data class State(
@@ -61,17 +65,17 @@ class CpoViewModel : ViewModel() {
             return
         }
 
-        val mapMmHg = when (_state.value.mapUnit) {
-            MapUnit.MMHG -> mapRaw
-            // A.6.2: 1 kPa = 7.50062 mmHg
+        val mapMmHg = ClinicalUnitNormalizer.pressureToMmHg(
+            mapRaw,
+            if (_state.value.mapUnit == MapUnit.KPA) ClinicalUnitNormalizer.PressureUnit.KPA
+            else ClinicalUnitNormalizer.PressureUnit.MMHG
+        )
 
-            MapUnit.KPA -> mapRaw * 7.50062
-        }
-
-        val coLMin = when (_state.value.coUnit) {
-            CoUnit.L_MIN -> coRaw
-            CoUnit.L_SEC -> coRaw * 60.0
-        }
+        val coLMin = ClinicalUnitNormalizer.cardiacOutputToLMin(
+            coRaw,
+            if (_state.value.coUnit == CoUnit.L_SEC) ClinicalUnitNormalizer.CardiacOutputUnit.L_SEC
+            else ClinicalUnitNormalizer.CardiacOutputUnit.L_MIN
+        )
 
         if (mapMmHg <= 0.0 || coLMin <= 0.0) {
             fail("MAP y CO deben ser > 0.")
@@ -94,7 +98,13 @@ class CpoViewModel : ViewModel() {
 
         _state.update {
             it.copy(
-                result = Result(cpoWatts = cpo, cpiWattsPerM2 = cpi),
+                result = Result(
+                    cpoWatts = cpo,
+                    cpiWattsPerM2 = cpi,
+                    mapMmHg = mapMmHg,
+                    cardiacOutputLMin = coLMin,
+                    bsaM2 = bsaRaw?.takeIf { it.isFinite() && it > 0.0 }
+                ),
                 error = null
             )
         }

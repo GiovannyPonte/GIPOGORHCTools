@@ -8,4 +8,3 @@ object GipogoSpacing {
     val CardGap = 10.dp
     val CardRadius = 24.dp
 }
-

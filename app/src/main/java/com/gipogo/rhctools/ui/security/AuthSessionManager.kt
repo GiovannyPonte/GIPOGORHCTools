@@ -1,48 +1,37 @@
 package com.gipogo.rhctools.ui.security
 
 import android.content.Context
+import android.os.SystemClock
 
+/** Short-lived authentication session tied to this process and monotonic time. */
 object AuthSessionManager {
-
-    // Ajusta esto a tu gusto (ej: 10 min = 10*60*1000)
     private const val AUTH_SESSION_TIMEOUT_MS: Long = 10 * 60 * 1000L
 
-    private const val PREFS = "auth_session_prefs"
-    private const val KEY_LAST_AUTH_AT = "last_auth_at"
+    @Volatile
+    private var lastAuthElapsedRealtime: Long = 0L
 
-    @Volatile private var appContext: Context? = null
+    val sessionTimeoutMs: Long
+        get() = AUTH_SESSION_TIMEOUT_MS
 
-    fun init(context: Context) {
-        appContext = context.applicationContext
-    }
+    @Suppress("UNUSED_PARAMETER")
+    fun init(context: Context) = Unit
 
-    fun markAuthenticated(now: Long = System.currentTimeMillis()) {
-        val ctx = appContext ?: return
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putLong(KEY_LAST_AUTH_AT, now)
-            .apply()
+    fun markAuthenticated(now: Long = SystemClock.elapsedRealtime()) {
+        lastAuthElapsedRealtime = now
     }
 
     fun clear() {
-        val ctx = appContext ?: return
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(KEY_LAST_AUTH_AT)
-            .apply()
+        lastAuthElapsedRealtime = 0L
     }
 
-    fun lastAuthAt(): Long {
-        val ctx = appContext ?: return 0L
-        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getLong(KEY_LAST_AUTH_AT, 0L)
-    }
+    fun lastAuthAt(): Long = lastAuthElapsedRealtime
 
-    fun hasValidSession(now: Long = System.currentTimeMillis()): Boolean {
-        val last = lastAuthAt()
+    fun hasValidSession(now: Long = SystemClock.elapsedRealtime()): Boolean {
+        val last = lastAuthElapsedRealtime
         if (last <= 0L) return false
-        return (now - last) <= AUTH_SESSION_TIMEOUT_MS
+        val elapsed = now - last
+        return elapsed in 0..AUTH_SESSION_TIMEOUT_MS
     }
 
-    fun isSessionValid(now: Long = System.currentTimeMillis()): Boolean = hasValidSession(now)
+    fun isSessionValid(now: Long = SystemClock.elapsedRealtime()): Boolean = hasValidSession(now)
 }

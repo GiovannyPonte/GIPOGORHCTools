@@ -51,7 +51,8 @@ object PdfLongitudinalReportGenerator {
         appName: String,
         patientDisplayName: String,
         createdAtMillis: Long,
-        studies: List<StudyRow>
+        studies: List<StudyRow>,
+        onPageWritten: ((current: Int, total: Int) -> Unit)? = null
     ) {
         if (studies.isEmpty()) return
 
@@ -165,7 +166,7 @@ object PdfLongitudinalReportGenerator {
 
         fun drawCornerPage(canvas: android.graphics.Canvas, pageNum: Int) {
             // Discreet: "Página X"
-            canvas.drawText("Página $pageNum", margin, 22f, pCorner)
+            canvas.drawText(context.getString(R.string.pdf_page, pageNum), margin, 22f, pCorner)
         }
 
         fun drawHeaderBlock(
@@ -249,9 +250,12 @@ object PdfLongitudinalReportGenerator {
             val chartTop = titleY + 12f
             val chartLeft = rect.left + pad
             val chartRight = rect.right - pad
-            val chartBottom = rect.bottom - pad - 10f
+            // Reserve a dedicated legend band. Previously the legend was painted on
+            // the baseline, which made labels and points overlap the x axis.
+            val chartBottom = rect.bottom - pad - 30f
 
             canvas.drawLine(chartLeft, chartBottom, chartRight, chartBottom, pChartAxis)
+            canvas.drawLine(chartLeft, chartTop, chartLeft, chartBottom, pChartAxis)
 
             val all = lines.flatMap { it.values }.filterNotNull()
             if (all.size < 2) {
@@ -264,9 +268,13 @@ object PdfLongitudinalReportGenerator {
                 return
             }
 
-            val yMin = all.minOrNull() ?: 0.0
-            val yMax = all.maxOrNull() ?: 1.0
-            val span = (yMax - yMin).takeIf { it != 0.0 } ?: 1.0
+            // Hemodynamic magnitudes in these panels are non-negative. A zero
+            // baseline avoids visually magnifying clinically trivial variations
+            // (for example a stable PVR changing by only hundredths of a WU).
+            val yMin = 0.0
+            val observedMax = all.maxOrNull() ?: 1.0
+            val yMax = max(1.0, observedMax * 1.12)
+            val span = yMax - yMin
 
             fun xOf(i: Int, n: Int): Float {
                 if (n <= 1) return chartLeft
@@ -291,18 +299,19 @@ object PdfLongitudinalReportGenerator {
                     if (prevX != null && prevY != null) {
                         canvas.drawLine(prevX, prevY, x, y, line.paint)
                     }
+                    canvas.drawCircle(x, y, 2.8f, line.paint)
                     prevX = x
                     prevY = y
                 }
             }
 
             // min/max labels (minimal but present)
-            canvas.drawText(fmt(yMax, 1), chartLeft, chartTop + pChartText.textSize, pChartText)
-            canvas.drawText(fmt(yMin, 1), chartLeft, chartBottom - 2f, pChartText)
+            canvas.drawText(fmt(yMax, 1), chartLeft + 6f, chartTop + pChartText.textSize, pChartText)
+            canvas.drawText(fmt(yMin, 1), chartLeft + 6f, chartBottom - 4f, pChartText)
 
             // Legend
             var lx = chartLeft
-            val ly = chartBottom + 2f
+            val ly = rect.bottom - pad + 2f
             lines.take(3).forEach { line ->
                 canvas.drawCircle(lx + 6f, ly - 6f, 4.5f, line.paint)
                 canvas.drawText(line.label, lx + 16f, ly, pChartText)
@@ -368,6 +377,7 @@ object PdfLongitudinalReportGenerator {
             y = drawRowKV(canvas, left, right, y, "Presión capilar pulmonar en cuña (PCWP)", "${fmt(last.pcwpMmHg, 0)} ${context.getString(R.string.common_unit_mmhg)}")
 
             doc.finishPage(p)
+            onPageWritten?.invoke(pageNum, totalPages)
             pageNum += 1
         }
 
@@ -452,6 +462,7 @@ object PdfLongitudinalReportGenerator {
             }
 
             doc.finishPage(p)
+            onPageWritten?.invoke(pageNum, totalPages)
             pageNum += 1
         }
 
@@ -488,6 +499,7 @@ object PdfLongitudinalReportGenerator {
                 )
 
                 doc.finishPage(p)
+                onPageWritten?.invoke(pageNum, totalPages)
                 pageNum += 1
             }
 
@@ -534,6 +546,7 @@ object PdfLongitudinalReportGenerator {
                 )
 
                 doc.finishPage(p)
+                onPageWritten?.invoke(pageNum, totalPages)
                 pageNum += 1
             }
         }

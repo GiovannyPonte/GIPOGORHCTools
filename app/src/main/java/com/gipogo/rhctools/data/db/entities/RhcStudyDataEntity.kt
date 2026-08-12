@@ -80,6 +80,22 @@ data class RhcStudyDataEntity(
     val cardiacOutputLMin: Double? = null,
     val cardiacIndexLMinM2: Double? = null,
 
+    // --------------------------------------------------------------------
+    // CO / CI por método + CO activo (seleccionado)
+    // --------------------------------------------------------------------
+    // NOTA: estos campos permiten coexistencia Fick + TD sin pisarse.
+    val cardiacOutputFickLMin: Double? = null,
+    val cardiacIndexFickLMinM2: Double? = null,
+
+    val cardiacOutputTdLMin: Double? = null,
+    val cardiacIndexTdLMinM2: Double? = null,
+
+    // CO que alimenta cálculos derivados (SVR/PVR/CPO/etc.)
+    val cardiacOutputSelectedLMin: Double? = null,
+    val cardiacIndexSelectedLMinM2: Double? = null,
+    val coSelectedMethod: String? = null,      // "FICK" | "TD"
+    val coSelectionReason: String? = null,     // "ONLY_ONE_AVAILABLE" | "LAST_CALCULATED" | "AUTO_DEFAULT" | "USER_SELECTED" | "LEGACY_MIGRATION"
+
     // -------------------------
     // Derived results (auditables)
     // -------------------------
@@ -109,4 +125,61 @@ data class RhcStudyDataEntity(
     // -------------------------
     val createdAtMillis: Long,
     val updatedAtMillis: Long
-)
+) {
+
+    /**
+     * Último firewall local: evitar NaN/Infinity en columnas REAL.
+     * Si un Double? no es finito => null.
+     *
+     * Nota: si ya existe una extensión con el mismo nombre, el miembro tiene prioridad.
+     */
+    fun sanitizedForDb(): RhcStudyDataEntity {
+        fun Double?.finiteOrNull(): Double? = this?.takeIf { it.isFinite() }
+        fun Double?.finitePositiveOrNull(): Double? = this?.takeIf { it.isFinite() && it > 0.0 }
+
+        return this.copy(
+            // Anthropometrics
+            weightKg = weightKg.finitePositiveOrNull(),
+            heightCm = heightCm.finitePositiveOrNull(),
+            bsaM2 = bsaM2.finitePositiveOrNull(),
+
+            // Fick inputs
+            saO2Percent = saO2Percent.finiteOrNull(),
+            svO2Percent = svO2Percent.finiteOrNull(),
+            hemoglobinGdl = hemoglobinGdl.finitePositiveOrNull(),
+            heartRateBpm = heartRateBpm.finitePositiveOrNull(),
+            vo2MlMin = vo2MlMin.finitePositiveOrNull(),
+
+            // Pressures
+            mapMmHg = mapMmHg.finiteOrNull(),
+            rapMmHg = rapMmHg.finiteOrNull(),
+            paspMmHg = paspMmHg.finiteOrNull(),
+            padpMmHg = padpMmHg.finiteOrNull(),
+            mpapMmHg = mpapMmHg.finiteOrNull(),
+            pawpMmHg = pawpMmHg.finiteOrNull(),
+
+            // Legacy outputs (mantener como selected)
+            cardiacOutputLMin = cardiacOutputLMin.finitePositiveOrNull(),
+            cardiacIndexLMinM2 = cardiacIndexLMinM2.finitePositiveOrNull(),
+
+            // Per-method outputs
+            cardiacOutputFickLMin = cardiacOutputFickLMin.finitePositiveOrNull(),
+            cardiacIndexFickLMinM2 = cardiacIndexFickLMinM2.finitePositiveOrNull(),
+            cardiacOutputTdLMin = cardiacOutputTdLMin.finitePositiveOrNull(),
+            cardiacIndexTdLMinM2 = cardiacIndexTdLMinM2.finitePositiveOrNull(),
+
+            // Selected outputs
+            cardiacOutputSelectedLMin = cardiacOutputSelectedLMin.finitePositiveOrNull(),
+            cardiacIndexSelectedLMinM2 = cardiacIndexSelectedLMinM2.finitePositiveOrNull(),
+
+            // Derived
+            svrWood = svrWood.finiteOrNull(),
+            svrDyn = svrDyn.finiteOrNull(),
+            pvrWood = pvrWood.finiteOrNull(),
+            pvrDyn = pvrDyn.finiteOrNull(),
+            papi = papi.finiteOrNull(),
+            cardiacPowerW = cardiacPowerW.finiteOrNull(),
+            cardiacPowerIndexWm2 = cardiacPowerIndexWm2.finiteOrNull()
+        )
+    }
+}

@@ -42,7 +42,6 @@ fun ReportPage(
         is TrendsPageUi -> TrendsPage(page, modifier)
     }
 }
-
 /**
  * A4 page container for Compose preview.
  * This is deterministic (no scroll inside a page).
@@ -80,7 +79,6 @@ private fun A4PageScaffold(
         }
     }
 }
-
 @Composable
 private fun ReportHeaderBlock(
     header: ReportHeaderUi,
@@ -132,7 +130,6 @@ private fun ReportHeaderBlock(
         }
     }
 }
-
 @Composable
 private fun WhiteMainCard(
     modifier: Modifier = Modifier,
@@ -326,10 +323,9 @@ private fun TrendsPage(
                         )
                     }
 
-                    Divider(color = ReportColors.CardBorder)
-                }
+                Divider(color = ReportColors.CardBorder)
             }
         }
-    )
+    }
+)
 }
-

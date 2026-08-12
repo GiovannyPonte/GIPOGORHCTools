@@ -7,6 +7,8 @@ import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.dao.PatientDao
 import com.gipogo.rhctools.data.db.dao.RhcStudyDao
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
+import com.gipogo.rhctools.reporting.model.displayPvr
+import com.gipogo.rhctools.reporting.model.displaySelectedCo
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -61,15 +63,17 @@ object PatientPdfExport {
 
         val uMmHg = context.getString(R.string.common_unit_mmhg)
         val uLMinM2 = context.getString(R.string.common_unit_lmin_m2)
-        val uWuShort = context.getString(R.string.common_unit_wu_short)
         val uW = context.getString(R.string.common_unit_w)
 
         val lRap = context.getString(R.string.papi_help_rap_title)
         val lMpap = context.getString(R.string.pvr_help_mpap_title)
         val lPcwp = context.getString(R.string.rhc_label_pcwp_short)
         val lCi = context.getString(R.string.rhc_label_ci_short)
+        val lCoMethod = context.getString(R.string.co_method_label)
         val lPvr = context.getString(R.string.home_badge_pvr)
         val lCpo = context.getString(R.string.home_badge_cpo)
+        val displayPvr = rhc.displayPvr()
+        val selectedCo = rhc.displaySelectedCo()
 
         val nf0 = NumberFormat.getNumberInstance().apply {
             maximumFractionDigits = 0
@@ -88,8 +92,17 @@ object PatientPdfExport {
             rhc?.rapMmHg?.let { add(LineItem(label = lRap, value = nf0.format(it), unit = uMmHg)) }
             rhc?.mpapMmHg?.let { add(LineItem(label = lMpap, value = nf0.format(it), unit = uMmHg)) }
             rhc?.pawpMmHg?.let { add(LineItem(label = lPcwp, value = nf0.format(it), unit = uMmHg)) }
-            rhc?.cardiacIndexLMinM2?.let { add(LineItem(label = lCi, value = nf1.format(it), unit = uLMinM2)) }
-            rhc?.pvrWood?.let { add(LineItem(label = lPvr, value = nf1.format(it), unit = uWuShort)) }
+            selectedCo.cardiacIndexLMinM2?.let { add(LineItem(label = lCi, value = nf1.format(it), unit = uLMinM2)) }
+            selectedCo.methodLabelRes?.let { add(LineItem(label = lCoMethod, value = context.getString(it), unit = null)) }
+            displayPvr.value?.let {
+                add(
+                    LineItem(
+                        label = lPvr,
+                        value = if (displayPvr.unitRes == R.string.common_unit_dynes) nf0.format(it) else nf1.format(it),
+                        unit = displayPvr.unitRes?.let(context::getString)
+                    )
+                )
+            }
             rhc?.cardiacPowerW?.let { add(LineItem(label = lCpo, value = nf2.format(it), unit = uW)) }
         }
 

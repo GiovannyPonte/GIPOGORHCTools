@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -26,11 +27,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.NavigateBefore
+import androidx.compose.material.icons.automirrored.outlined.NavigateNext
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.NavigateBefore
-import androidx.compose.material.icons.outlined.NavigateNext
-import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ElevatedCard
@@ -41,10 +42,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +60,8 @@ import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,6 +70,7 @@ import com.gipogo.rhctools.ui.components.ScreenScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
 
 @Composable
@@ -71,22 +79,65 @@ fun PdfPreviewScreen(
     pdfFileForShare: File,
     onClose: () -> Unit
 ) {
-    var zoom by rememberSaveable { mutableStateOf(1f) }
-    var currentPage by rememberSaveable { mutableStateOf(0) }
+    BackHandler(onBack = onClose)
+
+    var zoom by rememberSaveable { mutableFloatStateOf(1f) }
+    var currentPage by rememberSaveable { mutableIntStateOf(0) }
 
     val context = LocalContext.current
+    val resources = LocalResources.current
 
-    var bitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+    var document by remember { mutableStateOf<PdfPreviewDocument?>(null) }
+    var pageCount by remember { mutableIntStateOf(0) }
+    var pageBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var renderedPageIndex by remember { mutableStateOf<Int?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    val latestDocument by rememberUpdatedState(document)
+    val latestBitmap by rememberUpdatedState(pageBitmap)
 
     LaunchedEffect(pdfUri) {
         try {
             error = null
-            bitmaps = renderPdfToBitmaps(context, pdfUri)
+            pageBitmap?.recycle()
+            pageBitmap = null
+            renderedPageIndex = null
+            document?.close()
+            document = null
+            pageCount = 0
+
+            val openedDocument = openPdfPreviewDocument(context, pdfUri)
+            document = openedDocument
+            pageCount = openedDocument.pageCount
             currentPage = 0
             zoom = 1f
-        } catch (e: Exception) {
-            error = context.getString(R.string.pdf_error_render, e.message ?: "")
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            error = resources.getString(R.string.pdf_error_render)
+        }
+    }
+
+    LaunchedEffect(document, currentPage) {
+        val currentDocument = document ?: return@LaunchedEffect
+        if (pageCount <= 0) return@LaunchedEffect
+
+        try {
+            val renderedPage = renderPdfPageBitmap(currentDocument, currentPage)
+            val previous = pageBitmap
+            pageBitmap = renderedPage
+            renderedPageIndex = currentPage
+            previous?.recycle()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            error = resources.getString(R.string.pdf_error_render)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            latestBitmap?.recycle()
+            latestDocument?.close()
         }
     }
 
@@ -106,25 +157,34 @@ fun PdfPreviewScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .testTag("pdf_preview_screen")
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            if (bitmaps.isNotEmpty()) {
-                currentPage = currentPage.coerceIn(0, bitmaps.lastIndex)
+            if (pageCount > 0) {
+                currentPage = currentPage.coerceIn(0, pageCount - 1)
             }
 
             PdfControlsRow(
-                hasPdf = bitmaps.isNotEmpty(),
+                hasPdf = pageCount > 0,
                 currentPage = currentPage,
-                pageCount = bitmaps.size,
+                pageCount = pageCount,
                 zoom = zoom,
                 onPrev = { currentPage = (currentPage - 1).coerceAtLeast(0) },
-                onNext = { currentPage = (currentPage + 1).coerceAtMost((bitmaps.size - 1).coerceAtLeast(0)) },
+                onNext = { currentPage = (currentPage + 1).coerceAtMost((pageCount - 1).coerceAtLeast(0)) },
                 onZoomOut = { zoom = (zoom - 0.25f).coerceIn(1f, 2f) },
                 onZoomIn = { zoom = (zoom + 0.25f).coerceIn(1f, 2f) },
-                onShare = { sharePdfFile(context, pdfFileForShare) },
-                onOpen = { openInOtherApp(context, pdfFileForShare) }
+                onShare = {
+                    sharePdfFile(context, pdfFileForShare).onFailure {
+                        error = resources.getString(R.string.pdf_external_app_unavailable)
+                    }
+                },
+                onOpen = {
+                    openInOtherApp(context, pdfFileForShare).onFailure {
+                        error = resources.getString(R.string.pdf_external_app_unavailable)
+                    }
+                }
             )
 
             if (error != null) {
@@ -138,7 +198,7 @@ fun PdfPreviewScreen(
                 return@Column
             }
 
-            if (bitmaps.isEmpty()) {
+            if (pageBitmap == null || renderedPageIndex != currentPage) {
                 Text(
                     text = stringResource(R.string.pdf_generating_preview),
                     style = MaterialTheme.typography.bodyMedium
@@ -161,7 +221,7 @@ fun PdfPreviewScreen(
                         label = "pdf_page_transition"
                     ) { pageIndex ->
                         ZoomablePdfPagePan(
-                            bitmap = bitmaps[pageIndex],
+                            bitmap = requireNotNull(pageBitmap),
                             contentDescription = stringResource(R.string.pdf_page_cd, pageIndex + 1),
                             zoom = zoom,
                             stateKey = pageIndex,
@@ -201,11 +261,19 @@ private fun PdfControlsRow(
 
         // Documento
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalIconButton(onClick = onShare, enabled = hasPdf) {
+            FilledTonalIconButton(
+                onClick = onShare,
+                enabled = hasPdf,
+                modifier = Modifier.testTag("pdf_preview_share_button")
+            ) {
                 Icon(Icons.Outlined.Share, stringResource(R.string.pdf_btn_share))
             }
-            FilledTonalIconButton(onClick = onOpen, enabled = hasPdf) {
-                Icon(Icons.Outlined.OpenInNew, stringResource(R.string.pdf_btn_open_other))
+            FilledTonalIconButton(
+                onClick = onOpen,
+                enabled = hasPdf,
+                modifier = Modifier.testTag("pdf_preview_open_button")
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.OpenInNew, stringResource(R.string.pdf_btn_open_other))
             }
         }
 
@@ -213,15 +281,24 @@ private fun PdfControlsRow(
 
         // Navegación
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            FilledTonalIconButton(onClick = onPrev, enabled = hasPdf && currentPage > 0) {
-                Icon(Icons.Outlined.NavigateBefore, stringResource(R.string.pdf_btn_prev_page))
+            FilledTonalIconButton(
+                onClick = onPrev,
+                enabled = hasPdf && currentPage > 0,
+                modifier = Modifier.testTag("pdf_preview_prev_button")
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.NavigateBefore, stringResource(R.string.pdf_btn_prev_page))
             }
             Text(
                 text = if (hasPdf) "${currentPage + 1}/$pageCount" else "0/0",
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.testTag("pdf_preview_page_indicator")
             )
-            FilledTonalIconButton(onClick = onNext, enabled = hasPdf && currentPage < pageCount - 1) {
-                Icon(Icons.Outlined.NavigateNext, stringResource(R.string.pdf_btn_next_page))
+            FilledTonalIconButton(
+                onClick = onNext,
+                enabled = hasPdf && currentPage < pageCount - 1,
+                modifier = Modifier.testTag("pdf_preview_next_button")
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.NavigateNext, stringResource(R.string.pdf_btn_next_page))
             }
         }
 
@@ -237,7 +314,11 @@ private fun PdfControlsRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onZoomOut, enabled = zoom > 1f) {
+                IconButton(
+                    onClick = onZoomOut,
+                    enabled = zoom > 1f,
+                    modifier = Modifier.testTag("pdf_preview_zoom_out_button")
+                ) {
                     Icon(Icons.Outlined.Remove, stringResource(R.string.pdf_btn_zoom_out))
                 }
                 Text(
@@ -246,7 +327,11 @@ private fun PdfControlsRow(
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelLarge
                 )
-                IconButton(onClick = onZoomIn, enabled = zoom < 2f) {
+                IconButton(
+                    onClick = onZoomIn,
+                    enabled = zoom < 2f,
+                    modifier = Modifier.testTag("pdf_preview_zoom_in_button")
+                ) {
                     Icon(Icons.Outlined.Add, stringResource(R.string.pdf_btn_zoom_in))
                 }
             }
@@ -265,11 +350,11 @@ private fun ZoomablePdfPagePan(
     stateKey: Int,
     modifier: Modifier = Modifier
 ) {
-    var offsetX by rememberSaveable(stateKey) { mutableStateOf(0f) }
-    var offsetY by rememberSaveable(stateKey) { mutableStateOf(0f) }
+    var offsetX by rememberSaveable(stateKey) { mutableFloatStateOf(0f) }
+    var offsetY by rememberSaveable(stateKey) { mutableFloatStateOf(0f) }
 
-    var boxW by remember { mutableStateOf(0) }
-    var boxH by remember { mutableStateOf(0) }
+    var boxW by remember { mutableIntStateOf(0) }
+    var boxH by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(zoom) {
         if (zoom <= 1f) {
@@ -320,58 +405,70 @@ private fun ZoomablePdfPagePan(
     }
 }
 
-/* =========================
- * PDF → BITMAPS
- * ========================= */
-private suspend fun renderPdfToBitmaps(context: Context, uri: Uri): List<Bitmap> = withContext(Dispatchers.IO) {
-    val pfd: ParcelFileDescriptor =
-        context.contentResolver.openFileDescriptor(uri, "r")
-            ?: throw IllegalStateException(context.getString(R.string.pdf_error_open_file))
+private class PdfPreviewDocument(
+    private val parcelFileDescriptor: ParcelFileDescriptor,
+    private val renderer: PdfRenderer
+) {
+    val pageCount: Int
+        get() = renderer.pageCount
 
-    pfd.use { parcel ->
-        PdfRenderer(parcel).use { renderer ->
-            val pages = mutableListOf<Bitmap>()
-            val targetWidthPx = 1400
-
-            repeat(renderer.pageCount) { i ->
-                renderer.openPage(i).use { page ->
-                    val scale = targetWidthPx.toFloat() / page.width.toFloat()
-                    val h = (page.height * scale).toInt().coerceAtLeast(1)
-                    val bmp = Bitmap.createBitmap(targetWidthPx, h, Bitmap.Config.ARGB_8888)
-                    page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    pages.add(bmp)
-                }
+    fun renderPage(pageIndex: Int, targetWidthPx: Int): Bitmap {
+        renderer.openPage(pageIndex).use { page ->
+            val scale = targetWidthPx.toFloat() / page.width.toFloat()
+            val targetHeightPx = (page.height * scale).toInt().coerceAtLeast(1)
+            return Bitmap.createBitmap(targetWidthPx, targetHeightPx, Bitmap.Config.ARGB_8888).also { bitmap ->
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
             }
-            pages
         }
+    }
+
+    fun close() {
+        renderer.close()
+        parcelFileDescriptor.close()
     }
 }
 
-private fun sharePdfFile(context: Context, file: File) {
+private suspend fun openPdfPreviewDocument(context: Context, uri: Uri): PdfPreviewDocument =
+    withContext(Dispatchers.IO) {
+        val pfd = context.contentResolver.openFileDescriptor(uri, "r")
+            ?: throw IllegalStateException(context.getString(R.string.pdf_error_open_file))
+        PdfPreviewDocument(
+            parcelFileDescriptor = pfd,
+            renderer = PdfRenderer(pfd)
+        )
+    }
+
+private suspend fun renderPdfPageBitmap(
+    document: PdfPreviewDocument,
+    pageIndex: Int,
+    targetWidthPx: Int = 1400
+): Bitmap = withContext(Dispatchers.IO) {
+    document.renderPage(pageIndex, targetWidthPx)
+}
+
+private fun sharePdfFile(context: Context, file: File): Result<Unit> = runCatching {
     val uri = androidx.core.content.FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
+        context, "${context.packageName}.fileprovider", file
     )
-    context.startActivity(
-        Intent(Intent.ACTION_SEND).apply {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+    context.startActivity(
+        Intent.createChooser(sendIntent, context.getString(R.string.pdf_chooser_share))
     )
 }
 
-private fun openInOtherApp(context: Context, file: File) {
+private fun openInOtherApp(context: Context, file: File): Result<Unit> = runCatching {
     val uri = androidx.core.content.FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
+        context, "${context.packageName}.fileprovider", file
     )
-    context.startActivity(
-        Intent(Intent.ACTION_VIEW).apply {
+    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/pdf")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+    context.startActivity(
+        Intent.createChooser(viewIntent, context.getString(R.string.pdf_chooser_open_with))
     )
 }

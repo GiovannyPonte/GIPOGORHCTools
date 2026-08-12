@@ -10,7 +10,10 @@ import com.gipogo.rhctools.data.db.dao.RhcStudyDao
 import com.gipogo.rhctools.data.db.dao.StudyDao
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
+import com.gipogo.rhctools.reporting.model.displayPvr
+import com.gipogo.rhctools.reporting.model.displaySelectedCo
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,7 +73,9 @@ data class SummaryRowUi(
     @StringRes val labelRes: Int,
     val value: Double?,
     val decimals: Int,
-    @StringRes val unitRes: Int?
+    @StringRes val unitRes: Int?,
+    val textValue: String? = null,
+    @StringRes val textRes: Int? = null
 )
 
 data class TrendsUi(
@@ -80,7 +85,8 @@ data class TrendsUi(
 
 data class TrendSeriesUi(
     val metric: TrendMetric,
-    val points: List<TrendPointUi>
+    val points: List<TrendPointUi>,
+    @StringRes val unitResOverride: Int? = null
 )
 
 data class TrendPointUi(
@@ -152,15 +158,17 @@ class PatientDetailViewModel(
         kotlinx.coroutines.flow.flow {
             emit(loadPatientHeader())
         }.catch { e ->
+            if (e is CancellationException) throw e
             emit(PatientHeaderModel(topBarTitle = patientId, secondaryLine = null))
-            _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_error_generic, e.localizedMessage))
+            _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_error_generic))
         }
     }
 
     private val studiesFlow: Flow<List<StudyWithRhcData>> = refreshToken.flatMapLatest {
         rhcStudyDao.listStudiesWithRhcDataByPatient(patientId)
     }.catch { e ->
-        _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_error_generic, e.localizedMessage))
+        if (e is CancellationException) throw e
+        _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_error_generic))
         emit(emptyList())
     }
 
@@ -201,7 +209,8 @@ class PatientDetailViewModel(
                 trends = trends
             )
         }.catch { e ->
-            emit(PatientDetailUiState.Error(R.string.patient_error_generic, e.localizedMessage))
+            if (e is CancellationException) throw e
+            emit(PatientDetailUiState.Error(R.string.patient_error_generic))
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -214,20 +223,27 @@ class PatientDetailViewModel(
 
     fun deleteStudy(studyId: String) {
         viewModelScope.launch {
-            runCatching {
+            try {
                 // Robusto: elimina snapshot 1:1 y luego el estudio.
                 rhcStudyDao.deleteByStudyId(studyId)
                 studyDao.deleteById(studyId)
-            }.onSuccess {
                 _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_msg_study_deleted))
-            }.onFailure { e ->
-                _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_error_generic, e.localizedMessage))
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                _events.tryEmit(PatientDetailEvent.Snackbar(R.string.patient_error_generic))
             }
         }
     }
 
     private suspend fun loadPatientHeader(): PatientHeaderModel {
-        val patient = runCatching { patientDao.getById(patientId) }.getOrNull()
+        val patient = try {
+            patientDao.getById(patientId)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Throwable) {
+            null
+        }
 
         val displayName = patient?.displayName?.takeIf { it.isNotBlank() }
         val internalCode = patient?.internalCode?.takeIf { it.isNotBlank() }
@@ -252,10 +268,23 @@ class PatientDetailViewModel(
     }
 
     private fun buildInlineMetrics(rhc: RhcStudyDataEntity?): List<InlineMetricUi> {
+        val displayPvr = rhc.displayPvr()
+        val selectedCo = rhc.displaySelectedCo()
+
         // Short, space-saving: prefer PVR + CI (if present), else fall back to mPAP/PCWP/RAP.
         val candidates = listOf(
-            InlineMetricUi(R.string.home_badge_pvr, rhc?.pvrWood, decimals = 1, unitRes = R.string.common_unit_wu_short),
-            InlineMetricUi(R.string.rhc_label_ci_short, rhc?.cardiacIndexLMinM2, decimals = 1, unitRes = R.string.common_unit_lmin_m2),
+            InlineMetricUi(
+                R.string.home_badge_pvr,
+                displayPvr.value,
+                decimals = if (displayPvr.unitRes == R.string.common_unit_dynes) 0 else 1,
+                unitRes = displayPvr.unitRes
+            ),
+            InlineMetricUi(
+                R.string.rhc_label_ci_short,
+                selectedCo.cardiacIndexLMinM2,
+                decimals = 1,
+                unitRes = R.string.common_unit_lmin_m2
+            ),
             InlineMetricUi(R.string.pvr_help_mpap_title, rhc?.mpapMmHg, decimals = 0, unitRes = R.string.common_unit_mmhg),
             InlineMetricUi(R.string.rhc_label_pcwp_short, rhc?.pawpMmHg, decimals = 0, unitRes = R.string.common_unit_mmhg),
             InlineMetricUi(R.string.papi_help_rap_title, rhc?.rapMmHg, decimals = 0, unitRes = R.string.common_unit_mmhg),
@@ -269,16 +298,35 @@ class PatientDetailViewModel(
         startedAtMillis: Long,
         rhc: RhcStudyDataEntity?
     ): LatestStudySummaryUi {
+        val displayPvr = rhc.displayPvr()
+        val selectedCo = rhc.displaySelectedCo()
         val rows = listOf(
             SummaryRowUi(R.string.papi_help_rap_title, rhc?.rapMmHg, decimals = 0, unitRes = R.string.common_unit_mmhg),
             SummaryRowUi(R.string.pvr_help_mpap_title, rhc?.mpapMmHg, decimals = 0, unitRes = R.string.common_unit_mmhg),
             SummaryRowUi(R.string.rhc_label_pcwp_short, rhc?.pawpMmHg, decimals = 0, unitRes = R.string.common_unit_mmhg),
-            SummaryRowUi(R.string.rhc_label_ci_short, rhc?.cardiacIndexLMinM2, decimals = 1, unitRes = R.string.common_unit_lmin_m2),
-            SummaryRowUi(R.string.home_badge_pvr, rhc?.pvrWood, decimals = 1, unitRes = R.string.common_unit_wu_short),
+            SummaryRowUi(
+                R.string.rhc_label_ci_short,
+                selectedCo.cardiacIndexLMinM2,
+                decimals = 1,
+                unitRes = R.string.common_unit_lmin_m2
+            ),
+            SummaryRowUi(
+                R.string.co_method_label,
+                value = null,
+                decimals = 0,
+                unitRes = null,
+                textRes = selectedCo.methodLabelRes
+            ),
+            SummaryRowUi(
+                R.string.home_badge_pvr,
+                displayPvr.value,
+                decimals = if (displayPvr.unitRes == R.string.common_unit_dynes) 0 else 1,
+                unitRes = displayPvr.unitRes
+            ),
             SummaryRowUi(R.string.home_badge_cpo, rhc?.cardiacPowerW, decimals = 2, unitRes = R.string.common_unit_w),
         )
 
-        val hasAny = rows.any { it.value != null }
+        val hasAny = rows.any { it.value != null || it.textValue != null || it.textRes != null }
         return LatestStudySummaryUi(
             studyId = studyId,
             startedAtMillis = startedAtMillis,
@@ -289,15 +337,32 @@ class PatientDetailViewModel(
 
     private fun buildTrends(studies: List<StudyWithRhcData>): TrendsUi? {
         if (studies.size < 2) return null
+        val pvrUnitSet = studies
+            .mapNotNull { it.rhc.displayPvr().unitRes }
+            .toSet()
+        val pvrUnitRes = pvrUnitSet.singleOrNull()
 
-        val series = listOf(
-            TrendSeriesUi(TrendMetric.RAP, studies.pointsOf { it.rapMmHg }),
-            TrendSeriesUi(TrendMetric.MPAP, studies.pointsOf { it.mpapMmHg }),
-            TrendSeriesUi(TrendMetric.PCWP, studies.pointsOf { it.pawpMmHg }),
-            TrendSeriesUi(TrendMetric.CI, studies.pointsOf { it.cardiacIndexLMinM2 }),
-            TrendSeriesUi(TrendMetric.PVR, studies.pointsOf { it.pvrWood }),
-            TrendSeriesUi(TrendMetric.CPO, studies.pointsOf { it.cardiacPowerW }),
-        ).map { it.copy(points = it.points.sortedBy { p -> p.xMillis }) }
+        val series = buildList {
+            add(TrendSeriesUi(TrendMetric.RAP, studies.pointsOf { it.rapMmHg }))
+            add(TrendSeriesUi(TrendMetric.MPAP, studies.pointsOf { it.mpapMmHg }))
+            add(TrendSeriesUi(TrendMetric.PCWP, studies.pointsOf { it.pawpMmHg }))
+            add(
+                TrendSeriesUi(
+                    TrendMetric.CI,
+                    studies.pointsOf { it.displaySelectedCo().cardiacIndexLMinM2 }
+                )
+            )
+            if (pvrUnitRes == R.string.common_unit_wu_short) {
+                add(
+                    TrendSeriesUi(
+                        TrendMetric.PVR,
+                        studies.pointsOf { it.displayPvr().value },
+                        unitResOverride = pvrUnitRes
+                    )
+                )
+            }
+            add(TrendSeriesUi(TrendMetric.CPO, studies.pointsOf { it.cardiacPowerW }))
+        }.map { it.copy(points = it.points.sortedBy { p -> p.xMillis }) }
 
         val directions = series.map { s ->
             MetricDirectionUi(metric = s.metric, direction = classifyTrend(s.points))

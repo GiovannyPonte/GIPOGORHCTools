@@ -28,4 +28,3 @@ data class PatientEntity(
     val createdAtMillis: Long,
     val updatedAtMillis: Long
 )
-

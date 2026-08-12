@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalTextToolbar
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
 import androidx.compose.ui.text.TextRange
@@ -63,6 +64,7 @@ fun GipogoBorderlessNumberField(
     keyboardType: KeyboardType,
     onUnitClick: (() -> Unit)? = null,
     showUnitInField: Boolean = false,
+    inputTestTag: String? = null,
     modifier: Modifier = Modifier
 ) {
     val cs = MaterialTheme.colorScheme
@@ -169,6 +171,7 @@ fun GipogoBorderlessNumberField(
                 modifier = Modifier
                     .weight(1f)
                     .alignByBaseline()
+                    .then(if (inputTestTag != null) Modifier.testTag(inputTestTag) else Modifier)
                     .onFocusChanged { fs ->
                         val focused = fs.isFocused
 

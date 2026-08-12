@@ -4,13 +4,17 @@ import android.content.Context
 import com.gipogo.rhctools.data.db.DbProvider
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class StudiesRepository private constructor(
     private val appContext: Context
 ) {
-    private val db by lazy { DbProvider.get(appContext) }
-    private val rhcStudyDao by lazy { db.rhcStudyDao() }
+    private fun rhcStudyDaoOrNull() =
+        when (val result = DbProvider.getResult(appContext)) {
+            is DbProvider.DbOpenResult.Success -> result.db.rhcStudyDao()
+            is DbProvider.DbOpenResult.Failure -> null
+        }
 
     /**
      * Fuente de verdad: Room.
@@ -22,6 +26,7 @@ class StudiesRepository private constructor(
         patientId: String,
         studyId: String
     ): Flow<StudyWithRhcData?> {
+        val rhcStudyDao = rhcStudyDaoOrNull() ?: return flowOf(null)
         return rhcStudyDao
             .listStudiesWithRhcDataByPatient(patientId)
             .map { list -> list.firstOrNull { it.study.id == studyId } }
@@ -38,4 +43,3 @@ class StudiesRepository private constructor(
         }
     }
 }
-

@@ -20,22 +20,28 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gipogo.rhctools.R
+import com.gipogo.rhctools.data.db.DbProvider
 import com.gipogo.rhctools.data.db.entities.PatientEntity
+import com.gipogo.rhctools.domain.BirthDateCodec
 import com.gipogo.rhctools.ui.viewmodel.PatientsDatePreset
 import com.gipogo.rhctools.ui.viewmodel.PatientsViewModel
-import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
 import java.time.ZoneId
+import java.text.DateFormat
+import java.util.Date
 
 private val ScreenPadding = 16.dp
 private val CardShape = RoundedCornerShape(22.dp)
@@ -50,8 +56,21 @@ fun PatientsScreen(
     onOpenPatient: ((String) -> Unit)? = null,
     onEditPatient: ((String) -> Unit)? = null,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val appCtx = context.applicationContext
+    var dbRetryNonce by rememberSaveable { mutableStateOf(0) }
+    val dbResult = remember(appCtx, dbRetryNonce) { DbProvider.getResult(appCtx) }
+
+    if (dbResult is DbProvider.DbOpenResult.Failure) {
+        PatientsDbErrorScreen(
+            onBack = onBack,
+            onRetry = { dbRetryNonce++ }
+        )
+        return
+    }
+
     val vm: PatientsViewModel = viewModel()
-    val ui by vm.state.collectAsState()
+    val ui by vm.state.collectAsStateWithLifecycle()
 
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
 
@@ -66,11 +85,15 @@ fun PatientsScreen(
                         val id = pendingDeleteId
                         pendingDeleteId = null
                         if (id != null) vm.deletePatient(id)
-                    }
+                    },
+                    modifier = Modifier.testTag("patients_delete_confirm_button")
                 ) { Text(stringResource(R.string.common_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDeleteId = null }) {
+                TextButton(
+                    onClick = { pendingDeleteId = null },
+                    modifier = Modifier.testTag("patients_delete_cancel_button")
+                ) {
                     Text(stringResource(R.string.common_cancel))
                 }
             }
@@ -91,15 +114,19 @@ fun PatientsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { onBack?.invoke() }, enabled = onBack != null) {
-                        Icon(Icons.Outlined.Menu, contentDescription = null)
+                        Icon(Icons.Outlined.Menu, contentDescription = stringResource(R.string.common_menu))
                     }
                 },
                 actions = {
                     IconButton(onClick = { vm.toggleSearchActive() }) {
-                        Icon(Icons.Outlined.Search, contentDescription = null)
+                        Icon(Icons.Outlined.Search, contentDescription = stringResource(R.string.common_search))
                     }
-                    IconButton(onClick = { onAdd?.invoke() }, enabled = onAdd != null) {
-                        Icon(Icons.Outlined.Add, contentDescription = null)
+                    IconButton(
+                        onClick = { onAdd?.invoke() },
+                        enabled = onAdd != null,
+                        modifier = Modifier.testTag("patients_add_button")
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.common_add_patient))
                     }
                 }
             )
@@ -107,10 +134,11 @@ fun PatientsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onAdd?.invoke() },
+                modifier = Modifier.testTag("patients_add_fab"),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = null)
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.common_add_patient))
             }
         }
     ) { padding ->
@@ -143,7 +171,7 @@ fun PatientsScreen(
                     trailingIcon = {
                         if (ui.query.isNotBlank()) {
                             IconButton(onClick = { vm.setQuery("") }) {
-                                Icon(Icons.Outlined.Close, contentDescription = null)
+                                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.common_close_search))
                             }
                         }
                     }
@@ -180,6 +208,62 @@ fun PatientsScreen(
                                 .padding(top = 8.dp)
                                 .alpha(0.85f)
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PatientsDbErrorScreen(
+    onBack: (() -> Unit)?,
+    onRetry: () -> Unit
+) {
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = stringResource(R.string.patients_title_app),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { onBack?.invoke() }, enabled = onBack != null) {
+                        Icon(Icons.Outlined.Menu, contentDescription = stringResource(R.string.common_menu))
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(ScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.common_error),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Text(
+                text = stringResource(R.string.patient_error_generic),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onRetry) {
+                    Text(stringResource(R.string.common_retry))
+                }
+                if (onBack != null) {
+                    OutlinedButton(onClick = onBack) {
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             }
@@ -249,7 +333,6 @@ private fun PatientCard(
     var menuExpanded by remember { mutableStateOf(false) }
 
     val title = p.displayName?.takeIf { it.isNotBlank() }
-        ?: p.notes?.takeIf { it.isNotBlank() }
         ?: p.internalCode
 
     val maleShort = stringResource(R.string.common_sex_m_short)
@@ -259,11 +342,17 @@ private fun PatientCard(
         formatAgeSex(p.birthDateMillis, p.sex, maleShort, femaleShort)
     }
 
-    val lastStudyLabel = remember(lastStudyAtMillis) { lastStudyAtMillis?.toString() }
-        ?: stringResource(R.string.common_value_na)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lastStudyLabel = remember(lastStudyAtMillis, context) {
+        lastStudyAtMillis?.let {
+            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(it))
+        }
+    } ?: stringResource(R.string.common_value_na)
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("patient_card_${p.internalCode}"),
         shape = CardShape,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
@@ -334,8 +423,11 @@ private fun PatientCard(
                 }
 
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Outlined.MoreVert, contentDescription = null)
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.testTag("patient_menu_${p.internalCode}")
+                    ) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = stringResource(R.string.common_patient_options))
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
@@ -348,7 +440,8 @@ private fun PatientCard(
                                 menuExpanded = false
                                 onEdit?.invoke()
                             },
-                            enabled = onEdit != null
+                            enabled = onEdit != null,
+                            modifier = Modifier.testTag("patient_edit_${p.internalCode}")
                         )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.common_delete)) },
@@ -357,7 +450,8 @@ private fun PatientCard(
                                 menuExpanded = false
                                 onDelete?.invoke()
                             },
-                            enabled = onDelete != null
+                            enabled = onDelete != null,
+                            modifier = Modifier.testTag("patient_delete_${p.internalCode}")
                         )
                     }
                 }
@@ -372,6 +466,7 @@ private fun PatientCard(
                 TextButton(
                     onClick = { onClick?.invoke() },
                     enabled = onClick != null,
+                    modifier = Modifier.testTag("patient_view_${p.internalCode}"),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                 ) {
                     Text(
@@ -410,7 +505,7 @@ private fun formatAgeSex(
 
     val ageYears: Int? = birthDateMillis?.let { ms ->
         try {
-            val dob = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
+            val dob = BirthDateCodec.fromStorageMillis(ms)
             val today = LocalDate.now(ZoneId.systemDefault())
             Period.between(dob, today).years.coerceAtLeast(0)
         } catch (_: Exception) {

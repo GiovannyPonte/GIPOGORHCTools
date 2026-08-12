@@ -27,8 +27,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gipogo.rhctools.R
 import kotlin.math.roundToInt
 
 // ----------------------------
@@ -58,7 +60,7 @@ fun ForresterChartCard(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Clasificación de Forrester",
+                text = stringResource(R.string.forrester_classification_title),
                 style = MaterialTheme.typography.titleLarge
             )
 
@@ -96,6 +98,12 @@ private fun ForresterCanvas(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val quadrantLabels = listOf(
+        stringResource(R.string.forrester_quadrant_i),
+        stringResource(R.string.forrester_quadrant_ii),
+        stringResource(R.string.forrester_quadrant_iii),
+        stringResource(R.string.forrester_quadrant_iv)
+    )
 
     // Rangos “de trabajo” (puedes ajustarlos si quieres)
     val maxCi = 5.0f
@@ -223,10 +231,10 @@ private fun ForresterCanvas(
             fontSize = 10.sp
         )
 
-        drawText(textMeasurer, "I  Warm & Dry", Offset(8f, 24f), qStyle)
-        drawText(textMeasurer, "II Warm & Wet", Offset(xT + 8f, 24f), qStyle)
-        drawText(textMeasurer, "III Cold & Dry", Offset(8f, yT + 8f), qStyle)
-        drawText(textMeasurer, "IV Cold & Wet", Offset(xT + 8f, yT + 8f), qStyle)
+        drawText(textMeasurer, quadrantLabels[0], Offset(8f, 24f), qStyle)
+        drawText(textMeasurer, quadrantLabels[1], Offset(xT + 8f, 24f), qStyle)
+        drawText(textMeasurer, quadrantLabels[2], Offset(8f, yT + 8f), qStyle)
+        drawText(textMeasurer, quadrantLabels[3], Offset(xT + 8f, yT + 8f), qStyle)
 
         // ----------------------------
         // Patient point
@@ -287,10 +295,10 @@ private fun ForresterDiagnosisCard(data: ForresterData) {
     val pcwp = data.wedgePressureMmHg
 
     val profile = when {
-        ci >= 2.2f && pcwp <= 18f -> "Perfil I: Normal (Warm & Dry)"
-        ci >= 2.2f && pcwp > 18f -> "Perfil II: Congestión (Warm & Wet)"
-        ci < 2.2f && pcwp <= 18f -> "Perfil III: Hipoperfusión sin congestión (Cold & Dry)"
-        else -> "Perfil IV: Choque con congestión (Cold & Wet)"
+        ci >= 2.2f && pcwp <= 18f -> stringResource(R.string.forrester_profile_i)
+        ci >= 2.2f && pcwp > 18f -> stringResource(R.string.forrester_profile_ii)
+        ci < 2.2f && pcwp <= 18f -> stringResource(R.string.forrester_profile_iii)
+        else -> stringResource(R.string.forrester_profile_iv)
     }
 
     val statusColor = when {
@@ -307,7 +315,7 @@ private fun ForresterDiagnosisCard(data: ForresterData) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                text = "Estado actual",
+                text = stringResource(R.string.forrester_current_status),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
             )
@@ -320,10 +328,10 @@ private fun ForresterDiagnosisCard(data: ForresterData) {
             Spacer(Modifier.height(8.dp))
 
             val suggestion = when {
-                ci >= 2.2f && pcwp <= 18f -> "Perfil hemodinámico estable. Revalorar en contexto clínico."
-                ci >= 2.2f && pcwp > 18f -> "Congestión predominante. Considerar estrategia de descongestión según escenario."
-                ci < 2.2f && pcwp <= 18f -> "Hipoperfusión sin congestión. Considerar optimización de precarga/inotropía según causa."
-                else -> "Choque con congestión. Manejo urgente guiado por perfusión, presión y congestión."
+                ci >= 2.2f && pcwp <= 18f -> stringResource(R.string.forrester_suggestion_i)
+                ci >= 2.2f && pcwp > 18f -> stringResource(R.string.forrester_suggestion_ii)
+                ci < 2.2f && pcwp <= 18f -> stringResource(R.string.forrester_suggestion_iii)
+                else -> stringResource(R.string.forrester_suggestion_iv)
             }
 
             Text(

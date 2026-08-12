@@ -8,6 +8,10 @@ plugins {
 
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 android {
     namespace = "com.gipogo.rhctools"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -18,8 +22,8 @@ android {
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
 
-        versionCode = 5
-        versionName = "3.0.0"
+        versionCode = 17
+        versionName = "17.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,10 +38,17 @@ android {
         }
     }
 
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     android {
         compileOptions {
             sourceCompatibility = JavaVersion.VERSION_11
             targetCompatibility = JavaVersion.VERSION_11
+            isCoreLibraryDesugaringEnabled = true
         }
     }
 
@@ -65,11 +76,13 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
 
     debugImplementation(libs.compose.ui.tooling)
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     implementation(libs.androidx.datastore.preferences)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
@@ -83,6 +96,19 @@ dependencies {
     implementation(libs.androidx.biometric)
 
     implementation(libs.androidx.appcompat)
+    implementation(libs.google.play.app.update)
+    implementation(libs.google.play.app.update.ktx)
 
+    implementation(libs.sqlcipher)
+    implementation(libs.androidx.sqlite)
+    implementation(libs.androidx.security.crypto)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:core-ktx:1.7.0")
 
 }

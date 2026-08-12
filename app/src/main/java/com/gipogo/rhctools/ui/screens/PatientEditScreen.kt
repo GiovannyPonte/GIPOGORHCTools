@@ -46,7 +46,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +57,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,7 +67,11 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gipogo.rhctools.R
+import com.gipogo.rhctools.data.AppPreferences
+import com.gipogo.rhctools.domain.BirthDateCodec
+import com.gipogo.rhctools.domain.PatientPhysicalConstraints
 import com.gipogo.rhctools.domain.UnitSystem
+import com.gipogo.rhctools.domain.ClinicalUnitNormalizer
 import com.gipogo.rhctools.ui.components.GipogoFieldHint
 import com.gipogo.rhctools.ui.components.GipogoSectionHeaderRow
 import com.gipogo.rhctools.ui.components.GipogoSplitInputCard
@@ -75,9 +81,9 @@ import com.gipogo.rhctools.ui.security.BiometricGate
 import com.gipogo.rhctools.ui.validation.Severity
 import com.gipogo.rhctools.ui.viewmodel.PatientEditorUiState
 import com.gipogo.rhctools.ui.viewmodel.PatientEditorViewModel
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlinx.coroutines.launch
@@ -102,12 +108,13 @@ fun PatientEditScreen(
     requireAuth: Boolean = true,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val activity = context as? FragmentActivity
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val vm: PatientEditorViewModel = viewModel()
-    val ui by vm.state.collectAsState()
+    val ui by vm.state.collectAsStateWithLifecycle()
 
     // ---------- FORM VALIDATION ----------
     var submitted by remember { mutableStateOf(false) }
@@ -129,7 +136,7 @@ fun PatientEditScreen(
     var authInFlight by remember { mutableStateOf(false) }
 
     fun showSnack(@StringRes resId: Int) {
-        scope.launch { snackbarHostState.showSnackbar(context.getString(resId)) }
+        scope.launch { snackbarHostState.showSnackbar(resources.getString(resId)) }
     }
 
     fun requestAuth() {
@@ -201,7 +208,9 @@ fun PatientEditScreen(
 
     // ---------- Units (estado visible de UI) ----------
     val defaultUnitSystem = rememberDefaultUnitSystem()
-    var unitSystem by rememberSaveable { mutableStateOf(defaultUnitSystem) }
+    val prefs = remember(context.applicationContext) { AppPreferences(context.applicationContext) }
+    val storedUnitSystem by prefs.storedUnitSystem.collectAsStateWithLifecycle(initialValue = null)
+    val unitSystem = storedUnitSystem ?: defaultUnitSystem
 
     var weightDisplay by rememberSaveable(ui.patientId) { mutableStateOf("") }
     var heightDisplay by rememberSaveable(ui.patientId) { mutableStateOf("") }
@@ -212,23 +221,18 @@ fun PatientEditScreen(
     fun normNum(s: String): String = normalizeNumericForParse(s)
 
     // Rangos “permitidos” (en kg / cm, independientemente del UnitSystem mostrado)
-    val WEIGHT_MIN_KG = 20.0
-    val WEIGHT_MAX_KG = 300.0
-    val HEIGHT_MIN_CM = 120.0
-    val HEIGHT_MAX_CM = 230.0
-
     fun weightIsValidNow(): Boolean {
         val t = normNum(weightDisplay)
         if (t.isBlank()) return false
         val kg = unitSystem.weightToKg(t) ?: return false
-        return kg in 20.0..300.0
+        return kg in PatientPhysicalConstraints.WEIGHT_MIN_KG..PatientPhysicalConstraints.WEIGHT_MAX_KG
     }
 
     fun heightIsValidNow(): Boolean {
         val t = normNum(heightDisplay)
         if (t.isBlank()) return false
         val cm = unitSystem.heightToCm(t) ?: return false
-        return cm in 120.0..230.0
+        return cm in PatientPhysicalConstraints.HEIGHT_MIN_CM..PatientPhysicalConstraints.HEIGHT_MAX_CM
     }
 
 
@@ -326,9 +330,9 @@ fun PatientEditScreen(
             val old = unitSystem
             weightDisplay = convertWeightString(weightDisplay, old, newSys)
             heightDisplay = convertHeightString(heightDisplay, old, newSys)
-            unitSystem = newSys
             onWeightDisplayChanged(weightDisplay)
             onHeightDisplayChanged(heightDisplay)
+            scope.launch { prefs.setUnitSystem(newSys) }
         },
         weightDisplay = weightDisplay,
         onWeightDisplayChange = { onWeightDisplayChanged(it) },
@@ -380,9 +384,7 @@ private fun PatientEditContent(
     val today = LocalDate.now(zone)
     val minDob = today.minusYears(120)
 
-    val dob: LocalDate? = ui.birthDateMillis?.let { ms ->
-        Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
-    }
+    val dob: LocalDate? = ui.birthDateMillis?.let(BirthDateCodec::fromStorageMillis)
 
     val dobInFuture = dob?.isAfter(today) == true
     val dobTooOld = dob?.isBefore(minDob) == true
@@ -399,24 +401,19 @@ private fun PatientEditContent(
     fun normNum(s: String): String = s.trim().replace(',', '.')
 
     // Rangos permitidos (kg / cm)
-    val WEIGHT_MIN_KG = 20.0
-    val WEIGHT_MAX_KG = 300.0
-    val HEIGHT_MIN_CM = 120.0
-    val HEIGHT_MAX_CM = 230.0
-
     // ✅ Aquí SÍ bloqueamos por rango, porque el usuario pidió que GUARDAR se desactive fuera de rango.
     fun weightIsValidNow(): Boolean {
         val t = normNum(weightDisplay)
         if (t.isBlank()) return false
         val kg = unitSystem.weightToKg(t) ?: return false
-        return kg in WEIGHT_MIN_KG..WEIGHT_MAX_KG
+        return kg in PatientPhysicalConstraints.WEIGHT_MIN_KG..PatientPhysicalConstraints.WEIGHT_MAX_KG
     }
 
     fun heightIsValidNow(): Boolean {
         val t = normNum(heightDisplay)
         if (t.isBlank()) return false
         val cm = unitSystem.heightToCm(t) ?: return false
-        return cm in HEIGHT_MIN_CM..HEIGHT_MAX_CM
+        return cm in PatientPhysicalConstraints.HEIGHT_MIN_CM..PatientPhysicalConstraints.HEIGHT_MAX_CM
     }
 
     val isSaveEnabled =
@@ -434,10 +431,11 @@ private fun PatientEditContent(
     val datePickerState = rememberDatePickerState()
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
 
     fun showDobSnack(@StringRes resId: Int) {
-        scope.launch { snackbarHostState.showSnackbar(context.getString(resId)) }
+        scope.launch { snackbarHostState.showSnackbar(resources.getString(resId)) }
     }
 
 
@@ -449,7 +447,7 @@ private fun PatientEditContent(
                     onClick = {
                         val millis = datePickerState.selectedDateMillis
                         if (millis != null) {
-                            val picked = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                            val picked = BirthDateCodec.fromStorageMillis(millis)
                             val today = LocalDate.now(ZoneId.systemDefault())
                             val minDob = today.minusYears(120)
 
@@ -462,7 +460,7 @@ private fun PatientEditContent(
                                     showDobSnack(R.string.patient_edit_err_dob_range)
                                     return@TextButton
                                 }
-                                else -> onBirthDateMillisPick(millis)
+                                else -> onBirthDateMillisPick(BirthDateCodec.normalizeStorageMillis(millis))
                             }
                         }
                         showDobPicker = false
@@ -625,7 +623,9 @@ private fun PatientEditContent(
                 OutlinedTextField(
                     value = ui.code,
                     onValueChange = onCodeChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("patient_code_field"),
                     label = { Text(stringResource(R.string.patient_edit_field_code)) },
                     supportingText = {
                         when {
@@ -650,7 +650,9 @@ private fun PatientEditContent(
                 OutlinedTextField(
                     value = ui.displayName,
                     onValueChange = onNameChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("patient_name_field"),
                     label = { Text(stringResource(R.string.patient_edit_field_name)) },
                     placeholder = { Text(stringResource(R.string.patient_edit_field_name_hint)) },
                     supportingText = {
@@ -665,7 +667,7 @@ private fun PatientEditContent(
 
                 OutlinedTextField(
                     value = ui.birthDateMillis?.let { ms ->
-                        val d = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
+                        val d = BirthDateCodec.fromStorageMillis(ms)
                         "%02d/%02d/%04d".format(d.dayOfMonth, d.monthValue, d.year)
                     }.orEmpty(),
                     onValueChange = { /* readOnly */ },
@@ -756,6 +758,13 @@ private fun PatientEditContent(
                                 SegmentedButton(
                                     selected = unitSystem == sys,
                                     onClick = { onUnitSystemChange(sys) },
+                                    modifier = Modifier.testTag(
+                                        if (sys == UnitSystem.Metric) {
+                                            "unit_metric_button"
+                                        } else {
+                                            "unit_imperial_button"
+                                        }
+                                    ),
                                     shape = SegmentedButtonDefaults.itemShape(index, UnitSystem.entries.size),
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                                 ) {
@@ -776,8 +785,12 @@ private fun PatientEditContent(
                     val weightKg = unitSystem.weightToKg(weightTrim)
                     val heightCm = unitSystem.heightToCm(heightTrim)
 
-                    val weightOutOfRange = weightKg != null && (weightKg !in WEIGHT_MIN_KG..WEIGHT_MAX_KG)
-                    val heightOutOfRange = heightCm != null && (heightCm !in HEIGHT_MIN_CM..HEIGHT_MAX_CM)
+                    val weightOutOfRange = weightKg != null && (
+                        weightKg !in PatientPhysicalConstraints.WEIGHT_MIN_KG..PatientPhysicalConstraints.WEIGHT_MAX_KG
+                    )
+                    val heightOutOfRange = heightCm != null && (
+                        heightCm !in PatientPhysicalConstraints.HEIGHT_MIN_CM..PatientPhysicalConstraints.HEIGHT_MAX_CM
+                    )
 
                     // Como ahora rango BLOQUEA guardar → lo tratamos como ERROR (rojo).
                     val weightSeverity: Severity? = when {
@@ -816,6 +829,7 @@ private fun PatientEditContent(
                         leftUnit = stringResource(unitSystem.weightUnitRes),
                         onLeftChange = onWeightDisplayChange,
                         leftSeverity = weightSeverity,
+                        leftTestTag = "patient_weight_field",
 
                         rightLabel = stringResource(R.string.patient_edit_field_height),
                         rightValue = heightDisplay,
@@ -823,6 +837,7 @@ private fun PatientEditContent(
                         rightUnit = stringResource(unitSystem.heightUnitRes),
                         onRightChange = onHeightDisplayChange,
                         rightSeverity = heightSeverity,
+                        rightTestTag = "patient_height_field",
 
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
                         overallSeverity = physicalOverallSeverity
@@ -933,7 +948,9 @@ private fun PatientEditContent(
 
             Button(
                 onClick = onSaveClick,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("patient_save_button"),
                 enabled = isSaveEnabled
             ) {
                 Text(stringResource(R.string.common_save))
@@ -977,7 +994,7 @@ private fun calculateBsaKgCm(kg: Double, cm: Double): Double {
     return 0.007184 * kg.pow(0.425) * cm.pow(0.725)
 }
 
-private fun format2(value: Double): String = String.format("%.2f", value)
+private fun format2(value: Double): String = String.format(Locale.ROOT, "%.2f", value)
 
 private fun formatSmart(v: Double): String {
     val rounded = v.toLong().toDouble()
@@ -987,63 +1004,31 @@ private fun formatSmart(v: Double): String {
 // ✅ IMPORTANTE: convierte aun si el display usa coma decimal
 private fun convertWeightString(value: String, old: UnitSystem, new: UnitSystem): String {
     val v = value.trim().replace(',', '.').toDoubleOrNull() ?: return value
-    val kg = when (old) {
-        UnitSystem.Metric -> v
-        UnitSystem.Imperial -> v * 0.45359237
-    }
-    return when (new) {
-        UnitSystem.Metric -> String.format("%.2f", kg)
-        UnitSystem.Imperial -> String.format("%.2f", kg / 0.45359237)
-    }
+    val kg = ClinicalUnitNormalizer.weightToKg(
+        v, if (old == UnitSystem.Imperial) ClinicalUnitNormalizer.WeightUnit.LB else ClinicalUnitNormalizer.WeightUnit.KG
+    )
+    val display = ClinicalUnitNormalizer.weightFromKg(
+        kg, if (new == UnitSystem.Imperial) ClinicalUnitNormalizer.WeightUnit.LB else ClinicalUnitNormalizer.WeightUnit.KG
+    )
+    return String.format(Locale.ROOT, "%.2f", display)
 }
 
 // ✅ IMPORTANTE: convierte aun si el display usa coma decimal
 private fun convertHeightString(value: String, old: UnitSystem, new: UnitSystem): String {
     val v = value.trim().replace(',', '.').toDoubleOrNull() ?: return value
-    val cm = when (old) {
-        UnitSystem.Metric -> v
-        UnitSystem.Imperial -> v * 2.54
-    }
-    return when (new) {
-        UnitSystem.Metric -> String.format("%.2f", cm)
-        UnitSystem.Imperial -> String.format("%.2f", cm / 2.54)
-    }
+    val cm = ClinicalUnitNormalizer.heightToCm(
+        v, if (old == UnitSystem.Imperial) ClinicalUnitNormalizer.HeightUnit.IN else ClinicalUnitNormalizer.HeightUnit.CM
+    )
+    val display = ClinicalUnitNormalizer.heightFromCm(
+        cm, if (new == UnitSystem.Imperial) ClinicalUnitNormalizer.HeightUnit.IN else ClinicalUnitNormalizer.HeightUnit.CM
+    )
+    return String.format(Locale.ROOT, "%.2f", display)
 }
 
 /**
  * Extensiones: garantizan compilación aunque UnitSystem del dominio no tenga estos helpers como miembros.
  * ✅ Normalizan coma->punto para no romper parse al escribir 95,00.
  */
-private fun UnitSystem.weightKgTextOrBlank(display: String): String {
-    val t = display.trim()
-    if (t.isBlank()) return ""
-    val normalized = t.replace(',', '.')
-    val kg = this.weightToKg(normalized) ?: return ""
-    return formatSmart(kg)
-}
-
-private fun UnitSystem.heightCmTextOrBlank(display: String): String {
-    val t = display.trim()
-    if (t.isBlank()) return ""
-    val normalized = t.replace(',', '.')
-    val cm = this.heightToCm(normalized) ?: return ""
-    return formatSmart(cm)
-}
-
-private fun UnitSystem.kgToWeightString(kg: Double): String {
-    return when (this) {
-        UnitSystem.Metric -> format2(kg)
-        UnitSystem.Imperial -> format2(kg / 0.45359237)
-    }
-}
-
-private fun UnitSystem.cmToHeightString(cm: Double): String {
-    return when (this) {
-        UnitSystem.Metric -> format2(cm)
-        UnitSystem.Imperial -> format2(cm / 2.54)
-    }
-}
-
 /* ---------- Preview ---------- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, widthDp = 411, heightDp = 891)

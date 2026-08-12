@@ -174,6 +174,34 @@ object PdfReportGenerator {
             style = Paint.Style.FILL
         }
 
+        fun splitLongToken(token: String, paint: Paint, maxWidth: Float): List<String> {
+            if (token.isEmpty()) return emptyList()
+            if (paint.measureText(token) <= maxWidth) return listOf(token)
+
+            val parts = mutableListOf<String>()
+            val current = StringBuilder()
+
+            for (char in token) {
+                val candidate = buildString {
+                    append(current)
+                    append(char)
+                }
+
+                if (current.isNotEmpty() && paint.measureText(candidate) > maxWidth) {
+                    parts += current.toString()
+                    current.clear()
+                }
+
+                current.append(char)
+            }
+
+            if (current.isNotEmpty()) {
+                parts += current.toString()
+            }
+
+            return parts
+        }
+
         fun wrap(text: String, paint: Paint, maxWidth: Float): List<String> {
             val chunks = text.split("\n")
             val out = mutableListOf<String>()
@@ -181,16 +209,21 @@ object PdfReportGenerator {
                 val words = chunk.split(" ")
                 var current = ""
                 for (w in words) {
-                    val test = if (current.isBlank()) w else "$current $w"
-                    if (paint.measureText(test) <= maxWidth) current = test
-                    else {
-                        if (current.isNotBlank()) out.add(current)
-                        current = w
+                    val pieces = splitLongToken(w, paint, maxWidth)
+                    for (piece in pieces) {
+                        val test = if (current.isBlank()) piece else "$current $piece"
+                        if (paint.measureText(test) <= maxWidth) {
+                            current = test
+                        } else {
+                            if (current.isNotBlank()) out.add(current)
+                            current = piece
+                        }
                     }
                 }
                 if (current.isNotBlank()) out.add(current)
+                if (chunk.isBlank()) out.add("")
             }
-            return out
+            return out.ifEmpty { listOf("") }
         }
 
         var pageNumber = 1
@@ -240,13 +273,13 @@ object PdfReportGenerator {
         }
 
         fun drawCard(blockHeight: Float, drawer: (left: Float, top: Float, right: Float, bottom: Float) -> Unit) {
+            ensureSpace(blockHeight + 8f)
+
             val cardWidthLocal = pageWidth - 2 * margin
             val left = margin
             val top = y
             val right = left + cardWidthLocal
             val bottom = top + blockHeight
-
-            ensureSpace(blockHeight + 8f)
 
             val rect = RectF(left, top, right, bottom)
             canvas.drawRoundRect(rect, 18f, 18f, pCard)

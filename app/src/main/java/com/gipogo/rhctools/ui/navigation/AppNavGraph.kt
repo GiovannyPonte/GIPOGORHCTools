@@ -1,16 +1,32 @@
 package com.gipogo.rhctools.ui.navigation
 
 import android.content.Context
+import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,8 +35,11 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gipogo.rhctools.R
+import com.gipogo.rhctools.domain.BirthDateCodec
 import com.gipogo.rhctools.report.CalcEntry
 import com.gipogo.rhctools.report.CalcType
+import com.gipogo.rhctools.report.StudyClinicalPdfExport
+import com.gipogo.rhctools.report.StudyClinicalPdfFormat
 import com.gipogo.rhctools.report.LineItem
 import com.gipogo.rhctools.report.PdfReportGenerator
 import com.gipogo.rhctools.report.PdfSession
@@ -28,15 +47,18 @@ import com.gipogo.rhctools.reporting.compose.ReportRenderRoute
 import com.gipogo.rhctools.ui.screens.CpoScreen
 import com.gipogo.rhctools.ui.screens.FickScreen
 import com.gipogo.rhctools.ui.screens.HomeCalculatorScreen
+import com.gipogo.rhctools.ui.screens.LastPatientUi
 import com.gipogo.rhctools.ui.screens.HomeScreen
 import com.gipogo.rhctools.ui.screens.PapiScreen
 import com.gipogo.rhctools.ui.screens.PatientDetailRoute
 import com.gipogo.rhctools.ui.screens.PatientEditScreen
 import com.gipogo.rhctools.ui.screens.PatientsScreen
+import com.gipogo.rhctools.ui.screens.PdfPreviewActivity
 import com.gipogo.rhctools.ui.screens.PdfPreviewScreen
 import com.gipogo.rhctools.ui.screens.PvrScreen
 import com.gipogo.rhctools.ui.screens.ResistancesScreen
 import com.gipogo.rhctools.ui.screens.StudyDetailRoute
+import com.gipogo.rhctools.ui.screens.SettingsScreen
 import com.gipogo.rhctools.ui.viewmodel.CpoViewModel
 import com.gipogo.rhctools.ui.viewmodel.FickViewModel
 import com.gipogo.rhctools.ui.viewmodel.PapiViewModel
@@ -44,138 +66,104 @@ import com.gipogo.rhctools.ui.viewmodel.PvrViewModel
 import com.gipogo.rhctools.ui.viewmodel.ResistancesViewModel
 import com.gipogo.rhctools.workshop.WorkshopSession
 import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
+import com.gipogo.rhctools.workshop.persistence.WorkshopRecoveryStore
 import com.gipogo.rhctools.workshop.persistence.WorkshopStudyFactory
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.DateFormat
 import java.text.NumberFormat
+import java.time.LocalDate
+import java.time.Period
+import java.time.ZoneId
 import com.gipogo.rhctools.report.ForresterPdfBlock
 import com.gipogo.rhctools.report.SharedKeys
 
 
-// Ajusta estos imports si tu package real difiere
-import com.gipogo.rhctools.data.db.dao.PatientDao
-import com.gipogo.rhctools.data.db.dao.RhcStudyDao
+import com.gipogo.rhctools.data.db.DbProvider
 
 /* --------------------------------------------------------- */
 /* PDF helpers: una sola fuente de verdad para export 1 study */
 /* --------------------------------------------------------- */
 
+private const val PDF_EXPORT_TAG = "PdfExport"
+private const val APP_NAV_GRAPH_TAG = "AppNavGraph"
+private const val LAST_PATIENT_RETRY_DELAY_MS = 5_000L
+
+private sealed interface PendingStudyPdfExport {
+    val patientId: String
+
+    data class Latest(
+        override val patientId: String
+    ) : PendingStudyPdfExport
+
+    data class Selected(
+        override val patientId: String,
+        val studyId: String
+    ) : PendingStudyPdfExport
+}
+
+private fun notifyPdfExportFailure(
+    context: Context,
+    error: Throwable
+) {
+    Log.e(PDF_EXPORT_TAG, "PDF export failed.", error)
+    Toast.makeText(
+        context.applicationContext,
+        context.getString(R.string.report_export_failed),
+        Toast.LENGTH_LONG
+    ).show()
+}
+
 private suspend fun exportSingleStudyPdfAndOpenPreview(
     context: Context,
-    navController: NavHostController,
-    patientDao: PatientDao,
-    rhcStudyDao: RhcStudyDao,
     patientId: String,
-    studyId: String
+    studyId: String,
+    format: StudyClinicalPdfFormat
 ) {
-    val list = rhcStudyDao.listStudiesWithRhcDataByPatient(patientId).first()
-
-    val selected = list.firstOrNull { it.study.id == studyId }
-        ?: throw IllegalStateException("Study not found")
-
-    val rhc = selected.rhc
-
-    val patient = runCatching { patientDao.getById(patientId) }.getOrNull()
-    val displayName = patient?.displayName?.takeIf { it.isNotBlank() }
-    val internalCode = patient?.internalCode?.takeIf { it.isNotBlank() }
-    val headerName = displayName ?: internalCode ?: patientId
-
-    val nf0 = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 0; minimumFractionDigits = 0 }
-    val nf1 = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 1; minimumFractionDigits = 0 }
-    val nf2 = NumberFormat.getNumberInstance().apply { maximumFractionDigits = 2; minimumFractionDigits = 0 }
-
-    val uMmHg = context.getString(R.string.common_unit_mmhg)
-    val uLMinM2 = context.getString(R.string.common_unit_lmin_m2)
-    val uWuShort = context.getString(R.string.common_unit_wu_short)
-    val uW = context.getString(R.string.common_unit_w)
-
-    val lRap = context.getString(R.string.papi_help_rap_title)
-    val lMpap = context.getString(R.string.pvr_help_mpap_title)
-    val lPcwp = context.getString(R.string.rhc_label_pcwp_short)
-    val lCi = context.getString(R.string.rhc_label_ci_short)
-    val lPvr = context.getString(R.string.home_badge_pvr)
-    val lCpo = context.getString(R.string.home_badge_cpo)
-
-    val outputs: List<LineItem> = buildList {
-        rhc?.rapMmHg?.let {
-            add(LineItem(key = SharedKeys.RAP_MMHG, label = lRap, value = nf0.format(it), unit = uMmHg))
-        }
-        rhc?.mpapMmHg?.let {
-            add(LineItem(key = SharedKeys.MPAP_MMHG, label = lMpap, value = nf0.format(it), unit = uMmHg))
-        }
-        rhc?.pawpMmHg?.let {
-            add(LineItem(key = SharedKeys.PAWP_MMHG, label = lPcwp, value = nf0.format(it), unit = uMmHg))
-        }
-        rhc?.cardiacIndexLMinM2?.let {
-            add(LineItem(key = SharedKeys.CI_LMIN_M2, label = lCi, value = nf1.format(it), unit = uLMinM2))
-        }
-        rhc?.pvrWood?.let {
-            add(LineItem(key = SharedKeys.PVR_WOOD, label = lPvr, value = nf1.format(it), unit = uWuShort))
-        }
-        rhc?.cardiacPowerW?.let {
-            add(LineItem(key = SharedKeys.CPO_W, label = lCpo, value = nf2.format(it), unit = uW))
-        }
-    }
-
-    val entries = listOf(
-        CalcEntry(
-            type = CalcType.PVR,
-            timestampMillis = selected.study.startedAtMillis,
-            title = context.getString(R.string.patient_overview_latest_summary),
-            inputs = emptyList(),
-            outputs = outputs,
-            notes = emptyList()
-        )
+    val result = StudyClinicalPdfExport.exportStudyPdf(
+        context = context,
+        patientId = patientId,
+        studyId = studyId,
+        format = format
     )
 
-    val outDir = File(context.cacheDir, "pdf_reports").apply { mkdirs() }
-    val file = File(outDir, "RHC_${patientId}_${selected.study.startedAtMillis}_${studyId.take(8)}.pdf")
+    PdfSession.lastPdfFile = result.pdfFile
+    PdfSession.lastPdfUri = result.pdfUri
 
-    file.outputStream().use { os ->
-        val appName = context.getString(R.string.pdf_app_name)
-
-        PdfReportGenerator.writePdf(
-            context = context,
-            outputStream = os,
-            appName = "$appName · $headerName",
-            entries = entries,
-            nowMillis = System.currentTimeMillis(),
-            forrester = ForresterPdfBlock(
-                ci = rhc?.cardiacIndexLMinM2,
-                pcwp = rhc?.pawpMmHg
-            )
+    context.startActivity(
+        PdfPreviewActivity.createIntent(
+            context,
+            result.pdfFile,
+            result.pdfUri
         )
-    }
-
-    val uri = androidx.core.content.FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
     )
-
-    PdfSession.lastPdfFile = file
-    PdfSession.lastPdfUri = uri
-
-    navController.navigate(Destinations.PdfPreview.route) { launchSingleTop = true }
 }
 
 private suspend fun exportLatestStudyPdfAndOpenPreview(
     context: Context,
-    navController: NavHostController,
-    patientDao: PatientDao,
-    rhcStudyDao: RhcStudyDao,
-    patientId: String
+    patientId: String,
+    format: StudyClinicalPdfFormat
 ) {
-    val list = rhcStudyDao.listStudiesWithRhcDataByPatient(patientId).first()
-    val latest = list.firstOrNull() ?: throw IllegalStateException("No studies")
-    exportSingleStudyPdfAndOpenPreview(
+    val result = StudyClinicalPdfExport.exportLatestStudyPdf(
         context = context,
-        navController = navController,
-        patientDao = patientDao,
-        rhcStudyDao = rhcStudyDao,
         patientId = patientId,
-        studyId = latest.study.id
+        format = format
+    )
+
+    PdfSession.lastPdfFile = result.pdfFile
+    PdfSession.lastPdfUri = result.pdfUri
+
+    context.startActivity(
+        PdfPreviewActivity.createIntent(
+            context,
+            result.pdfFile,
+            result.pdfUri
+        )
     )
 }
 
@@ -184,21 +172,126 @@ private suspend fun exportLatestStudyPdfAndOpenPreview(
 /* ----------------------------- */
 
 @Composable
-fun AppNavGraph() {
-    val navController = rememberNavController()
+fun AppNavGraph(
+    navController: NavHostController = rememberNavController()
+) {
 
     // ✅ Declarar aquí (NO dentro de lambdas)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var pendingStudyPdfExport by remember { mutableStateOf<PendingStudyPdfExport?>(null) }
 
     // ✅ Autosave a nivel raíz
-    LaunchedEffect(Unit) {
-        WorkshopRhcAutosave.start(context, scope)
-    }
+    LaunchedEffect(Unit) { WorkshopRhcAutosave.start(context) }
 
     // ✅ RunId actual del taller
-    val workshopCtx by WorkshopSession.context.collectAsState()
+    val workshopCtx by WorkshopSession.context.collectAsStateWithLifecycle()
     val runId = workshopCtx.workshopRunId
+    val appContext = context.applicationContext
+
+    // Si el proceso terminó durante un estudio, volver al snapshot seguro que
+    // ya existe en Room. Nunca restaurar ReportStore vacío como sesión activa.
+    LaunchedEffect(appContext, navController) {
+        val pending = WorkshopRecoveryStore.read(appContext)
+        pending ?: return@LaunchedEffect
+        val db = when (val result = DbProvider.getResult(appContext)) {
+            is DbProvider.DbOpenResult.Success -> result.db
+            is DbProvider.DbOpenResult.Failure -> {
+                Log.w(APP_NAV_GRAPH_TAG, "Recovery deferred because the database is unavailable")
+                return@LaunchedEffect
+            }
+        }
+        val validStudy = withContext(Dispatchers.IO) {
+            db.studyDao().getById(pending.studyId)
+                ?.takeIf { it.patientId == pending.patientId }
+        }
+
+        if (validStudy == null) {
+            Log.w(APP_NAV_GRAPH_TAG, "Discarding stale process recovery marker")
+            WorkshopRecoveryStore.clear(appContext)
+            return@LaunchedEffect
+        }
+
+        WorkshopSession.clear()
+        com.gipogo.rhctools.report.ReportStore.clear()
+        com.gipogo.rhctools.reset.AppResetBus.resetAll()
+        withContext(Dispatchers.Main.immediate) {
+            // Esperar a que NavHost termine de instalar/restaurar su grafo evita
+            // modificar el back stack concurrentemente durante un arranque lento.
+            navController.currentBackStackEntryFlow.first()
+            navController.navigate(
+                Destinations.StudyDetail.route(pending.patientId, pending.studyId)
+            ) {
+                popUpTo(Destinations.CalcGraph.route) { inclusive = false }
+                launchSingleTop = true
+            }
+        }
+        WorkshopRecoveryStore.clear(appContext)
+    }
+
+    val lastPatientUi by produceState<LastPatientUi?>(initialValue = null, key1 = appContext) {
+        while (true) {
+            val db = when (val result = DbProvider.getResult(appContext)) {
+                is DbProvider.DbOpenResult.Success -> result.db
+                is DbProvider.DbOpenResult.Failure -> {
+                    Log.w(
+                        APP_NAV_GRAPH_TAG,
+                        "Unable to load last patient shortcut. Retrying.",
+                        result.error
+                    )
+                    value = null
+                    delay(LAST_PATIENT_RETRY_DELAY_MS)
+                    continue
+                }
+            }
+
+            try {
+                db.patientDao()
+                    .observePatientsFiltered(
+                        q = null,
+                        tagKeys = emptyList(),
+                        tagKeysCount = 0,
+                        fromMillis = null
+                    )
+                    .collect { rows ->
+                        val row = rows.firstOrNull()
+                        value = row?.let {
+                            val patient = it.patient
+                            val displayName = patient.displayName?.takeIf { name -> name.isNotBlank() } ?: patient.internalCode
+                            val ageYears = patient.birthDateMillis?.let { birthDateMillis ->
+                                runCatching {
+                                    val zoneId = ZoneId.systemDefault()
+                                    val birthDate = BirthDateCodec.fromStorageMillis(birthDateMillis)
+                                    val today = LocalDate.now(zoneId)
+                                    Period.between(birthDate, today).years.coerceAtLeast(0)
+                                }.getOrNull()
+                            }
+                            val lastStudyLabel = it.lastStudyAtMillis?.let { millis ->
+                                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(millis)
+                            }
+
+                            LastPatientUi(
+                                patientId = patient.id,
+                                displayName = displayName,
+                                ageYears = ageYears,
+                                lastStudyLabel = lastStudyLabel
+                            )
+                        }
+                    }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                Log.w(
+                    APP_NAV_GRAPH_TAG,
+                    "Last patient shortcut observer failed. Retrying.",
+                    error
+                )
+                value = null
+            }
+
+            delay(LAST_PATIENT_RETRY_DELAY_MS)
+        }
+    }
 
     val calcRoutes = remember {
         listOf(
@@ -238,9 +331,9 @@ fun AppNavGraph() {
     fun startHemodynamicWorkshop() {
         com.gipogo.rhctools.report.ReportStore.clear()
         com.gipogo.rhctools.reset.AppResetBus.resetAll()
-        navController.navigate(Destinations.Calculators.route) {
-            popUpTo(Destinations.Calculators.route) { inclusive = false }
-            launchSingleTop = true
+        val popped = navController.popBackStack(Destinations.Calculators.route, inclusive = false)
+        if (!popped) {
+            navController.navigate(Destinations.Calculators.route) { launchSingleTop = true }
         }
     }
 
@@ -274,13 +367,32 @@ fun AppNavGraph() {
                         invalidateWorkshopSession()
                         navController.navigate(Destinations.PatientDetail.route(patientId))
                     },
-                    lastPatient = null
+                    lastPatient = lastPatientUi,
+                    showBottomNav = true,
+                    onTabHome = { },
+                    onTabHistory = {
+                        invalidateWorkshopSession()
+                        navController.navigate(Destinations.Patients.route)
+                    },
+                    onTabSettings = { navController.navigate(Destinations.Settings.route) }
                 )
             }
 
+            composable(Destinations.Settings.route) {
+                SettingsScreen(onBack = { navController.popBackStack() })
+            }
+
             // ---------------- HOME DEL TALLER ----------------
-            composable(Destinations.Calculators.route) {
-                key(runId) { HomeCalculatorScreen(navController = navController) }
+            composable(Destinations.Calculators.route) { backStackEntry ->
+                val calcGraphEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Destinations.CalcGraph.route)
+                }
+                key(runId) {
+                    HomeCalculatorScreen(
+                        navController = navController,
+                        calcGraphEntry = calcGraphEntry
+                    )
+                }
             }
 
             // ---------------- PATIENTS LIST ----------------
@@ -326,22 +438,31 @@ fun AppNavGraph() {
                     backStackEntry.arguments?.getString(Destinations.PatientDetail.ARG_PATIENT_ID)
                 ) { "Missing patientId for PatientDetail" }
 
-                val appCtx = context.applicationContext
-                val db = remember(appCtx) { com.gipogo.rhctools.data.db.DbProvider.get(appCtx) }
-                val patientDao = remember(db) { db.patientDao() }
-                val rhcStudyDao = remember(db) { db.rhcStudyDao() }
-
                 PatientDetailRoute(
                     patientId = patientId,
                     onBack = { navController.popBackStack() },
 
                     onNewStudy = { pid: String ->
                         scope.launch {
-                            WorkshopStudyFactory.startNewRhcStudy(
-                                context = context,
-                                patientId = pid
-                            )
-                            startHemodynamicWorkshop()
+                            try {
+                                WorkshopStudyFactory.startNewRhcStudy(
+                                    context = context,
+                                    patientId = pid
+                                )
+                                startHemodynamicWorkshop()
+                            } catch (cancellation: CancellationException) {
+                                throw cancellation
+                            } catch (error: Throwable) {
+                                Log.e(
+                                    APP_NAV_GRAPH_TAG,
+                                    "Study creation failed: ${error.javaClass.simpleName}"
+                                )
+                                Toast.makeText(
+                                    appContext,
+                                    R.string.patient_error_create_study,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     },
 
@@ -353,32 +474,14 @@ fun AppNavGraph() {
                     },
 
                     onExportLatestPdf = { pid: String ->
-                        scope.launch {
-                            runCatching {
-                                exportLatestStudyPdfAndOpenPreview(
-                                    context = context,
-                                    navController = navController,
-                                    patientDao = patientDao,
-                                    rhcStudyDao = rhcStudyDao,
-                                    patientId = pid
-                                )
-                            }
-                        }
+                        pendingStudyPdfExport = PendingStudyPdfExport.Latest(patientId = pid)
                     },
 
                     onExportStudyPdf = { pid: String, sid: String ->
-                        scope.launch {
-                            runCatching {
-                                exportSingleStudyPdfAndOpenPreview(
-                                    context = context,
-                                    navController = navController,
-                                    patientDao = patientDao,
-                                    rhcStudyDao = rhcStudyDao,
-                                    patientId = pid,
-                                    studyId = sid
-                                )
-                            }
-                        }
+                        pendingStudyPdfExport = PendingStudyPdfExport.Selected(
+                            patientId = pid,
+                            studyId = sid
+                        )
                     },
 
                     onExportLongitudinalPdf = { pid: String ->
@@ -405,24 +508,9 @@ fun AppNavGraph() {
                     backStackEntry.arguments?.getString(Destinations.StudyDetail.ARG_STUDY_ID)
                 ) { "Missing studyId for StudyDetail" }
 
-                val appCtx = context.applicationContext
-                val db = remember(appCtx) { com.gipogo.rhctools.data.db.DbProvider.get(appCtx) }
-                val patientDao = remember(db) { db.patientDao() }
-                val rhcStudyDao = remember(db) { db.rhcStudyDao() }
-
-                // ✅ nombre desde Room (no texto duro)
-                val patientName by produceState<String?>(initialValue = null, key1 = patientId) {
-                    value = runCatching {
-                        val p = patientDao.getById(patientId)
-                        val displayName = p?.displayName?.takeIf { it.isNotBlank() }
-                        val internalCode = p?.internalCode?.takeIf { it.isNotBlank() }
-                        displayName ?: internalCode ?: patientId
-                    }.getOrNull()
-                }
-
                 StudyDetailRoute(
                     patientId = patientId,
-                    patientName = patientName,
+                    patientName = null,
                     studyId = studyId,
                     onBack = {
                         val popped = navController.popBackStack(
@@ -434,25 +522,17 @@ fun AppNavGraph() {
                         }
                     },
                     onExportStudyPdf = { pid, sid ->
-                        scope.launch {
-                            runCatching {
-                                exportSingleStudyPdfAndOpenPreview(
-                                    context = context,
-                                    navController = navController,
-                                    patientDao = patientDao,
-                                    rhcStudyDao = rhcStudyDao,
-                                    patientId = pid,
-                                    studyId = sid
-                                )
-                            }
-                        }
+                        pendingStudyPdfExport = PendingStudyPdfExport.Selected(
+                            patientId = pid,
+                            studyId = sid
+                        )
                     }
                 )
             }
 
             // ---------------- FICK ----------------
-            composable(Destinations.Fick.route) {
-                val parentEntry = remember(navController) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
+            composable(Destinations.Fick.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
                 val vm: FickViewModel = viewModel(viewModelStoreOwner = parentEntry, key = "Fick_$runId")
                 key(runId) {
                     FickScreen(
@@ -465,8 +545,8 @@ fun AppNavGraph() {
             }
 
             // ---------------- SVR ----------------
-            composable(Destinations.Resistances.route) {
-                val parentEntry = remember(navController) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
+            composable(Destinations.Resistances.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
                 val vm: ResistancesViewModel = viewModel(viewModelStoreOwner = parentEntry, key = "Resistances_$runId")
                 key(runId) {
                     ResistancesScreen(
@@ -479,8 +559,8 @@ fun AppNavGraph() {
             }
 
             // ---------------- CPO ----------------
-            composable(Destinations.Cpo.route) {
-                val parentEntry = remember(navController) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
+            composable(Destinations.Cpo.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
                 val vm: CpoViewModel = viewModel(viewModelStoreOwner = parentEntry, key = "Cpo_$runId")
                 key(runId) {
                     CpoScreen(
@@ -493,8 +573,8 @@ fun AppNavGraph() {
             }
 
             // ---------------- PAPI ----------------
-            composable(Destinations.Papi.route) {
-                val parentEntry = remember(navController) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
+            composable(Destinations.Papi.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
                 val vm: PapiViewModel = viewModel(viewModelStoreOwner = parentEntry, key = "Papi_$runId")
                 key(runId) {
                     PapiScreen(
@@ -507,8 +587,8 @@ fun AppNavGraph() {
             }
 
             // ---------------- PVR ----------------
-            composable(Destinations.Pvr.route) {
-                val parentEntry = remember(navController) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
+            composable(Destinations.Pvr.route) { backStackEntry ->
+                val parentEntry = remember(backStackEntry) { navController.getBackStackEntry(Destinations.CalcGraph.route) }
                 val vm: PvrViewModel = viewModel(viewModelStoreOwner = parentEntry, key = "Pvr_$runId")
                 key(runId) {
                     PvrScreen(
@@ -523,22 +603,6 @@ fun AppNavGraph() {
                 }
             }
 
-            // ---------------- PDF PREVIEW ----------------
-            composable(Destinations.PdfPreview.route) {
-                val file = PdfSession.lastPdfFile
-                val uri = PdfSession.lastPdfUri
-
-                if (file != null && uri != null) {
-                    PdfPreviewScreen(
-                        pdfUri = uri,
-                        pdfFileForShare = file,
-                        onClose = { navController.popBackStack() }
-                    )
-                } else {
-                    navController.navigate(Destinations.Home.route) { launchSingleTop = true }
-                }
-            }
-
             // ---------------- REPORT RENDER ----------------
             composable(
                 route = Destinations.ReportRender.route,
@@ -548,15 +612,95 @@ fun AppNavGraph() {
 
                 ReportRenderRoute(
                     patientId = pid,
-                    onDoneOpenPreview = {
-                        navController.navigate(Destinations.PdfPreview.route) {
-                            launchSingleTop = true
-                            popUpTo(Destinations.ReportRender.route) { inclusive = true }
-                        }
+                    onDoneOpenPreview = { file, uri ->
+                        context.startActivity(PdfPreviewActivity.createIntent(context, file, uri))
+                        navController.popBackStack()
                     },
                     onBack = { navController.popBackStack() }
                 )
             }
         }
     }
+
+    if (pendingStudyPdfExport != null) {
+        StudyPdfFormatPickerDialog(
+            onDismiss = { pendingStudyPdfExport = null },
+            onPick = { format ->
+                val pending = pendingStudyPdfExport ?: return@StudyPdfFormatPickerDialog
+                pendingStudyPdfExport = null
+                scope.launch {
+                    runCatching {
+                        when (pending) {
+                            is PendingStudyPdfExport.Latest -> {
+                                exportLatestStudyPdfAndOpenPreview(
+                                    context = context,
+                                    patientId = pending.patientId,
+                                    format = format
+                                )
+                            }
+
+                            is PendingStudyPdfExport.Selected -> {
+                                exportSingleStudyPdfAndOpenPreview(
+                                    context = context,
+                                    patientId = pending.patientId,
+                                    studyId = pending.studyId,
+                                    format = format
+                                )
+                            }
+                        }
+                    }.onFailure { error ->
+                        notifyPdfExportFailure(context, error)
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun StudyPdfFormatPickerDialog(
+    onDismiss: () -> Unit,
+    onPick: (StudyClinicalPdfFormat) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = androidx.compose.ui.res.stringResource(R.string.study_pdf_picker_title)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = androidx.compose.ui.Modifier.testTag("study_pdf_format_picker_dialog")
+            ) {
+                Text(text = androidx.compose.ui.res.stringResource(R.string.study_pdf_picker_body))
+
+                Button(
+                    onClick = { onPick(StudyClinicalPdfFormat.COMPLETE) },
+                    modifier = androidx.compose.ui.Modifier.testTag("study_pdf_format_complete_button")
+                ) {
+                    Text(text = androidx.compose.ui.res.stringResource(R.string.study_pdf_complete_title))
+                }
+
+                OutlinedButton(
+                    onClick = { onPick(StudyClinicalPdfFormat.COMPACT) },
+                    modifier = androidx.compose.ui.Modifier.testTag("study_pdf_format_compact_button")
+                ) {
+                    Text(text = androidx.compose.ui.res.stringResource(R.string.study_pdf_compact_title))
+                }
+
+                Spacer(modifier = androidx.compose.ui.Modifier.height(2.dp))
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.study_pdf_picker_hint),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = androidx.compose.ui.Modifier.testTag("study_pdf_format_cancel_button")
+            ) {
+                Text(text = androidx.compose.ui.res.stringResource(R.string.common_cancel))
+            }
+        }
+    )
 }

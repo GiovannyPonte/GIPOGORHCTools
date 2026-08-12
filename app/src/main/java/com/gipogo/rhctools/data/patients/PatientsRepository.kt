@@ -12,18 +12,23 @@ import com.gipogo.rhctools.data.db.entities.PatientEntity
 import com.gipogo.rhctools.data.db.entities.PatientTagCrossRef
 import com.gipogo.rhctools.data.db.entities.TagEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import java.util.UUID
 
 class PatientsRepository private constructor(
     private val appContext: Context
 ) {
-    private val db by lazy { DbProvider.get(appContext) }
-    private val patientDao by lazy { db.patientDao() }
-    private val studyDao by lazy { db.studyDao() }
-    private val tagDao by lazy { db.tagDao() }
+    private fun dbOrNull() =
+        when (val result = DbProvider.getResult(appContext)) {
+            is DbProvider.DbOpenResult.Success -> result.db
+            is DbProvider.DbOpenResult.Failure -> null
+        }
+
+    private fun dbError(message: String = "Database unavailable") =
+        DataResult.Failure(DataError.Db(message))
 
     fun observePatients(query: String?): Flow<List<PatientEntity>> =
-        patientDao.list(query)
+        dbOrNull()?.patientDao()?.list(query) ?: flowOf(emptyList())
 
     fun observePatientsFiltered(
         query: String?,
@@ -32,6 +37,7 @@ class PatientsRepository private constructor(
     ): Flow<List<PatientDao.PatientWithLastStudyRow>> {
         val cleanedQuery = query?.trim().takeIf { !it.isNullOrBlank() }
         val keys = tagKeys.toList().sorted()
+        val patientDao = dbOrNull()?.patientDao() ?: return flowOf(emptyList())
         return patientDao.observePatientsFiltered(
             q = cleanedQuery,
             tagKeys = keys,
@@ -42,6 +48,7 @@ class PatientsRepository private constructor(
 
     suspend fun generateUniqueCode(prefix: String = "GIP"): DataResult<String> {
         return try {
+            val patientDao = dbOrNull()?.patientDao() ?: return dbError()
             val code = PatientCodeGenerator.generateUniqueInternalCode(patientDao, prefix = prefix)
             DataResult.Success(code)
         } catch (e: Exception) {
@@ -51,6 +58,7 @@ class PatientsRepository private constructor(
 
     suspend fun getPatient(id: String): DataResult<PatientEntity> {
         return try {
+            val patientDao = dbOrNull()?.patientDao() ?: return dbError()
             val p = patientDao.getById(id) ?: return DataResult.Failure(DataError.NotFound)
             DataResult.Success(p)
         } catch (e: Exception) {
@@ -60,6 +68,7 @@ class PatientsRepository private constructor(
 
     suspend fun getPatientWithTags(id: String): DataResult<PatientWithTags> {
         return try {
+            val tagDao = dbOrNull()?.tagDao() ?: return dbError()
             val p = tagDao.getPatientWithTags(id) ?: return DataResult.Failure(DataError.NotFound)
             DataResult.Success(p)
         } catch (e: Exception) {
@@ -78,6 +87,8 @@ class PatientsRepository private constructor(
         tagKeys: List<String> = emptyList()
     ): DataResult<String> {
         return try {
+            val db = dbOrNull() ?: return dbError()
+            val patientDao = db.patientDao()
             val now = System.currentTimeMillis()
             val code = internalCode.trim().uppercase()
             val name = displayName?.trim()?.takeIf { it.isNotBlank() }
@@ -125,6 +136,8 @@ class PatientsRepository private constructor(
         tagKeys: List<String> = emptyList()
     ): DataResult<Unit> {
         return try {
+            val db = dbOrNull() ?: return dbError()
+            val patientDao = db.patientDao()
             val existing = patientDao.getById(id)
                 ?: return DataResult.Failure(DataError.NotFound)
 
@@ -170,6 +183,7 @@ class PatientsRepository private constructor(
      * - inserta SOLO los actuales (canónicos)
      */
     private suspend fun upsertPatientTagsTx(patientId: String, tagKeys: List<String>) {
+        val tagDao = dbOrNull()?.tagDao() ?: return
         val cleaned = tagKeys
             .mapNotNull { raw -> normalizeTagKey(raw) }
             .distinct()
@@ -222,6 +236,9 @@ class PatientsRepository private constructor(
 
     suspend fun deletePatient(id: String): DataResult<Unit> {
         return try {
+            val db = dbOrNull() ?: return dbError()
+            val patientDao = db.patientDao()
+            val studyDao = db.studyDao()
             db.withTransaction {
                 studyDao.deleteByPatientId(id)
                 val rows = patientDao.deleteById(id)

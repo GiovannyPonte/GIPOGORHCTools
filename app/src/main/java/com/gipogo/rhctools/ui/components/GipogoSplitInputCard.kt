@@ -30,6 +30,7 @@ fun GipogoSplitInputCard(
     onLeftUnitClick: (() -> Unit)? = null,
     onLeftHelpClick: (() -> Unit)? = null,
     leftSeverity: Severity? = null,
+    leftTestTag: String? = null,
 
     rightLabel: String,
     rightValue: String,
@@ -39,6 +40,7 @@ fun GipogoSplitInputCard(
     onRightUnitClick: (() -> Unit)? = null,
     onRightHelpClick: (() -> Unit)? = null,
     rightSeverity: Severity? = null,
+    rightTestTag: String? = null,
 
     keyboardType: KeyboardType = KeyboardType.Decimal,
     overallSeverity: Severity? = null
@@ -70,6 +72,7 @@ fun GipogoSplitInputCard(
             onHelpClick = onLeftHelpClick,
             keyboardType = keyboardType,
             severity = leftSeverity,
+            testTag = leftTestTag,
             modifier = Modifier.weight(1f)
         )
 
@@ -90,6 +93,7 @@ fun GipogoSplitInputCard(
             onHelpClick = onRightHelpClick,
             keyboardType = keyboardType,
             severity = rightSeverity,
+            testTag = rightTestTag,
             modifier = Modifier.weight(1f)
         )
     }
@@ -106,6 +110,7 @@ private fun SplitField(
     onHelpClick: (() -> Unit)?,
     keyboardType: KeyboardType,
     severity: Severity? = null,
+    testTag: String? = null,
     modifier: Modifier = Modifier
 ) {
     val cs = MaterialTheme.colorScheme
@@ -154,7 +159,8 @@ private fun SplitField(
                 unitText = unit,
                 keyboardType = keyboardType,
                 onUnitClick = onUnitClick,
-                showUnitInField = true
+                showUnitInField = true,
+                inputTestTag = testTag
             )
         }
     }

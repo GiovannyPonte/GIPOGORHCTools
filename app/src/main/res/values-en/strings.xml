@@ -320,7 +320,7 @@
     <string name="pdf_btn_save">Save</string>
     <string name="pdf_btn_share">Share</string>
     <string name="pdf_btn_open_other">Open in another app</string>
-    <string name="pdf_error_render" formatted="false">Could not render the PDF: %1$s</string>
+    <string name="pdf_error_render">The PDF could not be displayed.</string>
     <string name="pdf_error_open_file">Could not open the file.</string>
     <string name="pdf_generating_preview">Generating preview…</string>
     <string name="pdf_page">Page %1$d</string>
@@ -531,6 +531,7 @@
     <string name="patient_last_update">Last update: %1$s</string>
     <string name="patient_last_update_today">Today</string>
     <string name="patient_action_new_study">New Study</string>
+    <string name="patient_error_create_study">The study could not be created. Please try again.</string>
     <string name="patient_action_export">Export</string>
     <string name="patient_overview_latest_summary">Latest Study Summary</string>
     <string name="patient_overview_recent_studies">Recent Studies</string>
@@ -913,7 +914,7 @@
     <string name="study_detail_forrester_ci_threshold_label">CI %1$.1f</string>
 
 
-    <string name="study_detail_forrester_note_title">Hemodynamic <string name="study_detail_forrester_note_title">Hemodynamic interpretation</string>
+    <string name="study_detail_forrester_note_title">Hemodynamic interpretation</string>
 <string name="study_detail_forrester_note_considerations_title">Clinical considerations</string>
 <string name="study_detail_forrester_note_measurement_title">Measurement notes</string>
 <string name="study_detail_forrester_note_measurement_text">• Confirm proper transducer leveling/zeroing (phlebostatic axis) and end-expiratory reading.\n• Review the PCWP waveform (large V-waves, under-/over-wedging) and its relationship to pulmonary artery pressures.\n• Interpret PCWP/CI in the context of mechanical ventilation, high PEEP, arrhythmias, and rapid changes in volume/vasoactive support.</string>
@@ -935,7 +936,46 @@
 <string name="study_detail_forrester_profile_iii_considerations">• Hypoperfusion with low/normal PCWP: consider low preload, increased afterload, RV failure, or mechanical causes (e.g., tamponade).\n• Correlate with SvO2, lactate, and cardiac power output (CPO) when available.\n• Prefer dynamic assessment of preload responsiveness when clinically appropriate.</string>
 
 <string name="study_detail_forrester_profile_iv_considerations">• Hypoperfusion with elevated filling pressures is a high-risk profile consistent with cardiogenic shock physiology.\n• Correlate with MAP, lactate, SvO2, CPO, and RV markers (RAP, PAPi) when available.\n• Consider urgent escalation and cause-directed management per institutional protocols.\n• Reassess serially after interventions to document hemodynamic response.</string>
-</string>
+
+    <string name="study_detail_title_rhc">RHC Study</string>
+    <string name="study_detail_subtitle_patient">Patient: %1$s</string>
+    <string name="study_detail_study_id">Study ID: %1$s</string>
+    <string name="study_detail_datetime_today_0941">Today · 09:41</string>
+    <string name="study_detail_location_cathlab">Cath lab</string>
+    <string name="study_detail_context_followup">Follow-up</string>
+    <string name="study_detail_context_baseline">Baseline</string>
+    <string name="study_detail_method_fick">Fick</string>
+    <string name="study_detail_method_td">Thermodilution</string>
+    <string name="study_detail_source_manual">Manual entry</string>
+    <string name="study_detail_section_inputs">Inputs</string>
+    <string name="study_detail_section_inputs_subtitle">Recorded measurements and patient data.</string>
+    <string name="study_detail_section_outputs">Outputs</string>
+    <string name="study_detail_section_outputs_subtitle">Calculated values derived from invasive hemodynamics.</string>
+    <string name="study_detail_section_note">Clinical note (optional)</string>
+    <string name="study_detail_note_placeholder">Add a brief note here (optional). Keep it concise and objective.</string>
+    <string name="study_detail_note_empty">No clinical note is recorded for this study.</string>
+    <string name="study_detail_section_actions">Actions</string>
+    <string name="study_action_export_pdf">Export PDF</string>
+    <string name="study_action_duplicate">Duplicate study</string>
+    <string name="study_action_delete">Delete / Archive</string>
+    <string name="study_action_hint">Export reports from the correct clinical context to preserve traceability.</string>
+    <string name="badge_warning">Warning</string>
+    <string name="badge_monitor">Monitor</string>
+    <string name="badge_ok">OK</string>
+    <string name="study_input_ra">Right atrial pressure (RAP)</string>
+    <string name="study_input_rv">Right ventricular pressure (RVP)</string>
+    <string name="study_input_pa">Pulmonary artery pressure (PAP)</string>
+    <string name="study_input_ao">Aortic pressure</string>
+    <string name="study_input_ci">Cardiac index (CI)</string>
+    <string name="study_input_weight">Weight</string>
+    <string name="study_input_height">Height</string>
+    <string name="study_out_svr">Systemic vascular resistance (SVR)</string>
+    <string name="study_out_pvr">Pulmonary vascular resistance (PVR)</string>
+    <string name="study_out_cpo">Cardiac power (CPO)</string>
+    <string name="study_out_papi">Pulmonary artery pulsatility index (PAPi)</string>
+    <string name="study_out_tpg">Transpulmonary gradient (TPG)</string>
+    <string name="study_out_dpg">Diastolic pressure gradient (DPG)</string>
+    <string name="common_unit_none"></string>
 
     <!-- PDF · Plain text report -->
     <string name="pdf_plaintext_entry_header_format">=== %1$s ===</string>
@@ -994,4 +1034,117 @@
 
     <string name="papi_use_cvp_as_rap">Use CVP (%1$d mmHg) as RAP</string>
 
+    <!-- ===================== -->
+    <!-- Play Store updates    -->
+    <!-- ===================== -->
+    <string name="app_update_downloaded_title">Update ready</string>
+    <string name="app_update_downloaded_body">The new version was downloaded from Google Play. Restart the app to finish installing it.</string>
+    <string name="app_update_downloaded_confirm">Restart now</string>
+    <string name="app_update_downloaded_later">Later</string>
+
+    <string name="study_input_pa_systolic">Pulmonary artery systolic pressure (PASP)</string>
+    <string name="study_input_pa_diastolic">Pulmonary artery diastolic pressure (PADP)</string>
+    <string name="study_input_map">Mean arterial pressure (MAP)</string>
+
+    <string name="study_pdf_picker_title">Report format</string>
+    <string name="study_pdf_picker_body">Choose the PDF style for this study.</string>
+    <string name="study_pdf_picker_hint">Complete: better for charting and clinical review. Compact: better for quick reference.</string>
+
+    <string name="study_pdf_compact_title">Compact RHC report</string>
+    <string name="study_pdf_complete_title">Complete RHC report</string>
+
+    <string name="study_pdf_section_identity">Identification</string>
+    <string name="study_pdf_section_summary">Executive summary</string>
+    <string name="study_pdf_section_key_metrics">Key findings</string>
+    <string name="study_pdf_quick_read_title">Quick read</string>
+    <string name="study_pdf_section_traceability">Traceability and method</string>
+    <string name="study_pdf_section_pressures">Pressures</string>
+    <string name="study_pdf_section_flow">Flow and oxygenation</string>
+    <string name="study_pdf_section_resistance">Resistance and performance</string>
+    <string name="study_pdf_section_interpretation">Clinical interpretation</string>
+    <string name="study_pdf_section_comparison">Comparison with prior study</string>
+    <string name="study_pdf_section_note">Clinical note</string>
+    <string name="study_pdf_section_limitations">Limitations and missing data</string>
+
+    <string name="study_pdf_field_patient">Patient</string>
+    <string name="study_pdf_field_study_id">Study ID</string>
+    <string name="study_pdf_field_study_type">Study type</string>
+    <string name="study_pdf_field_study_date">Study date</string>
+    <string name="study_pdf_field_report_date">Report date</string>
+    <string name="study_pdf_field_co_method">CO method</string>
+    <string name="study_pdf_field_previous_study">Previous study</string>
+    <string name="study_pdf_field_note_status">Clinical note</string>
+    <string name="study_pdf_field_vo2_used">VO₂ used</string>
+    <string name="study_pdf_field_vo2_mode">VO₂ mode</string>
+
+    <string name="study_pdf_note_present">Documented</string>
+    <string name="study_pdf_note_absent">Not documented</string>
+    <string name="study_pdf_no_previous_study">No comparable previous study</string>
+
+    <string name="study_pdf_quick_right_filling">Right-sided filling</string>
+    <string name="study_pdf_quick_left_filling">Left-sided filling</string>
+    <string name="study_pdf_quick_flow">Flow</string>
+    <string name="study_pdf_quick_pulmonary_vascular">Pulmonary vascular component</string>
+    <string name="study_pdf_quick_pattern">Hemodynamic pattern</string>
+
+    <string name="study_pdf_status_normal">Normal</string>
+    <string name="study_pdf_status_elevated">Elevated</string>
+    <string name="study_pdf_status_low">Low</string>
+    <string name="study_pdf_status_high">High</string>
+    <string name="study_pdf_status_preserved">Preserved</string>
+    <string name="study_pdf_status_unavailable">Not documented</string>
+
+    <string name="study_pdf_pattern_no_ph">No clear hemodynamic pulmonary hypertension pattern</string>
+    <string name="study_pdf_pattern_precapillary">Compatible with a precapillary pattern</string>
+    <string name="study_pdf_pattern_isolated_postcapillary">Compatible with an isolated postcapillary pattern</string>
+    <string name="study_pdf_pattern_combined_post_pre">Compatible with a combined post- and precapillary pattern</string>
+
+    <string name="study_pdf_forrester_profile_line">Suggested Forrester profile: %1$s.</string>
+    <string name="study_pdf_vo2_mode_line">Recorded VO₂ mode: %1$s.</string>
+    <string name="study_pdf_missing_data_line">Relevant missing data: %1$s.</string>
+    <string name="study_pdf_no_major_limitations">No critical missing values were detected among the main available variables.</string>
+
+    <string name="study_pdf_header_previous">Previous</string>
+    <string name="study_pdf_header_current">Current</string>
+    <string name="study_pdf_header_delta">Delta</string>
+
+    <string name="study_pdf_unit_ml_min">mL/min</string>
+    <string name="study_pdf_footer_disclaimer">Report generated from GIPOGORHCTools. Verify clinical context and measurement quality.</string>
+
+    <string name="workshop_save_failed">The study could not be saved. Your work remains on screen; check storage and try again.</string>
+    <string name="workshop_discard_failed">The study could not be discarded. No information was deleted; please try again.</string>
+    <string name="workshop_session_invalid">The study session is incomplete. Return to the patient and open the study again.</string>
+    <string name="pdf_generation_failed">The PDF could not be prepared. Check available storage and try again.</string>
+    <string name="pdf_external_app_unavailable">No app is available to perform this action.</string>
+    <string name="common_menu">Open menu</string>
+    <string name="common_search">Search</string>
+    <string name="common_add_patient">Add patient</string>
+    <string name="common_close_search">Close search</string>
+    <string name="common_patient_options">Patient options</string>
+    <string name="db_error_title">Local information cannot be opened</string>
+    <string name="db_error_body">To protect your data, the app will not continue until secure access is restored. No information was deleted.</string>
+    <string name="db_error_support_code">Support code: %1$s</string>
+    <string name="db_opening_title">Opening secure storage…</string>
+    <string name="db_opening_body">Please wait a moment.</string>
+    <string name="common_profile">Profile</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_language_title">Language</string>
+    <string name="settings_language_description">Use the system language or choose the language for the app and its reports.</string>
+    <string name="settings_language_system">System</string>
+    <string name="settings_language_spanish">Español</string>
+    <string name="settings_language_english">English</string>
+    <string name="forrester_classification_title">Forrester classification</string>
+    <string name="forrester_quadrant_i">I warm-dry</string>
+    <string name="forrester_quadrant_ii">II warm-wet</string>
+    <string name="forrester_quadrant_iii">III cold-dry</string>
+    <string name="forrester_quadrant_iv">IV cold-wet</string>
+    <string name="forrester_current_status">Current status</string>
+    <string name="forrester_profile_i">Profile I: normal (warm-dry)</string>
+    <string name="forrester_profile_ii">Profile II: congestion (warm-wet)</string>
+    <string name="forrester_profile_iii">Profile III: hypoperfusion without congestion (cold-dry)</string>
+    <string name="forrester_profile_iv">Profile IV: shock with congestion (cold-wet)</string>
+    <string name="forrester_suggestion_i">Stable hemodynamic profile. Reassess in the clinical context.</string>
+    <string name="forrester_suggestion_ii">Predominant congestion. Consider a decongestion strategy appropriate to the clinical setting.</string>
+    <string name="forrester_suggestion_iii">Hypoperfusion without congestion. Consider preload or inotropic optimization according to the cause.</string>
+    <string name="forrester_suggestion_iv">Shock with congestion. Urgent management guided by perfusion, pressure, and congestion.</string>
 </resources>

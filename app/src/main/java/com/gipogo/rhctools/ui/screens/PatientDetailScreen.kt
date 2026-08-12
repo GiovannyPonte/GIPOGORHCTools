@@ -1,11 +1,16 @@
 package com.gipogo.rhctools.ui.screens
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +68,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,7 +84,7 @@ import java.util.Calendar
 import java.util.Date
 import kotlin.math.max
 import kotlin.math.min
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gipogo.rhctools.data.db.DbProvider
 import com.gipogo.rhctools.ui.viewmodel.InlineMetricUi
 import com.gipogo.rhctools.ui.viewmodel.LatestStudySummaryUi
@@ -93,6 +101,7 @@ import com.gipogo.rhctools.ui.viewmodel.TrendsUi
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.ui.tooling.preview.Preview
 import com.gipogo.rhctools.ui.components.PatientTrendsDashboardBlock
+import com.gipogo.rhctools.ui.security.ProtectedRouteGate
 
 import com.gipogo.rhctools.ui.components.ForresterTrajectoryCard
 import com.gipogo.rhctools.ui.components.ForresterTrendPoint
@@ -130,14 +139,50 @@ fun PatientDetailRoute(
     onExportStudyPdf: (patientId: String, studyId: String) -> Unit,
     onExportLongitudinalPdf: (patientId: String) -> Unit,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    ProtectedRouteGate(
+        modifier = modifier,
+        onBack = onBack
+    ) {
+        PatientDetailRouteContent(
+            patientId = patientId,
+            modifier = Modifier,
+            onBack = onBack,
+            onNewStudy = onNewStudy,
+            onOpenStudy = onOpenStudy,
+            onExportLatestPdf = onExportLatestPdf,
+            onExportStudyPdf = onExportStudyPdf,
+            onExportLongitudinalPdf = onExportLongitudinalPdf
+        )
+    }
+}
 
-    // ✅ DB aquí (Route) y DAOs al ViewModel (NavGraph no toca Room)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PatientDetailRouteContent(
+    patientId: String,
+    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
+    onNewStudy: (patientId: String) -> Unit,
+    onOpenStudy: (patientId: String, studyId: String) -> Unit,
+    onExportLatestPdf: (patientId: String) -> Unit,
+    onExportStudyPdf: (patientId: String, studyId: String) -> Unit,
+    onExportLongitudinalPdf: (patientId: String) -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val resources = LocalResources.current
     val appCtx = context.applicationContext
-    val db = remember(appCtx) { com.gipogo.rhctools.data.db.DbProvider.get(appCtx) }
+    val dbResult = remember(appCtx) { DbProvider.getResult(appCtx) }
+    if (dbResult is DbProvider.DbOpenResult.Failure) {
+        ErrorBlock(
+            messageRes = R.string.common_error,
+            debug = null,
+            onRetry = onBack
+        )
+        return
+    }
+    val db = (dbResult as DbProvider.DbOpenResult.Success).db
     val patientDao = remember(db) { db.patientDao() }
     val rhcStudyDao = remember(db) { db.rhcStudyDao() }
-
     val studyDao = remember(db) { db.studyDao() }
 
     val vm: PatientDetailViewModel = viewModel(
@@ -159,10 +204,8 @@ fun PatientDetailRoute(
         vm.events.collect { ev ->
             when (ev) {
                 is PatientDetailEvent.Snackbar -> {
-                    val base = context.getString(ev.messageRes)
-                    val dbg = ev.debugMessage?.takeIf { it.isNotBlank() }
-                    val msg = if (dbg == null) base else "$base $dbg"
-                    scope.launch { snackbarHostState.showSnackbar(msg) }
+                    val base = resources.getString(ev.messageRes)
+                    scope.launch { snackbarHostState.showSnackbar(base) }
                 }
             }
         }
@@ -182,7 +225,6 @@ fun PatientDetailRoute(
         onDeleteStudy = { sid -> vm.deleteStudy(sid) },
         snackbarHostState = snackbarHostState
     )
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -202,13 +244,12 @@ private fun PatientDetailScreen(
     snackbarHostState: SnackbarHostState
 ) {
     // If you already use collectAsStateWithLifecycle in the project, feel free to swap.
-    val uiState by uiStateFlow.collectAsState(initial = PatientDetailUiState.Loading)
+    val uiState by uiStateFlow.collectAsStateWithLifecycle(initialValue = PatientDetailUiState.Loading)
 
     var tab by rememberSaveable { mutableStateOf(PatientTab.Overview) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -234,6 +275,7 @@ private fun PatientDetailScreen(
             // New Study is the primary creation action: explicit & visible.
             androidx.compose.material3.FloatingActionButton(
                 onClick = { onNewStudy(patientId) },
+                modifier = Modifier.testTag("patient_detail_new_study_fab"),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
@@ -272,7 +314,7 @@ private fun PatientDetailScreen(
                         lastUpdateMillis = content.lastUpdateMillis,
                         onCopyId = { copied ->
                             val msgRes = if (copied) R.string.patient_msg_copied else R.string.patient_msg_copy_failed
-                            scope.launch { snackbarHostState.showSnackbar(context.getString(msgRes)) }
+                            scope.launch { snackbarHostState.showSnackbar(resources.getString(msgRes)) }
                         },
 
                         onOpenLastStudy = {
@@ -391,6 +433,7 @@ private fun PatientHeaderCard(
     hasAnyStudy: Boolean
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val copiedLabel = stringResource(R.string.patient_action_copy_id)
 
     Surface(
         modifier = Modifier
@@ -439,7 +482,7 @@ private fun PatientHeaderCard(
 
                 FilledTonalIconButton(
                     onClick = {
-                        val ok = copyToClipboard(context, label = context.getString(R.string.patient_action_copy_id), value = patientId)
+                        val ok = copyToClipboard(context, label = copiedLabel, value = patientId)
                         onCopyId(ok)
                     }
                 ) {
@@ -453,7 +496,9 @@ private fun PatientHeaderCard(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
                     onClick = onOpenLastStudy,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("patient_detail_open_last_study_button"),
                     enabled = hasAnyStudy,
                     shape = RoundedCornerShape(14.dp)
                 ) {
@@ -485,9 +530,16 @@ private fun PatientTabSelector(
             .padding(horizontal = 16.dp)
     ) {
         tabs.forEachIndexed { index, tab ->
+            val tag = when (tab) {
+                PatientTab.Overview -> "patient_tab_overview"
+                PatientTab.Studies -> "patient_tab_studies"
+                PatientTab.Trends -> "patient_tab_trends"
+                PatientTab.Reports -> "patient_tab_reports"
+            }
             SegmentedButton(
                 selected = selected == tab,
                 onClick = { onSelected(tab) },
+                modifier = Modifier.testTag(tag),
                 shape = SegmentedButtonDefaults.itemShape(index, tabs.size)
             ) {
                 Text(
@@ -607,7 +659,9 @@ private fun EmptyStudiesCard() {
 @Composable
 private fun SummaryRow(row: SummaryRowUi, onPrimaryContainer: Boolean) {
     val label = androidx.compose.ui.res.stringResource(row.labelRes)
-    val valueText = formatNullableNumber(row.value, row.decimals)
+    val valueText = row.textValue
+        ?: row.textRes?.let { androidx.compose.ui.res.stringResource(it) }
+        ?: formatNullableNumber(row.value, row.decimals)
     val unit = row.unitRes?.let { androidx.compose.ui.res.stringResource(it) }
 
     val color = if (onPrimaryContainer) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
@@ -678,6 +732,7 @@ private fun StudiesTab(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .testTag("patient_studies_list")
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(bottom = 90.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -691,6 +746,7 @@ private fun StudiesTab(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("study_item_${s.studyId}")
                         .clickable { onOpenStudy(s.studyId) }
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -881,7 +937,8 @@ private fun SectionTitle(@StringRes titleRes: Int) {
 @Composable
 private fun TrendChartCard(series: TrendSeriesUi) {
     val metricName = androidx.compose.ui.res.stringResource(series.metric.labelRes)
-    val unit = series.metric.unitRes?.let { androidx.compose.ui.res.stringResource(it) }
+    val unit = (series.unitResOverride ?: series.metric.unitRes)
+        ?.let { androidx.compose.ui.res.stringResource(it) }
 
     Surface(
         shape = CardShape,
@@ -961,8 +1018,9 @@ private fun ReportsTab(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(top = 6.dp),
+            .padding(top = 6.dp, bottom = 90.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Surface(
@@ -989,7 +1047,9 @@ private fun ReportsTab(
                 } else {
                     FilledTonalButton(
                         onClick = onExportLatest,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("patient_reports_export_latest_button"),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text(androidx.compose.ui.res.stringResource(R.string.patient_reports_latest_pdf))
@@ -997,7 +1057,9 @@ private fun ReportsTab(
 
                     OutlinedButton(
                         onClick = { showSelectSheet = true },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("patient_reports_export_selected_button"),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text(androidx.compose.ui.res.stringResource(R.string.patient_reports_select_study_pdf))
@@ -1005,7 +1067,9 @@ private fun ReportsTab(
 
                     OutlinedButton(
                         onClick = onExportLongitudinal,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("patient_reports_export_longitudinal_button"),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Text(androidx.compose.ui.res.stringResource(R.string.patient_reports_longitudinal_pdf))
@@ -1044,7 +1108,14 @@ private fun ReportStudyPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .testTag("patient_reports_select_study_sheet"),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             Text(
                 text = androidx.compose.ui.res.stringResource(R.string.patient_reports_select_study_title),
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
@@ -1061,6 +1132,7 @@ private fun ReportStudyPickerSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("patient_reports_select_study_${s.studyId}")
                         .clickable { onSelect(s.studyId) }
                         .padding(vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1083,7 +1155,10 @@ private fun ReportStudyPickerSheet(
             Spacer(Modifier.height(6.dp))
 
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDismiss) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag("patient_reports_select_study_cancel_button")
+                ) {
                     Text(androidx.compose.ui.res.stringResource(R.string.common_cancel))
                 }
             }
@@ -1180,7 +1255,13 @@ private fun TrendLineChart(points: List<TrendPointUi>) {
 private fun copyToClipboard(context: Context, label: String, value: String): Boolean {
     return runCatching {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText(label, value))
+        val clip = ClipData.newPlainText(label, value)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+            }
+        }
+        cm.setPrimaryClip(clip)
         true
     }.getOrDefault(false)
 }

@@ -235,7 +235,7 @@ private fun SectionHeader(@StringRes textRes: Int) {
 private fun <T> SegmentedEnumRow(
     items: List<T>,
     selected: T,
-    @StringRes labelRes: (T) -> Int,
+    labelRes: (T) -> Int,
     onSelected: (T) -> Unit
 ) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {

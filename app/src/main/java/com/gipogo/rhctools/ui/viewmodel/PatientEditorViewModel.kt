@@ -1,11 +1,12 @@
 package com.gipogo.rhctools.ui.viewmodel
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.gipogo.rhctools.core.result.DataError
 import com.gipogo.rhctools.core.result.DataResult
+import com.gipogo.rhctools.domain.PatientPhysicalConstraints
+import com.gipogo.rhctools.domain.toClinicalDoubleOrNull
 import com.gipogo.rhctools.data.patients.PatientsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -129,13 +130,8 @@ class PatientEditorViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
-        val weightKg = s.weightKgText.trim().takeIf { it.isNotBlank() }?.toDoubleOrNull()
-        val heightCm = s.heightCmText.trim().takeIf { it.isNotBlank() }?.toDoubleOrNull()
-
-        Log.d(
-            "PAT_SAVE",
-            "patientId=${s.patientId} dobMillis=${s.birthDateMillis} w=$weightKg h=$heightCm tags=${s.tagKeys}"
-        )
+        val weightKg = s.weightKgText.takeIf { it.isNotBlank() }?.toClinicalDoubleOrNull()
+        val heightCm = s.heightCmText.takeIf { it.isNotBlank() }?.toClinicalDoubleOrNull()
 
         if (s.weightKgText.isNotBlank() && weightKg == null) {
             _state.update { it.copy(error = DataError.Validation("weightKg", "InvalidNumber")) }
@@ -145,11 +141,17 @@ class PatientEditorViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(error = DataError.Validation("heightCm", "InvalidNumber")) }
             return
         }
-        if (weightKg != null && (weightKg <= 0.0 || weightKg > 500.0)) {
+        if (weightKg != null && (
+                weightKg < PatientPhysicalConstraints.WEIGHT_MIN_KG ||
+                    weightKg > PatientPhysicalConstraints.WEIGHT_MAX_KG
+            )) {
             _state.update { it.copy(error = DataError.Validation("weightKg", "OutOfRange")) }
             return
         }
-        if (heightCm != null && (heightCm <= 0.0 || heightCm > 300.0)) {
+        if (heightCm != null && (
+                heightCm < PatientPhysicalConstraints.HEIGHT_MIN_CM ||
+                    heightCm > PatientPhysicalConstraints.HEIGHT_MAX_CM
+            )) {
             _state.update { it.copy(error = DataError.Validation("heightCm", "OutOfRange")) }
             return
         }

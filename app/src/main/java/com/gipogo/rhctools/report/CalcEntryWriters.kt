@@ -369,7 +369,7 @@ object CalcEntryWriters {
         // Inputs (strings UI)
         saO2Text: String,
         svO2Text: String,
-        hbText: String,
+        hemoglobinGdl: Double,
         hrText: String,
 
         // Auditables (valores ya calculados/normalizados)
@@ -389,7 +389,13 @@ object CalcEntryWriters {
         val inputs = listOf(
             LineItem(key = SharedKeys.SAO2_PERCENT, label = "SaO₂", value = saO2Text, unit = "%", detail = "Arterial oxygen saturation"),
             LineItem(key = SharedKeys.SVO2_PERCENT, label = "SvO₂", value = svO2Text, unit = "%", detail = "Mixed venous oxygen saturation"),
-            LineItem(key = SharedKeys.HB_GDL, label = "Hb", value = hbText, unit = "g/dL", detail = "Hemoglobin"),
+            LineItem(
+                key = SharedKeys.HB_GDL,
+                label = "Hb",
+                value = hemoglobinGdl.takeIf { it.isFinite() && it > 0.0 }?.let { Format.d(it, 2) } ?: "",
+                unit = "g/dL",
+                detail = "Hemoglobin (canonical)"
+            ),
             LineItem(key = SharedKeys.HR_BPM, label = "HR", value = hrText, unit = "bpm", detail = "Heart rate"),
 
             LineItem(

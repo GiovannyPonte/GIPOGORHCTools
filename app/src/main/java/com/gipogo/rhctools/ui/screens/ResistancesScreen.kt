@@ -21,7 +21,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,14 +65,15 @@ fun ResistancesScreen(
     onPrevCalc: () -> Unit,
     vm: ResistancesViewModel
 ) {
-    val state by vm.state.collectAsState()
+    val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val reportTitle = stringResource(R.string.svr_report_title)
 
     val scrollState = rememberScrollState()
 
-    val entries by ReportStore.entries.collectAsState()
-    val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsState()
+    val entries by ReportStore.entries.collectAsStateWithLifecycle()
+    val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsStateWithLifecycle()
 
     var submitted by rememberSaveable { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
@@ -340,7 +341,7 @@ fun ResistancesScreen(
 
         CalcEntryWriters.upsertSvr(
             timestampMillis = System.currentTimeMillis(),
-            title = context.getString(R.string.svr_report_title),
+            title = reportTitle,
             mapText = state.map,
             cvpText = state.cvp,
             coText = state.co,

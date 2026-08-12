@@ -221,10 +221,12 @@ private fun ForresterTrajectoryChartWithAxes(
         val yTitleLayout = tm.measure(yAxisTitle, axisTitleStyle)
         val maxYTickLayout = tm.measure(ciRange.endInclusive.roundToInt().toString(), tickStyle)
 
-        val leftInset = max(12f, maxYTickLayout.size.width.toFloat() + yTitleLayout.size.height.toFloat() + 16f)
+        val leftInset = max(12f, maxYTickLayout.size.width.toFloat() + 18f)
         val rightInset = 12f
-        val topInset = 12f
-        val bottomInset = max(12f, xTitleLayout.size.height.toFloat() + 22f)
+        // Reservar bandas exclusivas para los títulos evita que se monten sobre
+        // las etiquetas 5.0 del eje Y y 20/30 del eje X en pantallas estrechas.
+        val topInset = max(12f, yTitleLayout.size.height.toFloat() + 16f)
+        val bottomInset = max(12f, xTitleLayout.size.height.toFloat() + 34f)
 
         val left = leftInset
         val top = topInset
@@ -305,7 +307,7 @@ private fun ForresterTrajectoryChartWithAxes(
         val xTitleX = (left + plotW / 2f) - (xTitleLayout.size.width / 2f)
         val xTitleY = h - xTitleLayout.size.height - 2f
         drawText(tm, xAxisTitle, Offset(xTitleX.coerceIn(2f, w - xTitleLayout.size.width - 2f), xTitleY.coerceAtLeast(bottom + 18f)), axisTitleStyle)
-        drawText(tm, yAxisTitle, Offset(2f, 2f), axisTitleStyle)
+        drawText(tm, yAxisTitle, Offset(left, 2f), axisTitleStyle)
 
         // Threshold labels (optional; they’re light)
         val xTh = "PCWP = ${pcwpThreshold.roundToInt()}"

@@ -149,7 +149,7 @@ private fun TrendsMetricCard(
     val refLabel = if (ref != null) metricRefLabel(series.metric, refText) else ""
 
     val metricName = stringResource(series.metric.labelRes)
-    val unit = series.metric.unitRes?.let { stringResource(it) }.orEmpty()
+    val unit = (series.unitResOverride ?: series.metric.unitRes)?.let { stringResource(it) }.orEmpty()
     val title = listOfNotNull(metricName, unit.takeIf { it.isNotBlank() }).joinToString(separator = " ")
 
     Card(
@@ -429,12 +429,12 @@ private fun metricBetterWhenLower(metric: TrendMetric): Boolean = when (metric) 
 }
 
 private fun metricReference(metric: TrendMetric): Double? = when (metric) {
-    TrendMetric.MPAP -> 25.0
+    TrendMetric.MPAP -> 20.0
     TrendMetric.PCWP -> 18.0
     TrendMetric.RAP -> 8.0
     TrendMetric.CI -> 2.2
     TrendMetric.CPO -> 0.6
-    TrendMetric.PVR -> 3.0
+    TrendMetric.PVR -> 2.0
 }
 
 private fun metricClinicalRange(metric: TrendMetric): Pair<Double, Double> = when (metric) {
@@ -477,12 +477,12 @@ private fun rememberNumberFormat(decimals: Int): NumberFormat {
 private fun metricYAxisTicks(metric: TrendMetric, min: Double, max: Double): List<Double> {
     val mid = (min + max) / 2.0
     return when (metric) {
-        TrendMetric.MPAP -> listOf(0.0, 25.0, 50.0).filter { it in min..max }
+        TrendMetric.MPAP -> listOf(0.0, 20.0, 50.0).filter { it in min..max }
         TrendMetric.PCWP -> listOf(0.0, 18.0, 40.0).filter { it in min..max }
         TrendMetric.RAP -> listOf(0.0, 8.0, 20.0).filter { it in min..max }
         TrendMetric.CI -> listOf(0.0, 2.2, 5.0).filter { it in min..max }
         TrendMetric.CPO -> listOf(0.0, 0.6, 1.5).filter { it in min..max }
-        TrendMetric.PVR -> listOf(0.0, 3.0, 10.0).filter { it in min..max }
+        TrendMetric.PVR -> listOf(0.0, 2.0, 10.0).filter { it in min..max }
     }.ifEmpty { listOf(min, mid, max) }
 }
 

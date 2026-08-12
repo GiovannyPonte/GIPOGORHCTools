@@ -6,14 +6,12 @@ import androidx.core.content.FileProvider
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.dao.PatientDao
 import com.gipogo.rhctools.data.db.dao.RhcStudyDao
-import com.gipogo.rhctools.reporting.builder.LongitudinalReportBuilder
-import com.gipogo.rhctools.reporting.compose.ReportPage
-import com.gipogo.rhctools.reporting.render.ComposeA4Renderer
+import com.gipogo.rhctools.report.PdfLongitudinalReportGenerator
+import com.gipogo.rhctools.reporting.model.displaySelectedCo
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import android.graphics.pdf.PdfDocument
 
 object LongitudinalComposePdfExporter {
 
@@ -33,55 +31,56 @@ object LongitudinalComposePdfExporter {
         context: Context,
         patientId: String,
         patientDao: PatientDao,
-        rhcStudyDao: RhcStudyDao
+        rhcStudyDao: RhcStudyDao,
+        onProgress: ((current: Int, total: Int) -> Unit)? = null
     ): ExportResult {
-
-        // 1) Build UI model from Room
-        val document = LongitudinalReportBuilder.buildFromRoom(
-            context = context,
-            patientId = patientId,
-            patientDao = patientDao,
-            rhcStudyDao = rhcStudyDao
-        )
-
-        if (document.pages.isEmpty()) {
+        val studies = rhcStudyDao.listStudiesWithRhcDataByPatient(patientId).first()
+            .sortedBy { it.study.startedAtMillis }
+        if (studies.isEmpty()) {
             throw IllegalStateException(context.getString(R.string.patient_reports_no_studies))
         }
 
-        // 2) Output file
+        val patient = runCatching { patientDao.getById(patientId) }.getOrNull()
+        val patientDisplayName = patient?.displayName?.takeIf { it.isNotBlank() }
+            ?: patient?.internalCode?.takeIf { it.isNotBlank() }
+            ?: patientId
+
+        val rows = studies.map { studyWithData ->
+            val rhc = studyWithData.rhc
+            val selectedCo = rhc.displaySelectedCo()
+
+            PdfLongitudinalReportGenerator.StudyRow(
+                studyId = studyWithData.study.id,
+                studyAtMillis = studyWithData.study.startedAtMillis,
+                ciLMinM2 = selectedCo.cardiacIndexLMinM2,
+                coLMin = selectedCo.cardiacOutputLMin,
+                pvrWu = rhc?.pvrWood,
+                svrWu = rhc?.svrWood,
+                rapMmHg = rhc?.rapMmHg,
+                mpapMmHg = rhc?.mpapMmHg,
+                pcwpMmHg = rhc?.pawpMmHg,
+                cpoW = rhc?.cardiacPowerW
+            )
+        }
+
         val outDir = File(context.cacheDir, "pdf_reports").apply { mkdirs() }
         val file = File(outDir, "RHC_LONG_COMPOSE_${patientId}_${System.currentTimeMillis()}.pdf")
+        val totalPages = estimatePageCount(rows.size)
 
-        // 3) Stream PDF writing on IO, but each Compose render must happen on Main
-        val pdf = PdfDocument()
-        try {
-            for (i in document.pages.indices) {
-                // Render 1 page bitmap (Main thread inside renderer)
-                val bmp = ComposeA4Renderer.renderPageToBitmap(
+        withContext(Dispatchers.IO) {
+            file.outputStream().use { output ->
+                PdfLongitudinalReportGenerator.writeLongitudinalPdf(
                     context = context,
-                    widthPx = ComposeA4Renderer.A4_WIDTH_PX_300,
-                    heightPx = ComposeA4Renderer.A4_HEIGHT_PX_300
-                ) {
-                    ReportPage(page = document.pages[i])
-                }
-
-                // Write that bitmap as one PDF page (IO)
-                withContext(Dispatchers.IO) {
-                    val pageInfo = PdfDocument.PageInfo.Builder(bmp.width, bmp.height, i + 1).create()
-                    val page = pdf.startPage(pageInfo)
-                    page.canvas.drawBitmap(bmp, 0f, 0f, null)
-                    pdf.finishPage(page)
-                }
-
-                // Free memory immediately
-                bmp.recycle()
+                    outputStream = output,
+                    appName = context.getString(R.string.pdf_app_name),
+                    patientDisplayName = patientDisplayName,
+                    createdAtMillis = System.currentTimeMillis(),
+                    studies = rows,
+                    onPageWritten = { current, total ->
+                        onProgress?.invoke(current, total)
+                    }
+                )
             }
-
-            withContext(Dispatchers.IO) {
-                FileOutputStream(file).use { out -> pdf.writeTo(out) }
-            }
-        } finally {
-            pdf.close()
         }
 
         val uri = FileProvider.getUriForFile(
@@ -90,6 +89,16 @@ object LongitudinalComposePdfExporter {
             file
         )
 
-        return ExportResult(file = file, uri = uri, pageCount = document.pages.size)
+        onProgress?.invoke(totalPages, totalPages)
+
+        return ExportResult(file = file, uri = uri, pageCount = totalPages)
+    }
+
+    private fun estimatePageCount(studyCount: Int): Int {
+        if (studyCount <= 0) return 0
+
+        val coverPages = if (studyCount >= 2) 1 else 0
+        val trendPages = if (studyCount >= 2) 2 else 0
+        return coverPages + studyCount + trendPages
     }
 }

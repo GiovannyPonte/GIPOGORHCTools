@@ -2,9 +2,11 @@ package com.gipogo.rhctools.ui.screens
 
 import android.content.Context
 import android.content.ContextWrapper
-import android.util.Log
+import android.os.SystemClock
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
@@ -43,17 +44,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,9 +66,8 @@ import com.gipogo.rhctools.R
 import com.gipogo.rhctools.ui.components.GipogoTopBar
 import com.gipogo.rhctools.ui.security.AuthSessionManager
 import com.gipogo.rhctools.ui.security.BiometricGate
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-private const val TAG_HOME_AUTH = "HOME_AUTH"
 
 private val CardShape = RoundedCornerShape(28.dp)
 private val IconTileShape = RoundedCornerShape(12.dp)
@@ -152,42 +154,43 @@ fun HomeScreen(
     // Seguridad
     requireAuthForPatients: Boolean = true,
     requireAuthForLastPatient: Boolean = true,
-    authSessionTimeoutMs: Long = 3 * 60 * 1000L,
 ) {
     val t = rememberHomeTokens()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
 
     // “Sesión” simple: timestamp del último éxito
 
     val context = LocalContext.current
+    val sessionTimeoutMs = AuthSessionManager.sessionTimeoutMs
+    var nowMillis by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
 
-    fun hasValidSession(now: Long = System.currentTimeMillis()): Boolean {
+    LaunchedEffect(sessionTimeoutMs) {
+        while (true) {
+            nowMillis = SystemClock.elapsedRealtime()
+            delay(1_000L)
+        }
+    }
+
+    fun hasValidSession(now: Long = SystemClock.elapsedRealtime()): Boolean {
         return AuthSessionManager.isSessionValid(now)
     }
 
 
     fun showSnack(resId: Int) {
-        scope.launch { snackbarHostState.showSnackbar(context.getString(resId)) }
+        scope.launch { snackbarHostState.showSnackbar(resources.getString(resId)) }
     }
 
     fun requestAuth(titleRes: Int, subtitleRes: Int, onSuccess: () -> Unit) {
-        Log.e(TAG_HOME_AUTH, "requestAuth() -> start")
-
-        // ✅ NO cachear activity fuera: resolver aquí siempre
-        val (act, trace) = context.findFragmentActivityWithTrace()
-
-        Log.e(TAG_HOME_AUTH, "LocalContext=${context::class.java.name}")
-        Log.e(TAG_HOME_AUTH, "ContextWrapper chain:\n$trace")
-        Log.e(TAG_HOME_AUTH, "FragmentActivity found=${act?.javaClass?.name}")
+        // No cachear la Activity: resolverla al solicitar el prompt.
+        val act = context.findFragmentActivity()
 
         if (act == null) {
-            Log.e(TAG_HOME_AUTH, "activity == null (cannot show BiometricPrompt)")
             showSnack(R.string.auth_unavailable_unknown)
             return
         }
 
-        Log.e(TAG_HOME_AUTH, "calling BiometricGate.authenticate()")
         BiometricGate.authenticate(
             activity = act,
             titleRes = titleRes,
@@ -201,23 +204,14 @@ fun HomeScreen(
 
 
                     is BiometricGate.AuthResult.Canceled -> {
-                        Log.e(TAG_HOME_AUTH, "Auth CANCELED")
                         // Cancelación voluntaria: no hacemos nada
                     }
 
                     is BiometricGate.AuthResult.NotAvailable -> {
-                        Log.e(
-                            TAG_HOME_AUTH,
-                            "Auth NOT_AVAILABLE reason=${result.reason} msgRes=${result.messageRes}"
-                        )
                         showSnack(result.messageRes)
                     }
 
                     is BiometricGate.AuthResult.Error -> {
-                        Log.e(
-                            TAG_HOME_AUTH,
-                            "Auth ERROR code=${result.code} msgRes=${result.messageRes}"
-                        )
                         showSnack(result.messageRes)
                     }
                 }
@@ -231,15 +225,13 @@ fun HomeScreen(
         containerColor = t.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            // ✅ Respeta barra de estado del teléfono
-            Column(modifier = Modifier.statusBarsPadding()) {
-                GipogoTopBar(
-                    title = stringResource(R.string.home_topbar_title),
-                    subtitle = stringResource(R.string.home_topbar_subtitle),
-                    rightGlyph = "👤",
-                    onRightClick = { onOpenProfile?.invoke() }
-                )
-            }
+            GipogoTopBar(
+                title = stringResource(R.string.home_topbar_title),
+                subtitle = stringResource(R.string.home_topbar_subtitle),
+                rightGlyph = "👤",
+                onRightClick = { onOpenProfile?.invoke() },
+                rightContentDescription = stringResource(R.string.common_profile)
+            )
         },
         bottomBar = {
             if (showBottomNav) {
@@ -258,6 +250,7 @@ fun HomeScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(top = 10.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -267,13 +260,11 @@ fun HomeScreen(
                 tokens = t,
                 enabled = true,
                 onClick = {
-                    Log.e("HOME_777", "Open Patients CLICKED")
-
                     if (!requireAuthForPatients) {
                         onOpenPatients()
                         return@PatientsPrimaryCard
                     }
-                    if (hasValidSession()) {
+                    if (hasValidSession(nowMillis)) {
                         onOpenPatients()
                     } else {
                         requestAuth(
@@ -289,7 +280,7 @@ fun HomeScreen(
             LastPatientQuickAccessCard(
                 tokens = t,
                 lastPatient = lastPatient,
-                isSessionUnlocked = hasValidSession(),
+                isSessionUnlocked = hasValidSession(nowMillis),
                 enabled = lastPatient != null,
                 onOpenLocked = {
                     if (lastPatient == null) return@LastPatientQuickAccessCard
@@ -377,7 +368,8 @@ private fun PatientsPrimaryCard(
                 enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
+                    .height(54.dp)
+                    .testTag("home_open_patients_button"),
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = tokens.primary,
@@ -709,23 +701,4 @@ private fun Context.findFragmentActivity(): FragmentActivity? {
         ctx = ctx.baseContext
     }
     return null
-}
-
-/** Igual que findFragmentActivity(), pero con traza para logs. */
-private fun Context.findFragmentActivityWithTrace(): Pair<FragmentActivity?, String> {
-    val sb = StringBuilder()
-    var ctx: Context? = this
-    var depth = 0
-    while (ctx is ContextWrapper) {
-        sb.append("[").append(depth).append("] ").append(ctx::class.java.name).append("\n")
-        if (ctx is FragmentActivity) return (ctx to sb.toString())
-        ctx = ctx.baseContext
-        depth++
-        if (depth > 25) break
-    }
-    if (ctx != null) {
-        sb.append("[").append(depth).append("] ").append(ctx::class.java.name).append("\n")
-        if (ctx is FragmentActivity) return (ctx to sb.toString())
-    }
-    return (null to sb.toString())
 }

@@ -23,7 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,13 +70,14 @@ fun PvrScreen(
     onPrevCalc: () -> Unit,
     vm: PvrViewModel
 ) {
-    val state by vm.state.collectAsState()
+    val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val reportTitle = stringResource(R.string.pvr_report_title)
 
-    val entries by ReportStore.entries.collectAsState()
-    val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsState()
+    val entries by ReportStore.entries.collectAsStateWithLifecycle()
+    val resetTick by com.gipogo.rhctools.reset.AppResetBus.tick.collectAsStateWithLifecycle()
 
     var submitted by rememberSaveable { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
@@ -399,7 +400,7 @@ fun PvrScreen(
 
         CalcEntryWriters.upsertPvr(
             timestampMillis = System.currentTimeMillis(),
-            title = context.getString(R.string.pvr_report_title),
+            title = reportTitle,
             mpapText = state.mpap,
             pawpText = state.pawp,
             coText = state.co,

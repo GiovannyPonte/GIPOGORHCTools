@@ -10,4 +10,3 @@ object Format {
         return String.format(Locale.US, "%.${decimals}f", rounded)
     }
 }
-

@@ -47,4 +47,3 @@ object NumericParsing {
         return s.toDoubleOrNull()
     }
 }
-

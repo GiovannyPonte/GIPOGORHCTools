@@ -2,6 +2,7 @@ package com.gipogo.rhctools.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.gipogo.rhctools.domain.HemodynamicsFormulas
+import com.gipogo.rhctools.domain.ClinicalUnitNormalizer
 import com.gipogo.rhctools.util.Format
 import com.gipogo.rhctools.util.Parse
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +49,9 @@ class FickViewModel : ViewModel() {
 
         // Derived + output
         val bsa: Double? = null,
+        val weightKg: Double? = null,
+        val heightCm: Double? = null,
+        val hemoglobinGdl: Double? = null,
         val vo2UsedMlMin: Double? = null,
         val vo2FactorUsedMlMinM2: Double? = null,
 
@@ -89,7 +93,7 @@ class FickViewModel : ViewModel() {
     fun toggleHbUnit() {
         val current = state.value.hb
         val unit = state.value.hbUnit
-        val parsed = current.toDoubleOrNull()
+        val parsed = Parse.toDoubleOrNull(current)
 
         val nextUnit = if (unit == HbUnit.G_DL) HbUnit.G_L else HbUnit.G_DL
 
@@ -107,7 +111,7 @@ class FickViewModel : ViewModel() {
         val current = state.value.height
         val currentUnit = state.value.heightUnit
 
-        val parsed = current.toDoubleOrNull()
+        val parsed = Parse.toDoubleOrNull(current)
         val nextUnit = when (currentUnit) {
             HeightUnit.CM -> HeightUnit.IN
             HeightUnit.IN -> HeightUnit.M
@@ -139,6 +143,9 @@ class FickViewModel : ViewModel() {
                 strokeVolumeMlBeat = null,
 
                 bsa = null,
+                weightKg = null,
+                heightCm = null,
+                hemoglobinGdl = null,
                 vo2UsedMlMin = null,
                 vo2FactorUsedMlMinM2 = null,
                 caO2_mlDl = null,
@@ -149,10 +156,10 @@ class FickViewModel : ViewModel() {
     }
 
     // -------- conversions --------
-    private fun kgToLb(kg: Double) = kg / 0.45359237
-    private fun lbToKg(lb: Double) = lb * 0.45359237
-    private fun cmToIn(cm: Double) = cm / 2.54
-    private fun inToCm(`in`: Double) = `in` * 2.54
+    private fun kgToLb(kg: Double) = ClinicalUnitNormalizer.weightFromKg(kg, ClinicalUnitNormalizer.WeightUnit.LB)
+    private fun lbToKg(lb: Double) = ClinicalUnitNormalizer.weightToKg(lb, ClinicalUnitNormalizer.WeightUnit.LB)
+    private fun cmToIn(cm: Double) = ClinicalUnitNormalizer.heightFromCm(cm, ClinicalUnitNormalizer.HeightUnit.IN)
+    private fun inToCm(`in`: Double) = ClinicalUnitNormalizer.heightToCm(`in`, ClinicalUnitNormalizer.HeightUnit.IN)
 
     private fun toKg(value: Double, unit: WeightUnit) =
         if (unit == WeightUnit.KG) value else lbToKg(value)
@@ -161,7 +168,7 @@ class FickViewModel : ViewModel() {
         when (unit) {
             HeightUnit.CM -> value
             HeightUnit.IN -> inToCm(value)
-            HeightUnit.M -> value * 100.0
+            HeightUnit.M -> ClinicalUnitNormalizer.heightToCm(value, ClinicalUnitNormalizer.HeightUnit.M)
         }
 
 
@@ -208,10 +215,11 @@ class FickViewModel : ViewModel() {
         }
 
         // Hb: convertir a g/dL si el usuario está en g/L
-        val hb_gDl = when (_state.value.hbUnit) {
-            HbUnit.G_DL -> hbRaw
-            HbUnit.G_L -> hbRaw / 10.0
-        }
+        val hb_gDl = ClinicalUnitNormalizer.hemoglobinToGdl(
+            hbRaw,
+            if (_state.value.hbUnit == HbUnit.G_L) ClinicalUnitNormalizer.HemoglobinUnit.G_L
+            else ClinicalUnitNormalizer.HemoglobinUnit.G_DL
+        )
         if (hb_gDl <= 0.0) {
             fail("Hb debe ser > 0.")
             return
@@ -288,6 +296,9 @@ class FickViewModel : ViewModel() {
         _state.update {
             it.copy(
                 bsa = bsa,
+                weightKg = wKg,
+                heightCm = hCm,
+                hemoglobinGdl = hb_gDl,
                 vo2UsedMlMin = vo2Used,
                 vo2FactorUsedMlMinM2 = if (_state.value.useMeasuredVo2) null else factor,
 

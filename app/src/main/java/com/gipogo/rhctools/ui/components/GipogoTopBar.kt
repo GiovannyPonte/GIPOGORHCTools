@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ fun GipogoTopBar(
     // ✅ acción derecha (ej: perfil)
     rightGlyph: String? = null,
     onRightClick: (() -> Unit)? = null,
+    rightContentDescription: String? = null,
 
     // ✅ branding
     showBrand: Boolean = true,
@@ -66,6 +70,7 @@ fun GipogoTopBar(
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .drawBehind {
                 drawLine(
                     color = border,
@@ -97,6 +102,7 @@ fun GipogoTopBar(
                                 .clip(CircleShape)
                                 .background(cs.surface)
                                 .gipogoBorder(1.dp, border, dashed = false, radiusDp = 999.dp)
+                                .semantics { contentDescription = backCd }
                                 .noRippleClickable { onBack?.invoke() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -172,7 +178,15 @@ fun GipogoTopBar(
                         .clip(CircleShape)
                         .background(cs.surface)
                         .gipogoBorder(1.dp, border, dashed = false, radiusDp = 999.dp)
-                        .noRippleClickable { onRightClick?.invoke() },
+                        .semantics {
+                            if (rightContentDescription != null) {
+                                contentDescription = rightContentDescription
+                            }
+                        }
+                        .then(
+                            if (onRightClick != null) Modifier.noRippleClickable(onRightClick)
+                            else Modifier
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(text = rightGlyph, color = muted, fontWeight = FontWeight.Bold)

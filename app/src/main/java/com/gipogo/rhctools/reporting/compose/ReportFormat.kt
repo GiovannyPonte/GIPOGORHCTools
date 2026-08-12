@@ -24,4 +24,3 @@ object ReportFormat {
 
     fun na(context: Context): String = context.getString(R.string.common_value_na)
 }
-

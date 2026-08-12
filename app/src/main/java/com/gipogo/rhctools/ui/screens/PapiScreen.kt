@@ -20,7 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,13 +67,14 @@ fun PapiScreen(
     onPrevCalc: () -> Unit,
     vm: PapiViewModel
 ) {
-    val state by vm.state.collectAsState()
+    val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
+    val reportTitle = stringResource(R.string.papi_report_title)
 
     // ✅ reactivo para que al venir de SVR aparezca el botón
-    val entries by ReportStore.entries.collectAsState()
+    val entries by ReportStore.entries.collectAsStateWithLifecycle()
 
     // CVP disponible (mmHg) si SVR lo guardó con SharedKeys.CVP_MMHG
     val cvpFromStore = remember(entries) {
@@ -290,7 +291,7 @@ fun PapiScreen(
 
         CalcEntryWriters.upsertPapi(
             timestampMillis = System.currentTimeMillis(),
-            title = context.getString(R.string.papi_report_title),
+            title = reportTitle,
             paspText = state.pasp,
             padpText = state.padp,
             rapText = state.rap,

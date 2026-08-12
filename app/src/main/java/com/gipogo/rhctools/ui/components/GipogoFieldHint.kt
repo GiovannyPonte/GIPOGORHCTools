@@ -34,4 +34,3 @@ fun GipogoFieldHint(
             .padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 2.dp)
     )
 }
-
