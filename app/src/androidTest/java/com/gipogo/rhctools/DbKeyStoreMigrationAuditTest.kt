@@ -14,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -149,6 +150,46 @@ class DbKeyStoreMigrationAuditTest {
         assertEquals(originalHash, sha256(databaseFile.readBytes()))
     }
 
+    @Test
+    fun explicitConfirmedResetDeletesUnreadableDatabaseAndCreatesUsableEmptyDatabase() = runBlocking {
+        val db = AppDatabase.getInstance(context)
+        val now = System.currentTimeMillis()
+        db.patientDao().insert(
+            PatientEntity(
+                id = UUID.randomUUID().toString(),
+                internalCode = "KEY-MISMATCH-AUDIT",
+                displayName = "Paciente irrecuperable",
+                createdAtMillis = now,
+                updatedAtMillis = now
+            )
+        )
+        AppDatabase.clearInstance()
+
+        val databaseFile = context.getDatabasePath("gipogo_rhc_tools.db")
+        val lockedHash = sha256(databaseFile.readBytes())
+
+        // Conserva el archivo cifrado, pero sustituye la clave: reproduce DB-ENC-KEY-01.
+        DbKeyStore.clear(context)
+        DbKeyStore.getOrCreatePassphraseText(context, mayReplaceUnusableMaterial = true)
+        val failure = DbProvider.getResult(context)
+
+        assertTrue(failure is DbProvider.DbOpenResult.Failure)
+        assertEquals("DB-ENC-KEY-01", (failure as DbProvider.DbOpenResult.Failure).diagnostic.code)
+        assertEquals(lockedHash, sha256(databaseFile.readBytes()))
+
+        // Solo esta llamada representa la confirmación destructiva del usuario.
+        val fresh = DbProvider.permanentlyDeleteUnreadableDatabaseAndStartFresh(context)
+        assertTrue(fresh.db.openHelper.writableDatabase.isOpen)
+        assertNull(fresh.db.patientDao().getByInternalCode("KEY-MISMATCH-AUDIT"))
+        assertTrue(databaseFile.exists())
+        assertNotEquals(lockedHash, sha256(databaseFile.readBytes()))
+        assertTrue(
+            databaseFile.parentFile.orEmpty().listFiles().orEmpty().none {
+                it.name.startsWith(databaseFile.name + ".locked_")
+            }
+        )
+    }
+
     private fun sha256(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256")
             .digest(bytes)
@@ -159,6 +200,9 @@ class DbKeyStoreMigrationAuditTest {
         context.deleteDatabase("gipogo_rhc_tools.db")
         DbKeyStore.clear(context)
     }
+
+    private fun java.io.File?.orEmpty(): java.io.File =
+        this ?: error("Database directory is unavailable")
 
     private companion object {
         const val LEGACY_PREFS_NAME = "db_crypto_prefs"

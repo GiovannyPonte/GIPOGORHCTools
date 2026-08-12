@@ -67,7 +67,13 @@ fun PatientsScreen(
         PatientsDbErrorScreen(
             diagnostic = dbResult.diagnostic,
             onBack = onBack,
-            onRetry = { dbRetryNonce++ }
+            onRetry = { dbRetryNonce++ },
+            onDeleteAndStartFresh = {
+                runCatching {
+                    DbProvider.permanentlyDeleteUnreadableDatabaseAndStartFresh(appCtx)
+                    dbRetryNonce++
+                }
+            }
         )
         return
     }
@@ -223,7 +229,8 @@ fun PatientsScreen(
 private fun PatientsDbErrorScreen(
     diagnostic: DatabaseErrorDiagnostic,
     onBack: (() -> Unit)?,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onDeleteAndStartFresh: () -> Result<Unit>
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -249,7 +256,8 @@ private fun PatientsDbErrorScreen(
             diagnostic = diagnostic,
             modifier = Modifier.padding(padding).fillMaxSize(),
             onRetry = onRetry,
-            onBack = onBack
+            onBack = onBack,
+            onDeleteAndStartFresh = onDeleteAndStartFresh
         )
     }
 }

@@ -132,7 +132,15 @@ private fun StudyDetailRouteContent(
                 com.gipogo.rhctools.data.db.AppDatabase.clearInstance()
                 dbRetryNonce++
             },
-            onBack = onBack
+            onBack = onBack,
+            onDeleteAndStartFresh = {
+                runCatching {
+                    DbProvider.permanentlyDeleteUnreadableDatabaseAndStartFresh(
+                        context.applicationContext
+                    )
+                    onBack()
+                }
+            }
         )
         return
     }
@@ -177,7 +185,8 @@ private fun StudyDetailRouteContent(
 private fun StudyDetailDbErrorScreen(
     diagnostic: com.gipogo.rhctools.data.db.DatabaseErrorDiagnostic,
     onRetry: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDeleteAndStartFresh: () -> Result<Unit>
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -197,7 +206,8 @@ private fun StudyDetailDbErrorScreen(
             diagnostic = diagnostic,
             modifier = Modifier.padding(padding),
             onRetry = onRetry,
-            onBack = onBack
+            onBack = onBack,
+            onDeleteAndStartFresh = onDeleteAndStartFresh
         )
     }
 }

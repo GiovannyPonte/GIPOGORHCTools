@@ -182,7 +182,13 @@ private fun PatientDetailRouteContent(
                 AppDatabase.clearInstance()
                 dbRetryNonce++
             },
-            onBack = onBack
+            onBack = onBack,
+            onDeleteAndStartFresh = {
+                runCatching {
+                    DbProvider.permanentlyDeleteUnreadableDatabaseAndStartFresh(appCtx)
+                    onBack()
+                }
+            }
         )
         return
     }

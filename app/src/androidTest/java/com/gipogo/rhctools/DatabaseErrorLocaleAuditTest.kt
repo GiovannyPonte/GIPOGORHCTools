@@ -24,7 +24,12 @@ class DatabaseErrorLocaleAuditTest {
             R.string.db_error_storage_permission,
             R.string.db_error_storage_io,
             R.string.db_error_downgrade,
-            R.string.error_copy_details
+            R.string.error_copy_details,
+            R.string.db_delete_unreadable_action,
+            R.string.db_delete_unreadable_hint,
+            R.string.db_delete_unreadable_title,
+            R.string.db_delete_unreadable_confirmation,
+            R.string.db_delete_unreadable_confirm
         )
         val spanish = localizedStrings("es-MX", ids)
         val english = localizedStrings("en-US", ids)
