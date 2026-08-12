@@ -18,3 +18,25 @@ local.properties
 *.aab
 *.apk
 .idea/
+
+# Local Android, Gradle and Kotlin state
+/.android-user-home/
+/.gradle-user-home/
+/.kotlin/
+
+# Generated diagnostics and temporary artifacts
+/output/
+/tmp/
+/dumpsys-package.txt
+/*.log
+
+# Local credentials and signing material
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+.env
+.env.*
+
+# Optional project-local Codex scratch space
+/.codex-tmp/

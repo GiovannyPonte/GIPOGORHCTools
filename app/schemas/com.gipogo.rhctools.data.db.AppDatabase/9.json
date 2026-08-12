@@ -1,0 +1,512 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 9,
+    "identityHash": "62481bcbed1fa6d36b85dcc26dc4c7ee",
+    "entities": [
+      {
+        "tableName": "patients",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `internalCode` TEXT NOT NULL, `displayName` TEXT, `sex` TEXT, `birthDateMillis` INTEGER, `weightKg` REAL, `heightCm` REAL, `notes` TEXT, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "internalCode",
+            "columnName": "internalCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sex",
+            "columnName": "sex",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "birthDateMillis",
+            "columnName": "birthDateMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "heightCm",
+            "columnName": "heightCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_patients_internalCode",
+            "unique": true,
+            "columnNames": [
+              "internalCode"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_patients_internalCode` ON `${TABLE_NAME}` (`internalCode`)"
+          }
+        ]
+      },
+      {
+        "tableName": "studies",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `patientId` TEXT NOT NULL, `type` TEXT NOT NULL, `startedAtMillis` INTEGER NOT NULL, `endedAtMillis` INTEGER, `notes` TEXT, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`patientId`) REFERENCES `patients`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "patientId",
+            "columnName": "patientId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAtMillis",
+            "columnName": "startedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAtMillis",
+            "columnName": "endedAtMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_studies_patientId",
+            "unique": false,
+            "columnNames": [
+              "patientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_studies_patientId` ON `${TABLE_NAME}` (`patientId`)"
+          },
+          {
+            "name": "index_studies_startedAtMillis",
+            "unique": false,
+            "columnNames": [
+              "startedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_studies_startedAtMillis` ON `${TABLE_NAME}` (`startedAtMillis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "patients",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "patientId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "patient_tags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`patientId` TEXT NOT NULL, `tagKey` TEXT NOT NULL, PRIMARY KEY(`patientId`, `tagKey`), FOREIGN KEY(`patientId`) REFERENCES `patients`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tagKey`) REFERENCES `tags`(`key`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "patientId",
+            "columnName": "patientId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagKey",
+            "columnName": "tagKey",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "patientId",
+            "tagKey"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_patient_tags_patientId",
+            "unique": false,
+            "columnNames": [
+              "patientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_tags_patientId` ON `${TABLE_NAME}` (`patientId`)"
+          },
+          {
+            "name": "index_patient_tags_tagKey",
+            "unique": false,
+            "columnNames": [
+              "tagKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_patient_tags_tagKey` ON `${TABLE_NAME}` (`tagKey`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "patients",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "patientId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "tags",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tagKey"
+            ],
+            "referencedColumns": [
+              "key"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "rhc_study_data",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `studyId` TEXT NOT NULL, `weightKg` REAL, `heightCm` REAL, `bsaM2` REAL, `saO2Percent` REAL, `svO2Percent` REAL, `hemoglobinGdl` REAL, `heartRateBpm` REAL, `vo2MlMin` REAL, `vo2Mode` TEXT, `mapMmHg` REAL, `rapMmHg` REAL, `paspMmHg` REAL, `padpMmHg` REAL, `mpapMmHg` REAL, `pawpMmHg` REAL, `cardiacOutputLMin` REAL, `cardiacIndexLMinM2` REAL, `cardiacOutputFickLMin` REAL, `cardiacIndexFickLMinM2` REAL, `cardiacOutputTdLMin` REAL, `cardiacIndexTdLMinM2` REAL, `cardiacOutputSelectedLMin` REAL, `cardiacIndexSelectedLMinM2` REAL, `coSelectedMethod` TEXT, `coSelectionReason` TEXT, `svrWood` REAL, `svrDyn` REAL, `pvrWood` REAL, `pvrDyn` REAL, `papi` REAL, `cardiacPowerW` REAL, `cardiacPowerIndexWm2` REAL, `svrUnits` TEXT, `pvrUnits` TEXT, `coMethod` TEXT, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`studyId`) REFERENCES `studies`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "studyId",
+            "columnName": "studyId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "heightCm",
+            "columnName": "heightCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "bsaM2",
+            "columnName": "bsaM2",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "saO2Percent",
+            "columnName": "saO2Percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "svO2Percent",
+            "columnName": "svO2Percent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "hemoglobinGdl",
+            "columnName": "hemoglobinGdl",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "heartRateBpm",
+            "columnName": "heartRateBpm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "vo2MlMin",
+            "columnName": "vo2MlMin",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "vo2Mode",
+            "columnName": "vo2Mode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mapMmHg",
+            "columnName": "mapMmHg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "rapMmHg",
+            "columnName": "rapMmHg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "paspMmHg",
+            "columnName": "paspMmHg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "padpMmHg",
+            "columnName": "padpMmHg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "mpapMmHg",
+            "columnName": "mpapMmHg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pawpMmHg",
+            "columnName": "pawpMmHg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacOutputLMin",
+            "columnName": "cardiacOutputLMin",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacIndexLMinM2",
+            "columnName": "cardiacIndexLMinM2",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacOutputFickLMin",
+            "columnName": "cardiacOutputFickLMin",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacIndexFickLMinM2",
+            "columnName": "cardiacIndexFickLMinM2",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacOutputTdLMin",
+            "columnName": "cardiacOutputTdLMin",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacIndexTdLMinM2",
+            "columnName": "cardiacIndexTdLMinM2",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacOutputSelectedLMin",
+            "columnName": "cardiacOutputSelectedLMin",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacIndexSelectedLMinM2",
+            "columnName": "cardiacIndexSelectedLMinM2",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "coSelectedMethod",
+            "columnName": "coSelectedMethod",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coSelectionReason",
+            "columnName": "coSelectionReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "svrWood",
+            "columnName": "svrWood",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "svrDyn",
+            "columnName": "svrDyn",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pvrWood",
+            "columnName": "pvrWood",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pvrDyn",
+            "columnName": "pvrDyn",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "papi",
+            "columnName": "papi",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacPowerW",
+            "columnName": "cardiacPowerW",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "cardiacPowerIndexWm2",
+            "columnName": "cardiacPowerIndexWm2",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "svrUnits",
+            "columnName": "svrUnits",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pvrUnits",
+            "columnName": "pvrUnits",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coMethod",
+            "columnName": "coMethod",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_rhc_study_data_studyId",
+            "unique": true,
+            "columnNames": [
+              "studyId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_rhc_study_data_studyId` ON `${TABLE_NAME}` (`studyId`)"
+          },
+          {
+            "name": "index_rhc_study_data_updatedAtMillis",
+            "unique": false,
+            "columnNames": [
+              "updatedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_rhc_study_data_updatedAtMillis` ON `${TABLE_NAME}` (`updatedAtMillis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "studies",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "studyId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '62481bcbed1fa6d36b85dcc26dc4c7ee')"
+    ]
+  }
+}
