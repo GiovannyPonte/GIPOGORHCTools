@@ -116,13 +116,19 @@ object StudyClinicalPdfExport {
             "RHC_${patientId}_${selected.study.startedAtMillis}_${styleSuffix}_${studyId.take(8)}.pdf"
         )
 
-        file.outputStream().use { output ->
-            StudyClinicalPdfGenerator.writePdf(
-                context = context,
-                outputStream = output,
-                document = document,
-                format = format
-            )
+        val partial = File(outDir, "${file.name}.part")
+        runCatching {
+            partial.outputStream().buffered().use { output ->
+                StudyClinicalPdfGenerator.writePdf(context, output, document, format)
+            }
+            check(partial.length() > 4L && partial.inputStream().use { input ->
+                ByteArray(4).also(input::read).contentEquals("%PDF".toByteArray())
+            }) { "Invalid PDF output" }
+            if (file.exists() && !file.delete()) error("Unable to replace previous report")
+            check(partial.renameTo(file)) { "Unable to publish completed report" }
+        }.onFailure {
+            partial.delete()
+            throw it
         }
 
         val uri = FileProvider.getUriForFile(
@@ -152,7 +158,18 @@ internal data class StudyClinicalPdfDocument(
     val interpretationBullets: List<String>,
     val comparisonRows: List<StudyClinicalComparisonRow>,
     val studyNote: String?,
-    val limitations: List<String>
+    val limitations: List<String>,
+    val pressureChart: List<StudyClinicalChartPoint> = emptyList(),
+    val performanceChart: List<StudyClinicalChartPoint> = emptyList()
+)
+
+internal data class StudyClinicalChartPoint(
+    val label: String,
+    val unit: String,
+    val current: Double?,
+    val previous: Double?,
+    val axisMax: Double,
+    val reference: Double?
 )
 
 internal data class StudyClinicalQuickReadRow(
@@ -246,7 +263,8 @@ private object StudyClinicalPdfDocumentBuilder {
             add(metricRow(context.getString(R.string.study_out_dpg), dpg, 0, context.getString(R.string.common_unit_mmhg)))
         }
 
-        val quickRead = buildQuickRead(context, rhc, displayPvr.value)
+        val pvrWood = rhc?.pvrWood
+        val quickRead = buildQuickRead(context, rhc, pvrWood)
         val executiveSummary = quickRead.joinToString(separator = " · ") { "${it.label}: ${it.value}" }
 
         val keyMetrics = listOfNotNull(
@@ -255,7 +273,7 @@ private object StudyClinicalPdfDocumentBuilder {
             metricChip(context.getString(R.string.rhc_label_pcwp_short), rhc?.pawpMmHg, 0, context.getString(R.string.common_unit_mmhg), highlightHigh = (rhc?.pawpMmHg ?: 0.0) > 15.0),
             metricChip(context.getString(R.string.home_badge_co), selectedCo.cardiacOutputLMin, 2, context.getString(R.string.common_unit_lmin), highlightLow = selectedCo.cardiacOutputLMin?.let { it < 4.0 } == true),
             metricChip(context.getString(R.string.rhc_label_ci_short), selectedCo.cardiacIndexLMinM2, 1, context.getString(R.string.common_unit_lmin_m2), highlightLow = selectedCo.cardiacIndexLMinM2?.let { it < 2.2 } == true),
-            metricChip(context.getString(R.string.home_badge_pvr), displayPvr.value, if (displayPvr.unitRes == R.string.common_unit_dynes) 0 else 1, displayPvr.unitRes?.let(context::getString), highlightHigh = displayPvr.value?.let { it > 2.0 } == true),
+            metricChip(context.getString(R.string.home_badge_pvr), displayPvr.value, if (displayPvr.unitRes == R.string.common_unit_dynes) 0 else 1, displayPvr.unitRes?.let(context::getString), highlightHigh = pvrWood?.let { it > 2.0 } == true),
             metricChip(context.getString(R.string.fick_label_svo2_short), rhc?.svO2Percent, 0, context.getString(R.string.unit_percent), highlightLow = rhc?.svO2Percent?.let { it < 60.0 } == true),
             metricChip(context.getString(R.string.home_badge_cpo), rhc?.cardiacPowerW, 2, context.getString(R.string.common_unit_w), highlightLow = rhc?.cardiacPowerW?.let { it < 0.8 } == true)
         )
@@ -308,7 +326,17 @@ private object StudyClinicalPdfDocumentBuilder {
             interpretationBullets = buildInterpretationBullets(context, rhc, quickRead),
             comparisonRows = buildComparisonRows(context, selected.rhc, previous?.rhc),
             studyNote = selected.study.notes?.trim()?.takeIf { it.isNotBlank() },
-            limitations = buildLimitations(context, rhc)
+            limitations = buildLimitations(context, rhc),
+            pressureChart = listOf(
+                StudyClinicalChartPoint("RAP", "mmHg", rhc?.rapMmHg, previous?.rhc?.rapMmHg, 25.0, 8.0),
+                StudyClinicalChartPoint("mPAP", "mmHg", rhc?.mpapMmHg, previous?.rhc?.mpapMmHg, 60.0, 20.0),
+                StudyClinicalChartPoint("PCWP", "mmHg", rhc?.pawpMmHg, previous?.rhc?.pawpMmHg, 35.0, 15.0)
+            ),
+            performanceChart = listOf(
+                StudyClinicalChartPoint("CI", "L/min/m2", selectedCo.cardiacIndexLMinM2, previous?.rhc.displaySelectedCo().cardiacIndexLMinM2, 5.0, 2.2),
+                StudyClinicalChartPoint("PVR", "WU", pvrWood, previous?.rhc?.pvrWood, 8.0, 2.0),
+                StudyClinicalChartPoint("CPO", "W", rhc?.cardiacPowerW, previous?.rhc?.cardiacPowerW, 2.0, 0.8)
+            )
         )
     }
 
@@ -405,7 +433,7 @@ private object StudyClinicalPdfDocumentBuilder {
             comparisonRow(context.getString(R.string.pvr_help_mpap_title), current?.mpapMmHg, previous.mpapMmHg, 0, context.getString(R.string.common_unit_mmhg)),
             comparisonRow(context.getString(R.string.rhc_label_pcwp_short), current?.pawpMmHg, previous.pawpMmHg, 0, context.getString(R.string.common_unit_mmhg)),
             comparisonRow(context.getString(R.string.rhc_label_ci_short), currentCo.cardiacIndexLMinM2, previousCo.cardiacIndexLMinM2, 1, context.getString(R.string.common_unit_lmin_m2)),
-            comparisonRow(context.getString(R.string.home_badge_pvr), current.displayPvr().value, previous.displayPvr().value, 1, context.getString(R.string.common_unit_wu_short)),
+            comparisonRow(context.getString(R.string.home_badge_pvr), current?.pvrWood, previous.pvrWood, 1, context.getString(R.string.common_unit_wu_short)),
             comparisonRow(context.getString(R.string.home_badge_cpo), current?.cardiacPowerW, previous.cardiacPowerW, 2, context.getString(R.string.common_unit_w))
         )
     }
@@ -419,7 +447,7 @@ private object StudyClinicalPdfDocumentBuilder {
         if (rhc?.mpapMmHg == null) missing += context.getString(R.string.pvr_help_mpap_title)
         if (rhc?.pawpMmHg == null) missing += context.getString(R.string.rhc_label_pcwp_short)
         if (rhc.displaySelectedCo().cardiacIndexLMinM2 == null) missing += context.getString(R.string.rhc_label_ci_short)
-        if (rhc.displayPvr().value == null) missing += context.getString(R.string.home_badge_pvr)
+        if (rhc?.pvrWood == null) missing += context.getString(R.string.home_badge_pvr)
         if (rhc?.svO2Percent == null) missing += context.getString(R.string.fick_label_svo2_short)
 
         if (missing.isEmpty()) return emptyList()
@@ -530,7 +558,7 @@ private object StudyClinicalPdfDocumentBuilder {
     }
 }
 
-internal object StudyClinicalPdfGenerator {
+private object LegacyStudyClinicalPdfGenerator {
 
     fun writePdf(
         context: Context,
