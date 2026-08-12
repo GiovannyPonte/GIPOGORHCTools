@@ -1063,6 +1063,12 @@
     <string name="app_update_downloaded_body">The new version was downloaded from Google Play. Restart the app to finish installing it.</string>
     <string name="app_update_downloaded_confirm">Restart now</string>
     <string name="app_update_downloaded_later">Later</string>
+    <string name="settings_updates_title">Updates</string>
+    <string name="settings_updates_description">Check whether a newer version is available on Google Play.</string>
+    <string name="settings_check_updates">Check for updates</string>
+    <string name="app_update_up_to_date">The app is up to date.</string>
+    <string name="app_update_not_allowed">Google Play found an update, but it cannot be installed on this device yet.</string>
+    <string name="app_update_check_failed">Google Play could not be reached. Check the connection and make sure the app was installed from the Play Store.</string>
 
     <string name="study_input_pa_systolic">Pulmonary artery systolic pressure (PASP)</string>
     <string name="study_input_pa_diastolic">Pulmonary artery diastolic pressure (PADP)</string>

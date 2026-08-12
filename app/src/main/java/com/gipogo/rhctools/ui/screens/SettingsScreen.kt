@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,6 +29,7 @@ import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.AppPreferences
 import com.gipogo.rhctools.domain.AppLanguage
 import com.gipogo.rhctools.ui.components.GipogoTopBar
+import com.gipogo.rhctools.ui.update.AppUpdateHost
 import kotlinx.coroutines.launch
 
 @Composable
@@ -73,6 +76,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                     )
                     Text(stringResource(labelRes))
                 }
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.settings_updates_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_updates_description), style = MaterialTheme.typography.bodyMedium)
+            Button(
+                onClick = { (context as? AppUpdateHost)?.checkForAppUpdateManually() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = context is AppUpdateHost
+            ) {
+                Text(stringResource(R.string.settings_check_updates))
             }
         }
     }
