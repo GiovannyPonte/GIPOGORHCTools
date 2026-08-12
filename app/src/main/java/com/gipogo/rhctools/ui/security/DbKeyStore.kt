@@ -44,8 +44,30 @@ object DbKeyStore {
     fun getOrCreatePassphraseBytes(context: Context): ByteArray =
         getOrCreatePassphraseBase64(context).toByteArray(StandardCharsets.UTF_8)
 
-    fun getOrCreatePassphraseText(context: Context): String =
-        getOrCreatePassphraseBase64(context)
+    /**
+     * Indica si existe material persistido capaz de recuperar la passphrase.
+     * No crea claves ni intenta descifrar, por lo que puede usarse antes de
+     * invocar SQLCipher para detectar una restauración incompleta con seguridad.
+     */
+    fun hasStoredPassphraseMaterial(context: Context): Boolean {
+        val appContext = context.applicationContext
+        val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val hasV2Material = prefs.contains(KEY_CIPHERTEXT_B64) || prefs.contains(KEY_IV_B64)
+        val legacyFile = File(appContext.applicationInfo.dataDir, "shared_prefs/$LEGACY_PREFS_NAME.xml")
+        return hasV2Material || legacyFile.exists()
+    }
+
+    fun getOrCreatePassphraseText(
+        context: Context,
+        mayReplaceUnusableMaterial: Boolean = false,
+        allowCreationIfMissing: Boolean = true
+    ): String = try {
+        getOrCreatePassphraseBase64(context, allowCreationIfMissing)
+    } catch (error: DbKeyStoreException) {
+        if (!mayReplaceUnusableMaterial) throw error
+        clear(context)
+        getOrCreatePassphraseBase64(context, allowCreationIfMissing = true)
+    }
 
     @Synchronized
     fun clear(context: Context) {
@@ -65,7 +87,10 @@ object DbKeyStore {
     }
 
     @Synchronized
-    private fun getOrCreatePassphraseBase64(context: Context): String {
+    private fun getOrCreatePassphraseBase64(
+        context: Context,
+        allowCreationIfMissing: Boolean = true
+    ): String {
         val appContext = context.applicationContext
 
         try {
@@ -88,8 +113,14 @@ object DbKeyStore {
                 return decryptPassphrase(ciphertextB64, ivB64, wrappingKey)
             }
 
-            val passphrase = readLegacyPassphraseOrNull(appContext)
-                ?: generatePassphrase()
+            val legacyPassphrase = readLegacyPassphraseOrNull(appContext)
+            if (legacyPassphrase == null && !allowCreationIfMissing) {
+                throw DbKeyStoreException(
+                    "Falta una passphrase recuperable para la base clínica existente; " +
+                        "no se generó otra para evitar pérdida de datos"
+                )
+            }
+            val passphrase = legacyPassphrase ?: generatePassphrase()
             validatePassphrase(passphrase)
 
             val wrappingKey = existingWrappingKey() ?: createWrappingKey()

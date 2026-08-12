@@ -18,6 +18,8 @@ import com.gipogo.rhctools.data.db.entities.TagEntity
 import com.gipogo.rhctools.data.security.DbEncryptionMigrator
 import com.gipogo.rhctools.data.security.DbKeyStore
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import java.io.File
+import java.nio.charset.StandardCharsets
 
 @Database(
     entities = [
@@ -83,33 +85,29 @@ abstract class AppDatabase : RoomDatabase() {
                     val appContext = context.applicationContext
 
                     val dbFile = appContext.getDatabasePath(DB_NAME)
-                    val dbBuilder = Room.databaseBuilder(
-                        appContext,
-                        AppDatabase::class.java,
-                        DB_NAME
+                    val mayReplaceUnusableKeyMaterial = mayReplaceUnusableKeyMaterial(dbFile)
+                    if (!mayReplaceUnusableKeyMaterial &&
+                        !DbKeyStore.hasStoredPassphraseMaterial(appContext)
+                    ) {
+                        throw com.gipogo.rhctools.data.security.DbKeyStoreException(
+                            "Existe una base clínica cifrada, pero falta el material protegido " +
+                                "necesario para abrirla; el archivo se conservó sin cambios"
+                        )
+                    }
+                    val passphraseText = DbKeyStore.getOrCreatePassphraseText(
+                        context = appContext,
+                        mayReplaceUnusableMaterial = mayReplaceUnusableKeyMaterial,
+                        allowCreationIfMissing = mayReplaceUnusableKeyMaterial
                     )
-                        .addMigrations(MIGRATION_8_9)
-                    val passphraseText = DbKeyStore.getOrCreatePassphraseText(appContext)
                     DbEncryptionMigrator.ensureEncrypted(
                         dbFile = dbFile,
                         passphraseText = passphraseText
                     )
 
-                    val factory = SupportOpenHelperFactory(
-                        DbKeyStore.getOrCreatePassphraseBytes(appContext)
+                    val instance = openDatabase(
+                        passphraseText = passphraseText,
+                        appContext = appContext
                     )
-                    val instance = dbBuilder
-                        .openHelperFactory(factory)
-                        .build()
-
-                    // Room opens lazily. Force verification here so callers get a
-                    // typed open failure instead of a later crash in a repository.
-                    try {
-                        instance.openHelper.writableDatabase
-                    } catch (error: Throwable) {
-                        instance.close()
-                        throw error
-                    }
 
                     instance.also { INSTANCE = it }
                 }
@@ -120,6 +118,41 @@ abstract class AppDatabase : RoomDatabase() {
             synchronized(this) {
                 INSTANCE?.close()
                 INSTANCE = null
+            }
+        }
+
+        private fun mayReplaceUnusableKeyMaterial(dbFile: File): Boolean {
+            val temp = File(dbFile.parentFile, dbFile.name + ".enc_tmp")
+            val backup = File(dbFile.parentFile, dbFile.name + ".bak_plain")
+            val protectedArtifactExists = listOf(dbFile, temp, backup).any { file ->
+                file.exists() && file.length() > 0L && !DbEncryptionMigrator.isPlaintextDatabase(file)
+            }
+            return !protectedArtifactExists
+        }
+
+        private fun openDatabase(
+            passphraseText: String,
+            appContext: Context
+        ): AppDatabase {
+            val factory = SupportOpenHelperFactory(
+                passphraseText.toByteArray(StandardCharsets.UTF_8)
+            )
+            val instance = Room.databaseBuilder(
+                appContext,
+                AppDatabase::class.java,
+                DB_NAME
+            )
+                .addMigrations(MIGRATION_8_9)
+                .openHelperFactory(factory)
+                .build()
+            try {
+                // Room opens lazily. Force validation here so the UI receives
+                // the real open failure instead of a later repository error.
+                instance.openHelper.writableDatabase
+                return instance
+            } catch (error: Throwable) {
+                instance.close()
+                throw error
             }
         }
     }

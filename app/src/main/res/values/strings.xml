@@ -614,6 +614,17 @@
     <string name="patient_overview_no_data">No hay datos hemodinámicos disponibles para el último estudio.</string>
     <string name="patient_error_invalid_id">ID de paciente inválido.</string>
     <string name="patient_error_generic">No se pudo cargar la información.</string>
+    <string name="db_error_key">No se pudo acceder a la clave protegida de la base de datos. Sus datos no se borraron.</string>
+    <string name="db_error_encryption">Falló la preparación o verificación del cifrado local. Sus datos no se borraron.</string>
+    <string name="db_error_schema">La estructura guardada no es compatible con esta versión. Se requiere una migración de datos.</string>
+    <string name="db_error_sql">El motor de base de datos rechazó la apertura o la consulta.</string>
+    <string name="db_error_storage">El almacenamiento local no está disponible o no se pudo escribir.</string>
+    <string name="db_error_native">El componente de cifrado no pudo cargarse en este dispositivo.</string>
+    <string name="db_error_open">No se pudo abrir la base de datos local. Sus datos no se borraron.</string>
+    <string name="error_reference">Referencia: %1$s</string>
+    <string name="error_technical_detail">Detalle técnico</string>
+    <string name="error_copy_details">Copiar diagnóstico</string>
+    <string name="error_details_copied">Diagnóstico copiado</string>
 
     <!-- Labels (short) -->
     <string name="rhc_label_pcwp_short">PCWP</string>
