@@ -10,9 +10,12 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.DbProvider
+import com.gipogo.rhctools.data.AppPreferences
 import com.gipogo.rhctools.data.db.dao.StudyWithRhcData
 import com.gipogo.rhctools.data.db.entities.RhcStudyDataEntity
 import com.gipogo.rhctools.domain.BirthDateCodec
+import com.gipogo.rhctools.domain.ClinicalUnitNormalizer
+import com.gipogo.rhctools.domain.UnitSystem
 import com.gipogo.rhctools.reporting.model.displayPvr
 import com.gipogo.rhctools.reporting.model.displaySelectedCo
 import com.gipogo.rhctools.reporting.model.displaySvr
@@ -96,9 +99,10 @@ object StudyClinicalPdfExport {
 
         val selected = studies[selectedIndex]
         val previous = studies.take(selectedIndex).lastOrNull()
-        val history = studies.take(selectedIndex + 1).takeLast(5)
+        val history = studies.take(selectedIndex + 1).takeLast(10)
 
         val patient = runCatching { patientDao.getById(patientId) }.getOrNull()
+        val unitSystem = AppPreferences(context.applicationContext).unitSystem.first()
         val patientDisplayName = patient?.displayName?.takeIf { it.isNotBlank() }
             ?: patient?.internalCode?.takeIf { it.isNotBlank() }
             ?: patientId
@@ -112,6 +116,7 @@ object StudyClinicalPdfExport {
             patientWeightKg = patient?.weightKg,
             patientHeightCm = patient?.heightCm,
             patientNote = patient?.notes,
+            unitSystem = unitSystem,
             selected = selected,
             previous = previous,
             history = history
@@ -178,6 +183,10 @@ internal data class StudyClinicalPdfDocument(
     val patientWeightKg: Double? = null,
     val patientHeightCm: Double? = null,
     val patientNote: String? = null,
+    val patientWeightDisplayValue: Double? = null,
+    val patientWeightDisplayUnit: String? = null,
+    val patientHeightDisplayValue: Double? = null,
+    val patientHeightDisplayUnit: String? = null,
     val forrester: StudyClinicalForrester? = null,
     val trendStudies: List<StudyClinicalTrendStudy> = emptyList()
 )
@@ -191,12 +200,30 @@ internal data class StudyClinicalForrester(
 
 internal data class StudyClinicalTrendStudy(
     val dateLabel: String,
+    val studyId: String,
+    val method: String?,
     val rap: Double?,
+    val pasp: Double?,
+    val padp: Double?,
     val mpap: Double?,
     val pcwp: Double?,
+    val map: Double?,
+    val co: Double?,
     val ci: Double?,
+    val sao2: Double?,
+    val svo2: Double?,
+    val hemoglobin: Double?,
     val pvr: Double?,
-    val cpo: Double?
+    val svr: Double?,
+    val cpo: Double?,
+    val papi: Double?,
+    val tpg: Double?,
+    val dpg: Double?,
+    val note: String?,
+    val pvrDisplayValue: Double? = pvr,
+    val pvrDisplayUnit: String = "WU",
+    val svrDisplayValue: Double? = svr,
+    val svrDisplayUnit: String = "WU"
 )
 
 internal data class StudyClinicalChartPoint(
@@ -254,6 +281,7 @@ private object StudyClinicalPdfDocumentBuilder {
         patientWeightKg: Double?,
         patientHeightCm: Double?,
         patientNote: String?,
+        unitSystem: UnitSystem,
         selected: StudyWithRhcData,
         previous: StudyWithRhcData?,
         history: List<StudyWithRhcData>
@@ -386,6 +414,14 @@ private object StudyClinicalPdfDocumentBuilder {
             patientWeightKg = patientWeightKg,
             patientHeightCm = patientHeightCm,
             patientNote = patientNote?.trim()?.takeIf { it.isNotBlank() },
+            patientWeightDisplayValue = patientWeightKg?.let { kg ->
+                if (unitSystem == UnitSystem.Imperial) ClinicalUnitNormalizer.weightFromKg(kg, ClinicalUnitNormalizer.WeightUnit.LB) else kg
+            },
+            patientWeightDisplayUnit = if (unitSystem == UnitSystem.Imperial) "lb" else "kg",
+            patientHeightDisplayValue = patientHeightCm?.let { cm ->
+                if (unitSystem == UnitSystem.Imperial) ClinicalUnitNormalizer.heightFromCm(cm, ClinicalUnitNormalizer.HeightUnit.IN) else cm
+            },
+            patientHeightDisplayUnit = if (unitSystem == UnitSystem.Imperial) "in" else "cm",
             forrester = StudyClinicalForrester(
                 currentCi = selectedCo.cardiacIndexLMinM2,
                 currentPcwp = rhc?.pawpMmHg,
@@ -396,12 +432,30 @@ private object StudyClinicalPdfDocumentBuilder {
                 val co = study.rhc.displaySelectedCo()
                 StudyClinicalTrendStudy(
                     dateLabel = SimpleDateFormat("dd/MM/yy", Locale.getDefault()).format(Date(study.study.startedAtMillis)),
+                    studyId = study.study.id,
+                    method = co.methodLabelRes?.let(context::getString),
                     rap = study.rhc?.rapMmHg,
+                    pasp = study.rhc?.paspMmHg,
+                    padp = study.rhc?.padpMmHg,
                     mpap = study.rhc?.mpapMmHg,
                     pcwp = study.rhc?.pawpMmHg,
+                    map = study.rhc?.mapMmHg,
+                    co = co.cardiacOutputLMin,
                     ci = co.cardiacIndexLMinM2,
+                    sao2 = study.rhc?.saO2Percent,
+                    svo2 = study.rhc?.svO2Percent,
+                    hemoglobin = study.rhc?.hemoglobinGdl,
                     pvr = study.rhc?.pvrWood,
-                    cpo = study.rhc?.cardiacPowerW
+                    svr = study.rhc?.svrWood,
+                    cpo = study.rhc?.cardiacPowerW,
+                    papi = study.rhc?.papi,
+                    tpg = calcDifference(study.rhc?.mpapMmHg, study.rhc?.pawpMmHg),
+                    dpg = calcDifference(study.rhc?.padpMmHg, study.rhc?.pawpMmHg),
+                    note = study.study.notes?.trim()?.takeIf { it.isNotBlank() },
+                    pvrDisplayValue = study.rhc.displayPvr().value,
+                    pvrDisplayUnit = study.rhc.displayPvr().unitRes?.let(context::getString) ?: "WU",
+                    svrDisplayValue = study.rhc.displaySvr().value,
+                    svrDisplayUnit = study.rhc.displaySvr().unitRes?.let(context::getString) ?: "WU"
                 )
             }
         )
