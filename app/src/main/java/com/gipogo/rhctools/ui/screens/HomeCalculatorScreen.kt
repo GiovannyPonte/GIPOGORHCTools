@@ -52,12 +52,14 @@ import androidx.navigation.NavController
 import com.gipogo.rhctools.R
 import com.gipogo.rhctools.data.db.AppDatabase
 import com.gipogo.rhctools.data.db.DbProvider
+import com.gipogo.rhctools.data.db.DatabaseErrorDiagnostic
 import com.gipogo.rhctools.report.PdfReportGenerator
 import com.gipogo.rhctools.report.PdfSession
 import com.gipogo.rhctools.report.ReportStore
 import com.gipogo.rhctools.report.SharedKeys
 import com.gipogo.rhctools.reset.AppResetBus
 import com.gipogo.rhctools.ui.components.GipogoTopBar
+import com.gipogo.rhctools.ui.components.DatabaseErrorDetails
 import com.gipogo.rhctools.ui.components.HomeToolCard
 import com.gipogo.rhctools.ui.components.LockedReportCard
 import com.gipogo.rhctools.ui.components.QuickPrepCard
@@ -95,7 +97,7 @@ fun HomeCalculatorScreen(
     // - Si Room falla (migración faltante), bloquea este screen de forma controlada.
     // - NO borra la DB automáticamente.
     // ------------------------------
-    var dbError by remember { mutableStateOf<Throwable?>(null) }
+    var dbError by remember { mutableStateOf<DatabaseErrorDiagnostic?>(null) }
     var dbReady by remember { mutableStateOf(false) }
     var dbInstance by remember { mutableStateOf<AppDatabase?>(null) }
 
@@ -110,7 +112,7 @@ fun HomeCalculatorScreen(
             }
             is DbProvider.DbOpenResult.Failure -> {
                 dbInstance = null
-                dbError = res.error
+                dbError = res.diagnostic
                 dbReady = false
             }
         }
@@ -118,8 +120,6 @@ fun HomeCalculatorScreen(
 
     // Si DB no abre, mostramos UI controlada y salimos early (no se ejecuta el resto).
     if (dbError != null) {
-        val err = dbError!!
-
         Scaffold(
             contentWindowInsets = WindowInsets.safeDrawing,
             topBar = {
@@ -134,46 +134,16 @@ fun HomeCalculatorScreen(
             },
             containerColor = MaterialTheme.colorScheme.background
         ) { padding ->
-            val cs = MaterialTheme.colorScheme
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.db_error_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = cs.onBackground
-                )
-
-                Text(
-                    text = stringResource(R.string.db_error_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = cs.onSurfaceVariant
-                )
-
-                Text(
-                    text = stringResource(R.string.db_error_support_code, databaseSupportCode(err)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = {
-                        // Reintentar apertura
-                        dbError = null
-                        dbReady = false
-                    }) {
-                        Text(stringResource(R.string.common_retry))
-                    }
-
-                    OutlinedButton(onClick = { navController.popBackStack() }) {
-                        Text(stringResource(R.string.common_back))
-                    }
-                }
-            }
+            DatabaseErrorDetails(
+                diagnostic = dbError!!,
+                modifier = Modifier.padding(padding),
+                onRetry = {
+                    AppDatabase.clearInstance()
+                    dbError = null
+                    dbReady = false
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         return
@@ -806,17 +776,6 @@ private fun isWorkshopCompleteForExit(): Boolean {
 private sealed interface ExitOperationResult {
     data object Success : ExitOperationResult
     data class Failure(val code: String) : ExitOperationResult
-}
-
-private fun databaseSupportCode(error: Throwable): String {
-    val names = generateSequence(error) { it.cause }.map { it.javaClass.simpleName }.toSet()
-    return when {
-        "DbKeyStoreException" in names -> "DB-KEY"
-        "DbEncryptionException" in names -> "DB-CRYPT"
-        names.any { it.contains("Migration", ignoreCase = true) } -> "DB-MIGRATION"
-        names.any { it.contains("SQLite", ignoreCase = true) } -> "DB-SQLITE"
-        else -> "DB-OPEN"
-    }
 }
 
 private suspend fun saveStudyAndExit(

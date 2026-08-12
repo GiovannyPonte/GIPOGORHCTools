@@ -1,6 +1,12 @@
 package com.gipogo.rhctools.data.db
 
 import android.database.sqlite.SQLiteException
+import android.database.sqlite.SQLiteAccessPermException
+import android.database.sqlite.SQLiteCantOpenDatabaseException
+import android.database.sqlite.SQLiteDatabaseCorruptException
+import android.database.sqlite.SQLiteDatabaseLockedException
+import android.database.sqlite.SQLiteDiskIOException
+import android.database.sqlite.SQLiteFullException
 import com.gipogo.rhctools.data.security.DbEncryptionException
 import com.gipogo.rhctools.data.security.DbEncryptionFailure
 import com.gipogo.rhctools.data.security.DbKeyStoreException
@@ -25,11 +31,23 @@ object DatabaseErrorDiagnostics {
         val code = when {
             encryption != null -> encryption.failure.errorCode
             causes.any { it is DbKeyStoreException || it is GeneralSecurityException } -> "DB-KEY-01"
+            causes.any { it is SQLiteDatabaseCorruptException } || causes.anyMessage("malformed", "corrupt") ->
+                "DB-CORRUPT-01"
+            causes.any { it is SQLiteFullException } || causes.anyMessage("database or disk is full", "disk full") ->
+                "DB-STORAGE-FULL-01"
+            causes.any { it is SQLiteAccessPermException } || causes.anyMessage("permission denied", "not authorized") ->
+                "DB-STORAGE-PERM-01"
+            causes.any { it is SQLiteDatabaseLockedException } || causes.anyMessage("database is locked", "database table is locked") ->
+                "DB-LOCKED-01"
+            causes.anyMessage("downgrade", "from a newer version") ||
+                causes.any { it.stackTrace.any { frame -> frame.methodName.equals("onDowngrade", ignoreCase = true) } } ->
+                "DB-SCHEMA-DOWNGRADE-01"
             causes.any { cause ->
                 cause.javaClass.name.contains("Migration", ignoreCase = true) ||
                     cause.message?.contains("migration", ignoreCase = true) == true ||
                     cause.message?.contains("schema", ignoreCase = true) == true
             } -> "DB-SCHEMA-01"
+            causes.any { it is SQLiteCantOpenDatabaseException || it is SQLiteDiskIOException } -> "DB-STORAGE-IO-01"
             causes.any { it is SQLiteException || it.javaClass.name.contains("SQLite", ignoreCase = true) } -> "DB-SQL-01"
             causes.any { it is IOException } -> "DB-STORAGE-01"
             causes.any { it is UnsatisfiedLinkError } -> "DB-NATIVE-01"
@@ -40,6 +58,8 @@ object DatabaseErrorDiagnostics {
             code.startsWith("DB-KEY") -> DatabaseErrorCategory.KEY
             code.startsWith("DB-ENC") -> DatabaseErrorCategory.ENCRYPTION
             code.startsWith("DB-SCHEMA") -> DatabaseErrorCategory.SCHEMA
+            code.startsWith("DB-CORRUPT") -> DatabaseErrorCategory.SQL
+            code.startsWith("DB-LOCKED") -> DatabaseErrorCategory.SQL
             code.startsWith("DB-SQL") -> DatabaseErrorCategory.SQL
             code.startsWith("DB-STORAGE") -> DatabaseErrorCategory.STORAGE
             code.startsWith("DB-NATIVE") -> DatabaseErrorCategory.NATIVE_COMPONENT
@@ -73,6 +93,11 @@ object DatabaseErrorDiagnostics {
             yield(current)
             current = current.cause
         }
+    }
+
+    private fun List<Throwable>.anyMessage(vararg fragments: String): Boolean = any { cause ->
+        val message = cause.message.orEmpty()
+        fragments.any { message.contains(it, ignoreCase = true) }
     }
 
     private val DbEncryptionFailure.errorCode: String

@@ -621,6 +621,12 @@
     <string name="db_error_storage">El almacenamiento local no está disponible o no se pudo escribir.</string>
     <string name="db_error_native">El componente de cifrado no pudo cargarse en este dispositivo.</string>
     <string name="db_error_open">No se pudo abrir la base de datos local. Sus datos no se borraron.</string>
+    <string name="db_error_corrupt">La base local parece dañada. Se conservó sin cambios; copie el diagnóstico antes de intentar una recuperación.</string>
+    <string name="db_error_locked">La base está siendo utilizada o quedó bloqueada temporalmente. Cierre otras instancias de la app y reintente.</string>
+    <string name="db_error_storage_full">No hay espacio suficiente para abrir o actualizar la base. Libere almacenamiento y reintente; sus datos no se borraron.</string>
+    <string name="db_error_storage_permission">Android denegó el acceso al almacenamiento privado de la app. Reinicie el dispositivo y copie el diagnóstico si persiste.</string>
+    <string name="db_error_storage_io">Android no pudo leer o escribir el almacenamiento local. Verifique el espacio disponible y el estado del dispositivo.</string>
+    <string name="db_error_downgrade">La base fue creada por una versión más nueva de la app. Instale esa versión o una posterior; no desinstale ni borre los datos.</string>
     <string name="error_reference">Referencia: %1$s</string>
     <string name="error_technical_detail">Detalle técnico</string>
     <string name="error_copy_details">Copiar diagnóstico</string>

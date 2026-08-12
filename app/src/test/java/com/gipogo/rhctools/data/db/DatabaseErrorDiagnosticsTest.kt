@@ -1,5 +1,7 @@
 package com.gipogo.rhctools.data.db
 
+import android.database.sqlite.SQLiteDatabaseCorruptException
+import android.database.sqlite.SQLiteFullException
 import com.gipogo.rhctools.data.security.DbEncryptionException
 import com.gipogo.rhctools.data.security.DbEncryptionFailure
 import com.gipogo.rhctools.data.security.DbKeyStoreException
@@ -47,6 +49,27 @@ class DatabaseErrorDiagnosticsTest {
         )
 
         assertEquals("DB-SCHEMA-01", diagnostic.code)
+        assertEquals(DatabaseErrorCategory.SCHEMA, diagnostic.category)
+    }
+
+    @Test
+    fun corruptionAndFullStorageHaveActionableStableCodes() {
+        assertEquals(
+            "DB-CORRUPT-01",
+            DatabaseErrorDiagnostics.from(SQLiteDatabaseCorruptException("database disk image is malformed")).code
+        )
+        assertEquals(
+            "DB-STORAGE-FULL-01",
+            DatabaseErrorDiagnostics.from(SQLiteFullException("database or disk is full")).code
+        )
+    }
+
+    @Test
+    fun downgradeIsDistinguishedFromGenericMigrationFailure() {
+        val diagnostic = DatabaseErrorDiagnostics.from(
+            IllegalStateException("Can't downgrade database from version 10 to 9")
+        )
+        assertEquals("DB-SCHEMA-DOWNGRADE-01", diagnostic.code)
         assertEquals(DatabaseErrorCategory.SCHEMA, diagnostic.category)
     }
 }
