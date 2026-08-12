@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -20,6 +21,7 @@ import org.junit.runner.RunWith
  * actualización firmada real. No contiene limpieza automática entre fases.
  */
 @RunWith(AndroidJUnit4::class)
+@Ignore("Manual two-APK audit: run phase 1 before, and phase 2 after, a signed upgrade")
 class SignedUpgradePersistenceAuditTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 

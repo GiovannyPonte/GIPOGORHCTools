@@ -4,8 +4,10 @@ import androidx.compose.ui.graphics.Color
 import com.gipogo.rhctools.R
 
 /**
- * Interpretación de Resistencia Vascular Sistémica (RVS/SVR).
- * Normal verde, baja amarilla, alta roja.
+ * Presentation thresholds for systemic vascular resistance (SVR).
+ *
+ * Wood-unit limits are derived from dyn·s/cm⁵ so screens and reports share the same clinical
+ * boundaries. Colors communicate low, expected, and high ranges; they are not diagnoses.
  */
 object SvrInterpretation {
 

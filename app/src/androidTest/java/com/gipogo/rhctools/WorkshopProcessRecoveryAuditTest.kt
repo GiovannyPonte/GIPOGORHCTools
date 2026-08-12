@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.test.core.app.ApplicationProvider
 import com.gipogo.rhctools.data.db.DbProvider
@@ -103,7 +104,7 @@ class WorkshopProcessRecoveryAuditTest {
         if (composeRule.onAllNodesWithTag("disclaimer_checkbox").fetchSemanticsNodes().isEmpty()) {
             return
         }
-        composeRule.onNodeWithTag("disclaimer_checkbox").performClick()
+        composeRule.onNodeWithTag("disclaimer_checkbox").performScrollTo().performClick()
         composeRule.onNodeWithTag("disclaimer_accept_button").performClick()
         composeRule.waitForIdle()
     }

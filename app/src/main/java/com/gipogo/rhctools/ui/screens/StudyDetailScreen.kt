@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PictureAsPdf
@@ -33,7 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
@@ -187,7 +187,7 @@ private fun StudyDetailDbErrorScreen(
                 title = { Text(text = stringResource(R.string.study_detail_title_rhc)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
                     }
                 }
             )
@@ -246,7 +246,7 @@ private fun StudyDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
                     }
                 },
                 actions = {
@@ -254,7 +254,7 @@ private fun StudyDetailScreen(
                         Icon(Icons.Outlined.MoreVert, contentDescription = null)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = contentColorFor(MaterialTheme.colorScheme.background)
                 )
@@ -425,7 +425,7 @@ private fun InputsCard(inputs: List<RowUi>) {
                     unitText = row.unitRes?.let { stringResource(it) }.orEmpty()
                 )
                 if (idx != inputs.lastIndex) {
-                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
                 }
             }
         }
@@ -448,7 +448,7 @@ private fun OutputsCard(outputs: List<RowUi>) {
                     unitText = row.unitRes?.let { stringResource(it) }.orEmpty()
                 )
                 if (idx != outputs.lastIndex) {
-                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
                 }
             }
         }

@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -242,7 +242,7 @@ private fun CoverPage(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
 
-                Divider(color = ReportColors.CardBorder)
+                HorizontalDivider(color = ReportColors.CardBorder)
 
                 RowKV(
                     label = stringResource(R.string.report_cover_period_label),
@@ -303,7 +303,7 @@ private fun TrendsPage(
                     color = ReportColors.Value,
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                 )
-                Divider(color = ReportColors.CardBorder)
+                HorizontalDivider(color = ReportColors.CardBorder)
 
                 // Charts (minimal placeholder rendering for now: we will implement actual chart composable in PASO 4.2)
                 // For now: list series names and last value so the page is deterministic and uses no hardcoded text.
@@ -323,7 +323,7 @@ private fun TrendsPage(
                         )
                     }
 
-                Divider(color = ReportColors.CardBorder)
+                HorizontalDivider(color = ReportColors.CardBorder)
             }
         }
     }

@@ -56,7 +56,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -382,7 +381,7 @@ private fun ZoomablePdfPagePan(
                 if (zoom > 1f) {
                     Modifier.pointerInput(zoom, stateKey) {
                         detectDragGestures { change, dragAmount ->
-                            change.consumeAllChanges()
+                            change.consume()
                             val (cx, cy) = clampOffsets(offsetX + dragAmount.x, offsetY + dragAmount.y)
                             offsetX = cx
                             offsetY = cy

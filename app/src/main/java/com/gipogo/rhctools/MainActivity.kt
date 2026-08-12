@@ -15,6 +15,12 @@ import com.gipogo.rhctools.workshop.WorkshopSession
 import com.gipogo.rhctools.workshop.persistence.WorkshopRhcAutosave
 import kotlinx.coroutines.launch
 
+/**
+ * Android entry point and owner of activity-scoped integrations.
+ *
+ * UI rendering is delegated to Compose. This activity only coordinates lifecycle-sensitive work:
+ * authentication setup, Play Store updates, and flushing an active study before backgrounding.
+ */
 class MainActivity : AppCompatActivity() {
     private val appUpdateLauncher =
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { }

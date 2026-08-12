@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -459,7 +459,7 @@ private fun PatientCard(
                     )
                     Spacer(Modifier.width(6.dp))
                     Icon(
-                        imageVector = Icons.Outlined.ArrowForwardIos,
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

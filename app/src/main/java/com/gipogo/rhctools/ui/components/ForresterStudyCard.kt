@@ -15,7 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Timeline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -165,7 +165,7 @@ fun ForresterStudyCard(
                 )
             }
 
-            Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.14f))
 
             // Values (from DB, no recalculation)
             MetricRow(
@@ -516,7 +516,7 @@ private fun ForresterClinicalNote(
                 color = cs.onSurfaceVariant
             )
 
-            Divider(color = cs.outline.copy(alpha = 0.14f))
+            HorizontalDivider(color = cs.outline.copy(alpha = 0.14f))
 
             Text(
                 text = considerationsTitle,
@@ -529,7 +529,7 @@ private fun ForresterClinicalNote(
                 color = cs.onSurfaceVariant
             )
 
-            Divider(color = cs.outline.copy(alpha = 0.14f))
+            HorizontalDivider(color = cs.outline.copy(alpha = 0.14f))
 
             Text(
                 text = measurementTitle,

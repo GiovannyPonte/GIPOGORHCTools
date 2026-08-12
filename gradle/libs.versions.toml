@@ -14,16 +14,10 @@ sqlcipher = "4.17.0"
 androidxSqlite = "2.6.2"
 securityCrypto = "1.1.0"
 playAppUpdate = "2.1.0"
-
-
-
-
-
-
-composeBom = "2025.12.00" # Compose December '25 stable :contentReference[oaicite:7]{index=7}
-coreKtx = "1.17.0"        # Core stable :contentReference[oaicite:8]{index=8}
-activity = "1.12.2"       # Activity stable :contentReference[oaicite:9]{index=9}
-lifecycle = "2.9.4"       # Lifecycle stable :contentReference[oaicite:10]{index=10}
+composeBom = "2025.12.00"
+coreKtx = "1.17.0"
+activity = "1.12.2"
+lifecycle = "2.9.4"
 navigation = "2.9.8"
 
 [libraries]
@@ -67,5 +61,5 @@ google-play-app-update-ktx = { module = "com.google.android.play:app-update-ktx"
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android       = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-compose       = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" } # :contentReference[oaicite:12]{index=12}
+kotlin-compose       = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

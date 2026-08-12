@@ -357,7 +357,7 @@ class FullCycleWorkflowAuditTest {
             .fetchSemanticsNodes().isNotEmpty()
         if (!disclaimerVisible) return
 
-        composeRule.onNodeWithTag("disclaimer_checkbox").performClick()
+        composeRule.onNodeWithTag("disclaimer_checkbox").performScrollTo().performClick()
         composeRule.onNodeWithTag("disclaimer_accept_button").performClick()
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithTag("disclaimer_accept_button").fetchSemanticsNodes().isEmpty()

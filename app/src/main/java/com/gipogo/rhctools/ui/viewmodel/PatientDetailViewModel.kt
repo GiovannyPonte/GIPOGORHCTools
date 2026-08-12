@@ -14,6 +14,7 @@ import com.gipogo.rhctools.reporting.model.displayPvr
 import com.gipogo.rhctools.reporting.model.displaySelectedCo
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -138,6 +139,7 @@ sealed interface PatientDetailEvent {
     ) : PatientDetailEvent
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PatientDetailViewModel(
     private val patientId: String,
     private val patientDao: PatientDao,
