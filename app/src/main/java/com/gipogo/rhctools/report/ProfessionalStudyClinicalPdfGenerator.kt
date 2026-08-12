@@ -397,15 +397,14 @@ internal object StudyClinicalPdfGenerator {
         }
 
         private fun signature(compact: Boolean = false) {
-            val needed = if (compact) 92f else 120f
+            val needed = if (compact) 74f else 88f
             room(needed)
             y += if (compact) 12f else 25f
-            canvas.drawLine(MARGIN, y + 35f, MARGIN + 220f, y + 35f, rule)
-            canvas.drawLine(PAGE_W - MARGIN - 190f, y + 35f, PAGE_W - MARGIN, y + 35f, rule)
-            canvas.drawText("Nombre del medico", MARGIN, y + 49f, small)
-            canvas.drawText("Firma", PAGE_W - MARGIN - 190f, y + 49f, small)
-            canvas.drawText("Cedula profesional: ____________________", MARGIN, y + 68f, small)
-            canvas.drawText("Fecha: ____________________", PAGE_W - MARGIN - 190f, y + 68f, small)
+            val lineLeft = MARGIN + 90f
+            val lineRight = PAGE_W - MARGIN - 90f
+            canvas.drawLine(lineLeft, y + 30f, lineRight, y + 30f, rule)
+            val label = "Nombre y firma del medico"
+            canvas.drawText(label, (PAGE_W - small.measureText(label)) / 2f, y + 45f, small)
             y += needed
         }
 

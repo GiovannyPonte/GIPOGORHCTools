@@ -384,8 +384,8 @@ private object StudyClinicalPdfDocumentBuilder {
     private fun formatBirthDateAndAge(storageMillis: Long): String? = runCatching {
         val birthDate = BirthDateCodec.fromStorageMillis(storageMillis)
         val age = Period.between(birthDate, LocalDate.now()).years.coerceAtLeast(0)
-        "%04d-%02d-%02d (%d años)".format(
-            Locale.getDefault(), birthDate.year, birthDate.monthValue, birthDate.dayOfMonth, age
+        "%02d/%02d/%04d (%d años)".format(
+            Locale.getDefault(), birthDate.dayOfMonth, birthDate.monthValue, birthDate.year, age
         )
     }.getOrNull()
 
